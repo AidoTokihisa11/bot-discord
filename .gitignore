@@ -1,0 +1,48 @@
+# Dépendances
+node_modules/
+package-lock.json
+
+# Variables d'environnement et configuration
+.env
+.env.local
+.env.production
+.env.development
+config.json
+config.local.json
+
+# Logs et données sensibles
+*.log
+logs/
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Fichiers de sauvegarde
+*.bak
+*.backup
+*.tmp
+*~
+
+# Fichiers de déploiement
+.vercel
+.netlify
+dist/
+build/
+
+# Clés et certificats
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Fichiers temporaires
+temp/
+tmp/
