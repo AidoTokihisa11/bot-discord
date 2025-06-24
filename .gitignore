@@ -46,3 +46,12 @@ build/
 # Fichiers temporaires
 temp/
 tmp/
+
+# Documentation et guides (non nécessaires sur GitHub)
+README.md
+HEBERGEMENT_GRATUIT.md
+DEPLOIEMENT_RAPIDE.md
+CREATION_REPOSITORY_GITHUB.md
+PROJET_SECURISE.md
+SECURITY.md
+*.md

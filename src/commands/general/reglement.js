@@ -1,106 +1,88 @@
 import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
+import Logger from '../../utils/Logger.js';
 
 export default {
     data: new SlashCommandBuilder()
         .setName('reglement')
-        .setDescription('📋 Envoie le règlement du serveur avec système de validation')
+        .setDescription('📋 Affiche le règlement complet du serveur avec système de validation')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    
+
     async execute(interaction) {
+        const { guild, channel } = interaction;
+        const logger = new Logger();
+
         try {
-            // Déférer immédiatement pour éviter l'expiration
             await interaction.deferReply({ ephemeral: true });
 
-            const targetChannelId = '1368918056042102895';
-            
-            const channel = interaction.guild.channels.cache.get(targetChannelId);
+            // Embed simple et propre du règlement
+            const ruleEmbed = new EmbedBuilder()
+                .setColor('#5865F2')
+                .setTitle('📋 **RÈGLEMENT OFFICIEL DU SERVEUR**')
+                .setDescription(`
+🏛️ **BIENVENUE SUR ${guild.name.toUpperCase()}** 🏛️
 
-            if (!channel) {
-                return await interaction.editReply({
-                    content: '❌ Canal de règlement introuvable !',
-                    ephemeral: true
-                });
-            }
-
-            // Créer l'embed professionnel du règlement
-            const reglementEmbed = new EmbedBuilder()
-                .setColor('#2b2d31') // Gris Discord professionnel
-                .setTitle('📋 RÈGLEMENT DU SERVEUR')
-                .setDescription(`**Bienvenue sur ${interaction.guild.name}**\n\nPour accéder au serveur, vous devez lire et accepter ce règlement en cliquant sur ✅ ci-dessous.`)
+**Bienvenue dans notre communauté !** 🎉
+Respectez ces règles pour maintenir un environnement sain et agréable.`)
                 .addFields(
                     {
-                        name: '🔒 **1. RESPECT ET COURTOISIE**',
-                        value: '• Respectez tous les membres du serveur\n• Aucun harcèlement, insulte ou discrimination\n• Maintenez un comportement poli et bienveillant',
+                        name: '🚨 **RÈGLES ESSENTIELLES**',
+                        value: '• **Respectez** tous les membres\n• **Aucune insulte** ou harcèlement\n• **Pas de contenu NSFW** ou inapproprié\n• **Utilisez** les bons canaux\n• **Pas de spam** ou flood',
+                        inline: true
+                    },
+                    {
+                        name: '💬 **COMMUNICATION**',
+                        value: '• **Français correct** exigé\n• **Pas de CAPS LOCK** excessif\n• **Évitez** les mentions abusives\n• **Soyez constructifs** dans vos échanges\n• **Respectez** les discussions',
+                        inline: true
+                    },
+                    {
+                        name: '⚖️ **SANCTIONS**',
+                        value: '🟡 **Avertissement** → 🟠 **Timeout** → 🔴 **Exclusion/Ban**\n\n**Appel possible** via système de tickets',
                         inline: false
                     },
                     {
-                        name: '💬 **2. COMMUNICATION**',
-                        value: '• Utilisez les salons appropriés pour vos messages\n• Évitez le spam et les messages répétitifs\n• Pas de contenu NSFW ou inapproprié',
+                        name: '🛡️ **VOS DROITS & DEVOIRS**',
+                        value: '✅ **Droits :** Liberté d\'expression, égalité, protection, support\n📋 **Devoirs :** Respecter le règlement, signaler les problèmes, contribuer positivement',
                         inline: false
                     },
                     {
-                        name: '🚫 **3. INTERDICTIONS**',
-                        value: '• Aucune publicité sans autorisation préalable\n• Pas de liens suspects ou malveillants\n• Interdiction de contourner les sanctions',
+                        name: '📞 **SUPPORT & CONTACT**',
+                        value: '• **Système de tickets** - Support officiel 24h/7j\n• **Équipe de modération** disponible\n• **Décisions équitables** et transparentes',
                         inline: false
                     },
                     {
-                        name: '🎯 **4. UTILISATION DES SALONS**',
-                        value: '• Respectez le sujet de chaque salon\n• Utilisez les threads pour les discussions longues\n• Gardez les salons organisés et propres',
-                        inline: false
-                    },
-                    {
-                        name: '👮 **5. MODÉRATION**',
-                        value: '• Respectez les décisions de l\'équipe de modération\n• Signalez tout comportement inapproprié\n• Les sanctions vont de l\'avertissement au bannissement',
-                        inline: false
-                    },
-                    {
-                        name: '⚠️ **6. DISPOSITIONS GÉNÉRALES**',
-                        value: '• Ce règlement peut être modifié à tout moment\n• L\'ignorance du règlement n\'excuse pas sa violation\n• En restant sur ce serveur, vous acceptez ces conditions',
-                        inline: false
-                    },
-                    {
-                        name: '✅ **ACCEPTATION**',
-                        value: '**Cliquez sur ✅ pour accepter le règlement et accéder au serveur.**\n\n*Cette action est révocable - vous pouvez retirer votre acceptation à tout moment.*',
+                        name: '✅ **VALIDATION OBLIGATOIRE**',
+                        value: '🎯 **Pour accéder au serveur complet :**\n**1️⃣** Lisez ce règlement\n**2️⃣** Réagissez avec ✅ ci-dessous\n**3️⃣** Recevez votre rôle automatiquement\n\n⚠️ **En réagissant, vous acceptez ce règlement intégralement**',
                         inline: false
                     }
                 )
+                .setThumbnail(guild.iconURL({ dynamic: true }))
                 .setFooter({ 
-                    text: `${interaction.guild.name} • Règlement officiel`,
-                    iconURL: interaction.guild.iconURL({ dynamic: true })
+                    text: '📋 Règlement Officiel • Réagissez avec ✅ pour valider',
+                    iconURL: guild.iconURL({ dynamic: true })
                 })
                 .setTimestamp();
 
-            // Envoyer l'embed dans le canal
+            // Envoyer l'embed
             const message = await channel.send({
-                embeds: [reglementEmbed]
+                embeds: [ruleEmbed]
             });
 
-            // Ajouter la réaction
+            // Ajouter la réaction de validation
             await message.react('✅');
 
-            // Confirmer l'envoi
+            logger.success(`Règlement publié avec succès dans #${channel.name}`);
+            logger.info(`Message ID pour les réactions: ${message.id}`);
+
             await interaction.editReply({
-                content: `✅ Règlement envoyé avec succès dans ${channel} !\n🔗 [Voir le message](${message.url})`,
-                ephemeral: true
+                content: `✅ **Règlement publié avec succès !**\n\n📋 Le règlement complet a été affiché dans ${channel}\n🎯 Les membres peuvent maintenant réagir avec ✅ pour obtenir le rôle de validation.\n\n**Message ID :** \`${message.id}\` (pour référence)`
             });
 
         } catch (error) {
-            console.error('Erreur lors de l\'envoi du règlement:', error);
-            try {
-                if (interaction.deferred || interaction.replied) {
-                    await interaction.editReply({
-                        content: '❌ Une erreur est survenue lors de l\'envoi du règlement.',
-                        ephemeral: true
-                    });
-                } else {
-                    await interaction.reply({
-                        content: '❌ Une erreur est survenue lors de l\'envoi du règlement.',
-                        ephemeral: true
-                    });
-                }
-            } catch (replyError) {
-                console.error('Impossible de répondre à l\'interaction:', replyError.message);
-            }
+            logger.error('Erreur lors de la publication du règlement:', error);
+            
+            await interaction.editReply({
+                content: '❌ Une erreur est survenue lors de la publication du règlement. Vérifiez les permissions du bot.'
+            });
         }
-    },
+    }
 };

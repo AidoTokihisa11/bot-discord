@@ -129,6 +129,7 @@ async function initialize() {
         logger.info('🗄️ Initialisation de la base de données...');
         await client.db.initialize();
         
+        
         // Connexion du bot
         logger.info('🔗 Connexion à Discord...');
         await client.login(process.env.DISCORD_TOKEN);

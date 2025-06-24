@@ -1,4 +1,4 @@
-import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } from 'discord.js';
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 import Database from '../utils/Database.js';
 import Logger from '../utils/Logger.js';
 
@@ -6,98 +6,130 @@ class TicketManager {
     constructor(client) {
         this.client = client;
         this.db = new Database();
+        this.logger = new Logger();
+        this.staffRoleId = '1386784012269387946';
+        this.ticketChannelId = '1368921898867621908';
+        this.ticketCategoryId = null; // Sera défini dynamiquement
+        
         this.ticketTypes = {
             support: {
                 name: 'Support Technique',
                 emoji: '🔧',
                 color: '#3498db',
-                description: 'Problèmes techniques, bugs, dysfonctionnements',
-                priority: 'high',
-                responseTime: '< 2h'
+                description: 'Problèmes techniques, bugs, assistance',
+                responseTime: '2-4 heures',
+                priority: 'high'
             },
             general: {
-                name: 'Questions Générales',
+                name: 'Question Générale',
                 emoji: '❓',
                 color: '#95a5a6',
-                description: 'Informations générales, aide, orientation',
-                priority: 'medium',
-                responseTime: '< 4h'
+                description: 'Informations, aide générale',
+                responseTime: '4-8 heures',
+                priority: 'medium'
             },
-            urgent: {
-                name: 'Urgence',
+            report: {
+                name: 'Signalement',
                 emoji: '🚨',
                 color: '#e74c3c',
-                description: 'Problèmes critiques nécessitant une intervention immédiate',
-                priority: 'critical',
-                responseTime: '< 30min'
+                description: 'Signaler un problème urgent',
+                responseTime: '30 minutes - 1 heure',
+                priority: 'critical'
             },
             partnership: {
                 name: 'Partenariat',
                 emoji: '🤝',
                 color: '#2ecc71',
-                description: 'Propositions de collaboration, partenariats',
-                priority: 'low',
-                responseTime: '< 24h'
+                description: 'Propositions de collaboration',
+                responseTime: '12-24 heures',
+                priority: 'low'
             },
             suggestion: {
-                name: 'Suggestions',
+                name: 'Suggestion',
                 emoji: '💡',
                 color: '#f39c12',
-                description: 'Idées d\'amélioration, nouvelles fonctionnalités',
-                priority: 'low',
-                responseTime: '< 12h'
+                description: 'Idées d\'amélioration',
+                responseTime: '6-12 heures',
+                priority: 'medium'
             },
             appeal: {
                 name: 'Appel de Sanction',
                 emoji: '⚖️',
                 color: '#9b59b6',
-                description: 'Contester une sanction, demande de révision',
-                priority: 'medium',
-                responseTime: '< 6h'
+                description: 'Contester une sanction',
+                responseTime: '2-6 heures',
+                priority: 'high'
             }
         };
     }
 
     async createTicketPanel(channel) {
         try {
-            // Embed principal avec design moderne
+            // Embed principal ultra moderne
             const mainEmbed = new EmbedBuilder()
                 .setColor('#5865F2')
                 .setTitle('🎫 **CENTRE DE SUPPORT PREMIUM**')
-                .setDescription(`**🌟 Bienvenue dans notre centre de support avancé !**
+                .setDescription(`
+╭─────────────────────────────────────╮
+│        **🌟 SUPPORT 24/7 🌟**        │
+╰─────────────────────────────────────╯
 
-Notre équipe d'experts est disponible **24h/7j** pour vous accompagner.
+**Bienvenue dans notre centre de support avancé !**
+Notre équipe d'experts est là pour vous aider rapidement et efficacement.
 
-**📊 Statistiques en temps réel :**
-• **Temps de réponse moyen :** \`15 minutes\`
-• **Taux de satisfaction :** \`98.5%\`
-• **Tickets résolus aujourd'hui :** \`${await this.getTodayResolvedTickets()}\`
+**📊 Nos Performances :**
+• **⚡ Temps de réponse moyen :** \`15 minutes\`
+• **🎯 Taux de résolution :** \`98.5%\`
+• **👥 Équipe disponible :** \`24h/7j\`
+• **📈 Satisfaction client :** \`4.9/5 ⭐\`
 
-**🎯 Sélectionnez votre type de demande ci-dessous**`)
+**🎯 Choisissez votre type de demande ci-dessous**`)
+                .setThumbnail(channel.guild.iconURL({ dynamic: true }))
+                .setImage('https://i.imgur.com/placeholder.png') // Vous pouvez ajouter une bannière
                 .setFooter({ 
-                    text: '💎 Support Premium • Réponse garantie sous 24h'
+                    text: '💎 Support Premium • Réponse garantie • Service de qualité',
+                    iconURL: this.client.user.displayAvatarURL()
                 })
                 .setTimestamp();
 
-            // Menu de sélection pour les types de tickets
-            const ticketSelect = new StringSelectMenuBuilder()
-                .setCustomId('ticket_type_select')
-                .setPlaceholder('🎯 Choisissez votre type de demande...')
-                .setMinValues(1)
-                .setMaxValues(1);
-
-            // Ajouter les options au menu
-            Object.entries(this.ticketTypes).forEach(([key, config]) => {
-                ticketSelect.addOptions(
-                    new StringSelectMenuOptionBuilder()
-                        .setLabel(config.name)
-                        .setDescription(`${config.description} • ${config.responseTime}`)
-                        .setValue(key)
-                        .setEmoji(config.emoji)
+            // Boutons principaux pour les types de tickets
+            const ticketButtonsRow1 = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('ticket_support')
+                        .setLabel('Support Technique')
+                        .setStyle(ButtonStyle.Primary)
+                        .setEmoji('🔧'),
+                    new ButtonBuilder()
+                        .setCustomId('ticket_general')
+                        .setLabel('Question Générale')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('❓'),
+                    new ButtonBuilder()
+                        .setCustomId('ticket_report')
+                        .setLabel('Signalement')
+                        .setStyle(ButtonStyle.Danger)
+                        .setEmoji('🚨')
                 );
-            });
 
-            const selectRow = new ActionRowBuilder().addComponents(ticketSelect);
+            const ticketButtonsRow2 = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('ticket_partnership')
+                        .setLabel('Partenariat')
+                        .setStyle(ButtonStyle.Success)
+                        .setEmoji('🤝'),
+                    new ButtonBuilder()
+                        .setCustomId('ticket_suggestion')
+                        .setLabel('Suggestion')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('💡'),
+                    new ButtonBuilder()
+                        .setCustomId('ticket_appeal')
+                        .setLabel('Appel de Sanction')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('⚖️')
+                );
 
             // Boutons d'actions rapides
             const quickActionsRow = new ActionRowBuilder()
@@ -118,16 +150,16 @@ Notre équipe d'experts est disponible **24h/7j** pour vous accompagner.
                         .setStyle(ButtonStyle.Secondary)
                         .setEmoji('📋'),
                     new ButtonBuilder()
-                        .setCustomId('ticket_emergency')
-                        .setLabel('URGENCE')
-                        .setStyle(ButtonStyle.Danger)
-                        .setEmoji('🚨')
+                        .setCustomId('ticket_contact_staff')
+                        .setLabel('Contact Direct')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('📞')
                 );
 
-            // Embed d'informations supplémentaires
+            // Embed d'informations détaillées
             const infoEmbed = new EmbedBuilder()
                 .setColor('#2f3136')
-                .setTitle('📋 **Informations Importantes**')
+                .setTitle('📋 **INFORMATIONS DÉTAILLÉES**')
                 .addFields(
                     {
                         name: '⚡ **Temps de Réponse Garantis**',
@@ -138,12 +170,12 @@ Notre équipe d'experts est disponible **24h/7j** pour vous accompagner.
                     },
                     {
                         name: '📋 **Avant de Créer un Ticket**',
-                        value: '• Consultez notre **FAQ** pour les questions courantes\n• Préparez toutes les **informations nécessaires**\n• Soyez **précis et détaillé** dans votre description\n• **Un ticket = Une demande spécifique**',
+                        value: '• 📚 Consultez notre **FAQ** pour les questions courantes\n• 📝 Préparez toutes les **informations nécessaires**\n• 🎯 Soyez **précis et détaillé** dans votre description\n• 🔄 **Un ticket = Une demande spécifique**',
                         inline: true
                     },
                     {
                         name: '🎯 **Système de Priorités**',
-                        value: '🔴 **Critique** - Traitement immédiat\n🟡 **Élevée** - Sous 2 heures\n🟢 **Normale** - Sous 24 heures',
+                        value: '🔴 **Critique** - Traitement immédiat\n🟡 **Élevée** - Sous 4 heures\n🟢 **Normale** - Sous 24 heures\n🔵 **Faible** - Sous 48 heures',
                         inline: true
                     }
                 )
@@ -151,106 +183,107 @@ Notre équipe d'experts est disponible **24h/7j** pour vous accompagner.
 
             await channel.send({ 
                 embeds: [mainEmbed, infoEmbed], 
-                components: [selectRow, quickActionsRow] 
+                components: [ticketButtonsRow1, ticketButtonsRow2, quickActionsRow] 
             });
 
-            Logger.info(`Panel de tickets premium créé dans ${channel.name}`);
+            this.logger.info(`Panel de tickets premium créé dans ${channel.name}`);
         } catch (error) {
-            Logger.error('Erreur lors de la création du panel de tickets:', error);
+            this.logger.error('Erreur lors de la création du panel de tickets:', error);
             throw error;
         }
     }
 
-    async handleTicketTypeSelection(interaction) {
+    async handleTicketCreation(interaction, type) {
         try {
-            const selectedType = interaction.values[0];
-            const config = this.ticketTypes[selectedType];
-
+            const config = this.ticketTypes[type];
             if (!config) {
-                return interaction.reply({
+                return await interaction.reply({
                     content: '❌ Type de ticket invalide.',
                     ephemeral: true
                 });
             }
 
             // Vérifier si l'utilisateur a déjà un ticket ouvert
-            const existingTicket = await this.db.getTicketByUser(interaction.user.id);
-            if (existingTicket && existingTicket.status === 'open') {
-                const existingChannel = interaction.guild.channels.cache.get(existingTicket.id);
-                return interaction.reply({
-                    content: `❌ Vous avez déjà un ticket ouvert : ${existingChannel || 'Canal introuvable'}`,
+            const existingTickets = interaction.guild.channels.cache.filter(
+                channel => channel.name.includes(interaction.user.id) && channel.name.includes('ticket')
+            );
+
+            if (existingTickets.size > 0) {
+                return await interaction.reply({
+                    content: `❌ Vous avez déjà un ticket ouvert : ${existingTickets.first()}`,
                     ephemeral: true
                 });
             }
 
-            // Embed de confirmation avec preview
-            const confirmEmbed = new EmbedBuilder()
-                .setColor(config.color)
-                .setTitle(`${config.emoji} **${config.name}**`)
-                .setDescription(`
-**📝 Résumé de votre demande :**
+            // Modal pour collecter les informations
+            const modal = new ModalBuilder()
+                .setCustomId(`ticket_modal_${type}`)
+                .setTitle(`${config.emoji} ${config.name}`);
 
-**Type :** ${config.name}
-**Description :** ${config.description}
-**Priorité :** ${this.getPriorityDisplay(config.priority)}
-**Temps de réponse estimé :** \`${config.responseTime}\`
+            const subjectInput = new TextInputBuilder()
+                .setCustomId('ticket_subject')
+                .setLabel('Sujet de votre demande')
+                .setStyle(TextInputStyle.Short)
+                .setPlaceholder('Résumez votre demande en quelques mots...')
+                .setRequired(true)
+                .setMaxLength(100);
 
-**👥 Équipe assignée :** Support ${config.name}
-**📍 Votre ticket sera créé dans :** <#${process.env.TICKET_CATEGORY_ID}>
+            const descriptionInput = new TextInputBuilder()
+                .setCustomId('ticket_description')
+                .setLabel('Description détaillée')
+                .setStyle(TextInputStyle.Paragraph)
+                .setPlaceholder('Décrivez votre problème/demande en détail...')
+                .setRequired(true)
+                .setMaxLength(1000);
 
-Confirmez-vous la création de ce ticket ?`)
-                .addFields(
-                    {
-                        name: '📋 **Ce qui vous sera demandé :**',
-                        value: this.getRequiredInfo(selectedType),
-                        inline: false
-                    }
-                )
-                .setFooter({ text: 'Cliquez sur "Créer le Ticket" pour continuer' })
-                .setTimestamp();
+            const priorityInput = new TextInputBuilder()
+                .setCustomId('ticket_priority')
+                .setLabel('Niveau d\'urgence (1-5)')
+                .setStyle(TextInputStyle.Short)
+                .setPlaceholder('1 = Faible, 5 = Critique')
+                .setRequired(false)
+                .setMaxLength(1);
 
-            const confirmRow = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId(`create_ticket_${selectedType}`)
-                        .setLabel('Créer le Ticket')
-                        .setStyle(ButtonStyle.Success)
-                        .setEmoji('✅'),
-                    new ButtonBuilder()
-                        .setCustomId('cancel_ticket_creation')
-                        .setLabel('Annuler')
-                        .setStyle(ButtonStyle.Secondary)
-                        .setEmoji('❌')
-                );
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(subjectInput),
+                new ActionRowBuilder().addComponents(descriptionInput),
+                new ActionRowBuilder().addComponents(priorityInput)
+            );
 
-            await interaction.reply({
-                embeds: [confirmEmbed],
-                components: [confirmRow],
-                ephemeral: true
-            });
+            await interaction.showModal(modal);
 
         } catch (error) {
-            Logger.error('Erreur lors de la sélection du type de ticket:', error);
+            this.logger.error('Erreur lors de la création du ticket:', error);
             await interaction.reply({
-                content: '❌ Une erreur est survenue lors de la sélection.',
+                content: '❌ Une erreur est survenue lors de la création du ticket.',
                 ephemeral: true
             });
         }
     }
 
-    async createTicket(interaction, type) {
+    async handleModalSubmit(interaction) {
         try {
+            const [, , type] = interaction.customId.split('_');
+            const config = this.ticketTypes[type];
             const guild = interaction.guild;
             const user = interaction.user;
-            const config = this.ticketTypes[type];
 
-            // Créer le canal de ticket avec nom unique
-            const ticketNumber = await this.getNextTicketNumber();
+            const subject = interaction.fields.getTextInputValue('ticket_subject');
+            const description = interaction.fields.getTextInputValue('ticket_description');
+            const priority = interaction.fields.getTextInputValue('ticket_priority') || '3';
+
+            await interaction.deferReply({ ephemeral: true });
+
+            // Créer ou récupérer la catégorie de tickets
+            const ticketCategory = await this.ensureTicketCategory(guild);
+
+            // Créer le canal de ticket
+            const ticketNumber = Date.now().toString().slice(-6);
             const ticketChannel = await guild.channels.create({
-                name: `${config.emoji}・${type}-${ticketNumber}`,
+                name: `${config.emoji}・${type}-${user.username}-${ticketNumber}`,
                 type: ChannelType.GuildText,
-                parent: process.env.TICKET_CATEGORY_ID,
-                topic: `Ticket ${config.name} • Créé par ${user.tag} • ID: ${ticketNumber}`,
+                parent: ticketCategory.id,
+                topic: `Ticket ${config.name} • ${subject} • Créé par ${user.tag}`,
                 permissionOverwrites: [
                     {
                         id: guild.id,
@@ -267,7 +300,7 @@ Confirmez-vous la création de ce ticket ?`)
                         ]
                     },
                     {
-                        id: process.env.STAFF_ROLE_ID,
+                        id: this.staffRoleId,
                         allow: [
                             PermissionFlagsBits.ViewChannel,
                             PermissionFlagsBits.SendMessages,
@@ -280,7 +313,7 @@ Confirmez-vous la création de ce ticket ?`)
                 ]
             });
 
-            // Embed de bienvenue sophistiqué
+            // Embed de bienvenue dans le ticket
             const welcomeEmbed = new EmbedBuilder()
                 .setColor(config.color)
                 .setTitle(`${config.emoji} **${config.name} - Ticket #${ticketNumber}**`)
@@ -290,19 +323,27 @@ Confirmez-vous la création de ce ticket ?`)
 ╰─────────────────────────────────────╯
 
 **📋 Informations du Ticket :**
+• **Sujet :** ${subject}
 • **Type :** ${config.name}
 • **Numéro :** \`#${ticketNumber}\`
-• **Priorité :** ${this.getPriorityDisplay(config.priority)}
+• **Priorité :** ${this.getPriorityDisplay(priority)}
 • **Créé le :** <t:${Math.floor(Date.now() / 1000)}:F>
 • **Temps de réponse estimé :** \`${config.responseTime}\`
 
-**🎯 Prochaines Étapes :**
-1️⃣ Décrivez votre problème/demande en détail
-2️⃣ Ajoutez des captures d'écran si nécessaire
-3️⃣ Notre équipe vous répondra rapidement
+**📝 Description :**
+\`\`\`
+${description}
+\`\`\`
 
-**💡 Conseils pour une résolution rapide :**
-${this.getTicketTips(type)}`)
+**🎯 Prochaines Étapes :**
+1️⃣ Notre équipe a été notifiée automatiquement
+2️⃣ Un membre du staff vous répondra sous peu
+3️⃣ Restez disponible pour d'éventuelles questions
+
+**💡 En attendant, vous pouvez :**
+• Ajouter des captures d'écran si nécessaire
+• Préciser des détails supplémentaires
+• Utiliser les boutons ci-dessous`)
                 .setThumbnail(user.displayAvatarURL({ dynamic: true }))
                 .setFooter({ 
                     text: `Ticket ID: ${ticketNumber} • Notre équipe est notifiée`,
@@ -319,10 +360,10 @@ ${this.getTicketTips(type)}`)
                         .setStyle(ButtonStyle.Danger)
                         .setEmoji('🔒'),
                     new ButtonBuilder()
-                        .setCustomId('ticket_priority')
-                        .setLabel('Changer Priorité')
-                        .setStyle(ButtonStyle.Secondary)
-                        .setEmoji('⚡'),
+                        .setCustomId('ticket_claim')
+                        .setLabel('Prendre en Charge')
+                        .setStyle(ButtonStyle.Success)
+                        .setEmoji('✋'),
                     new ButtonBuilder()
                         .setCustomId('ticket_add_user')
                         .setLabel('Ajouter Utilisateur')
@@ -335,127 +376,83 @@ ${this.getTicketTips(type)}`)
                         .setEmoji('📄')
                 );
 
-            // Boutons d'évaluation
-            const ratingRow = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('ticket_rate_1')
-                        .setLabel('⭐')
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId('ticket_rate_2')
-                        .setLabel('⭐⭐')
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId('ticket_rate_3')
-                        .setLabel('⭐⭐⭐')
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId('ticket_rate_4')
-                        .setLabel('⭐⭐⭐⭐')
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId('ticket_rate_5')
-                        .setLabel('⭐⭐⭐⭐⭐')
-                        .setStyle(ButtonStyle.Success)
-                );
-
             await ticketChannel.send({
-                content: `${user} | <@&${process.env.STAFF_ROLE_ID}>`,
+                content: `${user} | <@&${this.staffRoleId}>`,
                 embeds: [welcomeEmbed],
                 components: [ticketActionsRow]
             });
 
-            // Message d'évaluation séparé
-            const ratingEmbed = new EmbedBuilder()
-                .setColor('#f39c12')
-                .setTitle('⭐ **Évaluez notre Service**')
-                .setDescription('Une fois votre problème résolu, n\'hésitez pas à évaluer la qualité de notre support !')
-                .setFooter({ text: 'Votre avis nous aide à améliorer notre service' });
-
-            await ticketChannel.send({
-                embeds: [ratingEmbed],
-                components: [ratingRow]
-            });
-
-            // Enregistrer le ticket dans la base de données
-            await this.db.createTicket({
-                id: ticketChannel.id,
-                number: ticketNumber,
-                userId: user.id,
-                type: type,
-                priority: config.priority,
-                status: 'open',
-                createdAt: new Date().toISOString()
-            });
+            // Notification privée au staff
+            await this.notifyStaff(guild, user, ticketChannel, config, subject, description, priority);
 
             await interaction.editReply({
-                content: `✅ **Ticket créé avec succès !** ${ticketChannel}`,
-                embeds: [],
-                components: []
+                content: `✅ **Ticket créé avec succès !** ${ticketChannel}\n🎯 Notre équipe a été notifiée et vous répondra dans **${config.responseTime}**.`
             });
 
-            Logger.info(`Ticket #${ticketNumber} créé: ${ticketChannel.name} par ${user.tag} (${type})`);
+            this.logger.info(`Ticket #${ticketNumber} créé: ${ticketChannel.name} par ${user.tag} (${type})`);
 
         } catch (error) {
-            Logger.error('Erreur lors de la création du ticket:', error);
+            this.logger.error('Erreur lors du traitement du modal:', error);
             await interaction.editReply({
-                content: '❌ Une erreur est survenue lors de la création du ticket.',
-                embeds: [],
-                components: []
+                content: '❌ Une erreur est survenue lors de la création du ticket.'
             });
         }
     }
 
-    // Méthodes utilitaires
+    async notifyStaff(guild, user, ticketChannel, config, subject, description, priority) {
+        try {
+            const staffRole = guild.roles.cache.get(this.staffRoleId);
+            if (!staffRole) return;
+
+            const staffMembers = staffRole.members;
+            
+            const notificationEmbed = new EmbedBuilder()
+                .setColor('#ff6b6b')
+                .setTitle('🚨 **NOUVEAU TICKET CRÉÉ**')
+                .setDescription(`
+**Un nouveau ticket nécessite votre attention !**
+
+**👤 Utilisateur :** ${user} (${user.tag})
+**📋 Sujet :** ${subject}
+**🎯 Type :** ${config.emoji} ${config.name}
+**⚡ Priorité :** ${this.getPriorityDisplay(priority)}
+**📍 Canal :** ${ticketChannel}
+**⏰ Temps de réponse attendu :** \`${config.responseTime}\`
+
+**📝 Description :**
+\`\`\`
+${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
+\`\`\``)
+                .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+                .setFooter({ text: 'Cliquez sur "Prendre en Charge" dans le ticket pour le traiter' })
+                .setTimestamp();
+
+            // Envoyer en MP à chaque membre du staff
+            for (const [id, member] of staffMembers) {
+                try {
+                    await member.send({ embeds: [notificationEmbed] });
+                } catch (error) {
+                    // Ignorer si on ne peut pas envoyer de MP
+                }
+            }
+
+        } catch (error) {
+            this.logger.error('Erreur lors de la notification du staff:', error);
+        }
+    }
+
     getPriorityDisplay(priority) {
         const priorities = {
-            critical: '🔴 **Critique**',
-            high: '🟡 **Élevée**',
-            medium: '🟠 **Moyenne**',
-            low: '🟢 **Normale**'
+            '1': '🟢 **Faible**',
+            '2': '🔵 **Normale**',
+            '3': '🟡 **Moyenne**',
+            '4': '🟠 **Élevée**',
+            '5': '🔴 **Critique**'
         };
-        return priorities[priority] || '🟢 **Normale**';
+        return priorities[priority] || '🟡 **Moyenne**';
     }
 
-    getRequiredInfo(type) {
-        const requirements = {
-            support: '• Description détaillée du problème\n• Étapes pour reproduire le bug\n• Captures d\'écran si possible',
-            general: '• Question précise\n• Contexte de votre demande\n• Informations complémentaires',
-            urgent: '• Nature de l\'urgence\n• Impact sur votre activité\n• Preuves si nécessaire',
-            partnership: '• Présentation de votre projet\n• Type de partenariat souhaité\n• Vos coordonnées',
-            suggestion: '• Description de votre idée\n• Bénéfices attendus\n• Exemples concrets',
-            appeal: '• Sanction concernée\n• Motifs de contestation\n• Preuves à l\'appui'
-        };
-        return requirements[type] || '• Informations détaillées sur votre demande';
-    }
-
-    getTicketTips(type) {
-        const tips = {
-            support: '• Décrivez les étapes exactes qui causent le problème\n• Mentionnez votre système d\'exploitation\n• Joignez des captures d\'écran',
-            general: '• Soyez précis dans votre question\n• Donnez le contexte nécessaire\n• Mentionnez ce que vous avez déjà essayé',
-            urgent: '• Expliquez pourquoi c\'est urgent\n• Décrivez l\'impact immédiat\n• Restez disponible pour un contact rapide',
-            partnership: '• Présentez clairement votre projet\n• Expliquez les bénéfices mutuels\n• Proposez des modalités concrètes',
-            suggestion: '• Expliquez le problème que ça résoudrait\n• Donnez des exemples d\'utilisation\n• Proposez une implémentation',
-            appeal: '• Restez respectueux et factuel\n• Apportez des preuves concrètes\n• Expliquez votre version des faits'
-        };
-        return tips[type] || '• Soyez précis et détaillé dans votre demande';
-    }
-
-    async getNextTicketNumber() {
-        // Implémentation pour obtenir le prochain numéro de ticket
-        const lastTicket = await this.db.getLastTicket();
-        return lastTicket ? lastTicket.number + 1 : 1001;
-    }
-
-    async getTodayResolvedTickets() {
-        // Implémentation pour obtenir le nombre de tickets résolus aujourd'hui
-        const today = new Date().toISOString().split('T')[0];
-        const resolved = await this.db.getResolvedTicketsToday(today);
-        return resolved || 0;
-    }
-
-    // Gestionnaires d'actions pour les boutons
+    // Gestionnaires pour les boutons d'actions rapides
     async handleQuickAction(interaction) {
         const action = interaction.customId;
 
@@ -469,8 +466,8 @@ ${this.getTicketTips(type)}`)
             case 'ticket_my_tickets':
                 await this.showUserTickets(interaction);
                 break;
-            case 'ticket_emergency':
-                await this.handleEmergency(interaction);
+            case 'ticket_contact_staff':
+                await this.contactStaff(interaction);
                 break;
         }
     }
@@ -478,100 +475,529 @@ ${this.getTicketTips(type)}`)
     async showFAQ(interaction) {
         const faqEmbed = new EmbedBuilder()
             .setColor('#3498db')
-            .setTitle('📚 **Questions Fréquemment Posées**')
-            .setDescription('Voici les réponses aux questions les plus courantes :')
+            .setTitle('📚 **QUESTIONS FRÉQUEMMENT POSÉES**')
+            .setDescription('**Voici les réponses aux questions les plus courantes :**')
             .addFields(
-                { name: '❓ Comment créer un ticket ?', value: 'Utilisez le menu déroulant ci-dessus pour sélectionner votre type de demande.', inline: false },
-                { name: '⏱️ Combien de temps pour une réponse ?', value: 'Nos temps de réponse varient selon la priorité, de 30 minutes à 24 heures maximum.', inline: false },
-                { name: '🔄 Puis-je modifier mon ticket ?', value: 'Oui, vous pouvez ajouter des informations à tout moment dans votre ticket.', inline: false },
-                { name: '👥 Puis-je ajouter quelqu\'un à mon ticket ?', value: 'Utilisez le bouton "Ajouter Utilisateur" dans votre ticket.', inline: false }
+                { 
+                    name: '❓ **Comment créer un ticket ?**', 
+                    value: 'Cliquez sur l\'un des boutons ci-dessus selon votre type de demande, puis remplissez le formulaire.', 
+                    inline: false 
+                },
+                { 
+                    name: '⏱️ **Combien de temps pour une réponse ?**', 
+                    value: 'Nos temps de réponse varient de 30 minutes à 24 heures selon la priorité de votre demande.', 
+                    inline: false 
+                },
+                { 
+                    name: '🔄 **Puis-je modifier mon ticket ?**', 
+                    value: 'Oui, vous pouvez ajouter des informations à tout moment dans votre canal de ticket.', 
+                    inline: false 
+                },
+                { 
+                    name: '👥 **Puis-je ajouter quelqu\'un à mon ticket ?**', 
+                    value: 'Utilisez le bouton "Ajouter Utilisateur" dans votre ticket pour inviter quelqu\'un.', 
+                    inline: false 
+                },
+                { 
+                    name: '🔒 **Comment fermer mon ticket ?**', 
+                    value: 'Utilisez le bouton "Fermer le Ticket" ou demandez à un membre du staff.', 
+                    inline: false 
+                }
             )
-            .setFooter({ text: 'Si votre question n\'est pas listée, créez un ticket !' });
+            .setFooter({ text: 'Si votre question n\'est pas listée, créez un ticket !' })
+            .setTimestamp();
 
         await interaction.reply({ embeds: [faqEmbed], ephemeral: true });
     }
 
     async showSupportStatus(interaction) {
+        const guild = interaction.guild;
+        const staffRole = guild.roles.cache.get(this.staffRoleId);
+        const onlineStaff = staffRole ? staffRole.members.filter(member => member.presence?.status !== 'offline').size : 0;
+        const totalStaff = staffRole ? staffRole.members.size : 0;
+
         const statusEmbed = new EmbedBuilder()
             .setColor('#2ecc71')
-            .setTitle('📊 **Statut du Support en Temps Réel**')
+            .setTitle('📊 **STATUT DU SUPPORT EN TEMPS RÉEL**')
             .addFields(
                 { name: '🟢 **Statut Global**', value: 'Tous les services opérationnels', inline: true },
-                { name: '👥 **Équipe Disponible**', value: '8/10 agents en ligne', inline: true },
-                { name: '📈 **Charge Actuelle**', value: 'Normale (65%)', inline: true },
+                { name: '👥 **Équipe Disponible**', value: `${onlineStaff}/${totalStaff} agents en ligne`, inline: true },
+                { name: '📈 **Charge Actuelle**', value: 'Normale (< 70%)', inline: true },
                 { name: '⏱️ **Temps de Réponse Moyen**', value: '15 minutes', inline: true },
-                { name: '🎯 **Tickets en Attente**', value: '12 tickets', inline: true },
-                { name: '✅ **Résolus Aujourd\'hui**', value: `${await this.getTodayResolvedTickets()} tickets`, inline: true }
+                { name: '🎯 **Tickets Actifs**', value: `${guild.channels.cache.filter(c => c.name.includes('ticket')).size} tickets`, inline: true },
+                { name: '✅ **Disponibilité**', value: '24h/7j', inline: true }
             )
-            .setFooter({ text: 'Dernière mise à jour il y a 2 minutes' })
+            .setFooter({ text: 'Dernière mise à jour maintenant' })
             .setTimestamp();
 
         await interaction.reply({ embeds: [statusEmbed], ephemeral: true });
     }
 
     async showUserTickets(interaction) {
-        const userTickets = await this.db.getUserTickets(interaction.user.id);
+        const guild = interaction.guild;
+        const userTickets = guild.channels.cache.filter(
+            channel => channel.name.includes(interaction.user.username) && channel.name.includes('ticket')
+        );
         
         const ticketsEmbed = new EmbedBuilder()
             .setColor('#9b59b6')
-            .setTitle('📋 **Vos Tickets**')
-            .setDescription(userTickets.length > 0 ? 
+            .setTitle('📋 **VOS TICKETS**')
+            .setDescription(userTickets.size > 0 ? 
                 userTickets.map(ticket => 
-                    `**#${ticket.number}** - ${this.ticketTypes[ticket.type]?.emoji} ${this.ticketTypes[ticket.type]?.name}\n` +
-                    `Status: ${ticket.status === 'open' ? '🟢 Ouvert' : '🔴 Fermé'} • <t:${Math.floor(new Date(ticket.createdAt).getTime() / 1000)}:R>`
-                ).join('\n\n') : 
-                'Vous n\'avez aucun ticket pour le moment.'
+                    `• ${ticket} - Créé <t:${Math.floor(ticket.createdTimestamp / 1000)}:R>`
+                ).join('\n') : 
+                '**Vous n\'avez aucun ticket ouvert actuellement.**\n\n*Utilisez les boutons ci-dessus pour créer un nouveau ticket.*'
             )
-            .setFooter({ text: `Total: ${userTickets.length} ticket(s)` });
+            .setFooter({ text: `Total: ${userTickets.size} ticket(s)` })
+            .setTimestamp();
 
         await interaction.reply({ embeds: [ticketsEmbed], ephemeral: true });
     }
 
-    async handleEmergency(interaction) {
-        const emergencyEmbed = new EmbedBuilder()
+    async contactStaff(interaction) {
+        const contactEmbed = new EmbedBuilder()
             .setColor('#e74c3c')
-            .setTitle('🚨 **URGENCE DÉTECTÉE**')
+            .setTitle('📞 **CONTACT DIRECT AVEC LE STAFF**')
             .setDescription(`
-**⚠️ Vous avez signalé une urgence !**
+**Pour un contact direct avec notre équipe :**
 
-Notre équipe d'intervention rapide a été **immédiatement notifiée**.
+**💬 Discord :**
+• Mentionnez <@&${this.staffRoleId}> dans votre ticket
+• Utilisez les canaux publics pour les questions générales
 
-**📞 Contact Direct :**
-• **Discord :** <@&${process.env.EMERGENCY_ROLE_ID}>
-• **Temps de réponse :** < 5 minutes
-• **Disponibilité :** 24h/7j
+**⚡ Urgences :**
+• Créez un ticket de type "Signalement" 
+• Temps de réponse garanti : 30 minutes - 1 heure
 
-**🎯 Que faire maintenant :**
-1️⃣ Créez un ticket d'urgence ci-dessous
-2️⃣ Décrivez précisément la situation
-3️⃣ Restez disponible pour un contact immédiat
+**📧 Autres moyens :**
+• Les tickets restent le moyen le plus efficace
+• Toutes les demandes sont traitées par ordre de priorité
 
-**⚡ Votre demande sera traitée en priorité absolue.**`)
-            .setFooter({ text: 'Équipe d\'intervention notifiée • Réponse imminente' })
+**🎯 Conseil :** Créez un ticket pour un suivi optimal de votre demande !`)
+            .setFooter({ text: 'Notre équipe est là pour vous aider !' })
             .setTimestamp();
 
-        const emergencyButton = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId('create_ticket_urgent')
-                    .setLabel('CRÉER TICKET D\'URGENCE')
-                    .setStyle(ButtonStyle.Danger)
-                    .setEmoji('🚨')
+        await interaction.reply({ embeds: [contactEmbed], ephemeral: true });
+    }
+
+    // Gestionnaires pour les actions dans les tickets
+    async handleTicketAction(interaction) {
+        const action = interaction.customId;
+
+        switch (action) {
+            case 'ticket_close':
+                await this.closeTicket(interaction);
+                break;
+            case 'ticket_claim':
+                await this.claimTicket(interaction);
+                break;
+            case 'ticket_add_user':
+                await this.addUserToTicket(interaction);
+                break;
+            case 'ticket_transcript':
+                await this.createTranscript(interaction);
+                break;
+        }
+    }
+
+    async closeTicket(interaction) {
+        try {
+            const channel = interaction.channel;
+            
+            const confirmEmbed = new EmbedBuilder()
+                .setColor('#e74c3c')
+                .setTitle('🔒 **FERMETURE DU TICKET**')
+                .setDescription(`
+**Êtes-vous sûr de vouloir fermer ce ticket ?**
+
+Cette action est **irréversible** et le canal sera supprimé dans 10 secondes après confirmation.
+
+**📋 Résumé du ticket :**
+• **Canal :** ${channel.name}
+• **Créé le :** <t:${Math.floor(channel.createdTimestamp / 1000)}:F>
+• **Durée :** <t:${Math.floor(channel.createdTimestamp / 1000)}:R>`)
+                .setFooter({ text: 'Cliquez sur "Confirmer" pour fermer définitivement' });
+
+            const confirmRow = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('confirm_close')
+                        .setLabel('Confirmer la Fermeture')
+                        .setStyle(ButtonStyle.Danger)
+                        .setEmoji('✅'),
+                    new ButtonBuilder()
+                        .setCustomId('cancel_close')
+                        .setLabel('Annuler')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('❌')
+                );
+
+            await interaction.reply({
+                embeds: [confirmEmbed],
+                components: [confirmRow],
+                ephemeral: true
+            });
+
+        } catch (error) {
+            this.logger.error('Erreur lors de la fermeture du ticket:', error);
+        }
+    }
+
+    async claimTicket(interaction) {
+        try {
+            const member = interaction.member;
+            const restrictedRoleId = '1386990308679483393';
+
+            // Vérifier si l'utilisateur a le rôle restreint
+            if (member.roles.cache.has(restrictedRoleId)) {
+                return await interaction.reply({
+                    content: '❌ **Accès refusé !**\n\nVous n\'avez pas les permissions nécessaires pour prendre en charge un ticket.\n\n💡 Cette action est réservée à l\'équipe de modération.',
+                    ephemeral: true
+                });
+            }
+
+            // Vérifier si l'utilisateur a le rôle staff
+            if (!member.roles.cache.has(this.staffRoleId)) {
+                return await interaction.reply({
+                    content: '❌ **Permissions insuffisantes !**\n\nSeuls les membres du staff peuvent prendre en charge un ticket.',
+                    ephemeral: true
+                });
+            }
+
+            const channel = interaction.channel;
+            const staff = interaction.user;
+
+            const claimEmbed = new EmbedBuilder()
+                .setColor('#2ecc71')
+                .setTitle('✋ **TICKET PRIS EN CHARGE**')
+                .setDescription(`
+**${staff} a pris ce ticket en charge !**
+
+**📋 Informations :**
+• **Agent assigné :** ${staff}
+• **Pris en charge le :** <t:${Math.floor(Date.now() / 1000)}:F>
+• **Statut :** 🟢 En cours de traitement
+
+**👤 ${channel.topic?.split('•')[2]?.trim() || 'Utilisateur'} :** Votre demande est maintenant entre de bonnes mains !`)
+                .setThumbnail(staff.displayAvatarURL({ dynamic: true }))
+                .setFooter({ text: 'Ticket assigné avec succès' })
+                .setTimestamp();
+
+            await interaction.reply({ embeds: [claimEmbed] });
+
+        } catch (error) {
+            this.logger.error('Erreur lors de la prise en charge:', error);
+        }
+    }
+
+    async addUserToTicket(interaction) {
+        // Modal pour ajouter un utilisateur
+        const modal = new ModalBuilder()
+            .setCustomId('add_user_modal')
+            .setTitle('👥 Ajouter un Utilisateur');
+
+        const userInput = new TextInputBuilder()
+            .setCustomId('user_id')
+            .setLabel('ID ou mention de l\'utilisateur')
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder('123456789012345678 ou @utilisateur')
+            .setRequired(true);
+
+        modal.addComponents(new ActionRowBuilder().addComponents(userInput));
+        await interaction.showModal(modal);
+    }
+
+    async createTranscript(interaction) {
+        try {
+            await interaction.deferReply({ ephemeral: true });
+
+            const channel = interaction.channel;
+            const messages = await channel.messages.fetch({ limit: 100 });
+            
+            let transcript = `TRANSCRIPT DU TICKET - ${channel.name}\n`;
+            transcript += `Généré le: ${new Date().toLocaleString('fr-FR')}\n`;
+            transcript += `Canal: ${channel.name}\n`;
+            transcript += `Créé le: ${new Date(channel.createdTimestamp).toLocaleString('fr-FR')}\n\n`;
+            transcript += '='.repeat(50) + '\n\n';
+
+            messages.reverse().forEach(msg => {
+                transcript += `[${new Date(msg.createdTimestamp).toLocaleString('fr-FR')}] ${msg.author.tag}: ${msg.content}\n`;
+                if (msg.embeds.length > 0) {
+                    transcript += `  [EMBED: ${msg.embeds[0].title || 'Sans titre'}]\n`;
+                }
+                if (msg.attachments.size > 0) {
+                    transcript += `  [FICHIERS: ${msg.attachments.map(a => a.name).join(', ')}]\n`;
+                }
+                transcript += '\n';
+            });
+
+            // Créer un embed avec le transcript
+            const transcriptEmbed = new EmbedBuilder()
+                .setColor('#3498db')
+                .setTitle('📄 **TRANSCRIPT GÉNÉRÉ**')
+                .setDescription(`
+**Transcript du ticket généré avec succès !**
+
+**📋 Informations :**
+• **Canal :** ${channel.name}
+• **Messages récupérés :** ${messages.size}
+• **Généré le :** <t:${Math.floor(Date.now() / 1000)}:F>
+• **Généré par :** ${interaction.user}
+
+**📎 Le transcript complet a été envoyé en message privé.**`)
+                .setFooter({ text: 'Transcript sauvegardé' })
+                .setTimestamp();
+
+            // Envoyer le transcript en MP
+            try {
+                await interaction.user.send({
+                    content: `**Transcript du ticket ${channel.name}**`,
+                    files: [{
+                        attachment: Buffer.from(transcript, 'utf8'),
+                        name: `transcript-${channel.name}-${Date.now()}.txt`
+                    }]
+                });
+
+                await interaction.editReply({ embeds: [transcriptEmbed] });
+            } catch (error) {
+                await interaction.editReply({
+                    content: '❌ Impossible d\'envoyer le transcript en MP. Vérifiez vos paramètres de confidentialité.'
+                });
+            }
+
+        } catch (error) {
+            this.logger.error('Erreur lors de la création du transcript:', error);
+            await interaction.editReply({
+                content: '❌ Une erreur est survenue lors de la génération du transcript.'
+            });
+        }
+    }
+
+    async handleAddUserModal(interaction) {
+        try {
+            const userId = interaction.fields.getTextInputValue('user_id').replace(/[<@!>]/g, '');
+            const channel = interaction.channel;
+            const guild = interaction.guild;
+
+            const user = await guild.members.fetch(userId).catch(() => null);
+            if (!user) {
+                return await interaction.reply({
+                    content: '❌ Utilisateur introuvable. Vérifiez l\'ID ou la mention.',
+                    ephemeral: true
+                });
+            }
+
+            // Ajouter les permissions à l'utilisateur
+            await channel.permissionOverwrites.create(user.id, {
+                ViewChannel: true,
+                SendMessages: true,
+                ReadMessageHistory: true,
+                AttachFiles: true,
+                EmbedLinks: true
+            });
+
+            const addUserEmbed = new EmbedBuilder()
+                .setColor('#2ecc71')
+                .setTitle('👥 **UTILISATEUR AJOUTÉ**')
+                .setDescription(`
+**${user} a été ajouté au ticket !**
+
+**📋 Informations :**
+• **Utilisateur ajouté :** ${user} (${user.user.tag})
+• **Ajouté par :** ${interaction.user}
+• **Ajouté le :** <t:${Math.floor(Date.now() / 1000)}:F>
+• **Permissions accordées :** Lecture, écriture, fichiers
+
+**👋 ${user}, bienvenue dans ce ticket !**`)
+                .setThumbnail(user.user.displayAvatarURL({ dynamic: true }))
+                .setFooter({ text: 'Utilisateur ajouté avec succès' })
+                .setTimestamp();
+
+            await interaction.reply({ embeds: [addUserEmbed] });
+
+        } catch (error) {
+            this.logger.error('Erreur lors de l\'ajout d\'utilisateur:', error);
+            await interaction.reply({
+                content: '❌ Une erreur est survenue lors de l\'ajout de l\'utilisateur.',
+                ephemeral: true
+            });
+        }
+    }
+
+    async handleConfirmClose(interaction) {
+        try {
+            const channel = interaction.channel;
+            
+            const closingEmbed = new EmbedBuilder()
+                .setColor('#e74c3c')
+                .setTitle('🔒 **TICKET EN COURS DE FERMETURE**')
+                .setDescription(`
+**Ce ticket va être fermé dans 10 secondes...**
+
+**📋 Résumé final :**
+• **Fermé par :** ${interaction.user}
+• **Fermé le :** <t:${Math.floor(Date.now() / 1000)}:F>
+• **Durée totale :** <t:${Math.floor(channel.createdTimestamp / 1000)}:R>
+
+**💾 Pensez à sauvegarder les informations importantes !**
+
+*Merci d'avoir utilisé notre système de support.*`)
+                .setFooter({ text: 'Fermeture automatique dans 10 secondes' })
+                .setTimestamp();
+
+            await interaction.update({
+                embeds: [closingEmbed],
+                components: []
+            });
+
+            // Supprimer le canal après 10 secondes
+            setTimeout(async () => {
+                try {
+                    await channel.delete('Ticket fermé');
+                } catch (error) {
+                    this.logger.error('Erreur lors de la suppression du canal:', error);
+                }
+            }, 10000);
+
+        } catch (error) {
+            this.logger.error('Erreur lors de la fermeture confirmée:', error);
+        }
+    }
+
+    async handleCancelClose(interaction) {
+        const cancelEmbed = new EmbedBuilder()
+            .setColor('#2ecc71')
+            .setTitle('✅ **FERMETURE ANNULÉE**')
+            .setDescription(`
+**La fermeture du ticket a été annulée.**
+
+Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
+
+**🎯 Actions disponibles :**
+• Continuer la conversation
+• Utiliser les boutons d'actions
+• Fermer plus tard si nécessaire`)
+            .setFooter({ text: 'Ticket toujours actif' })
+            .setTimestamp();
+
+        await interaction.update({
+            embeds: [cancelEmbed],
+            components: []
+        });
+    }
+
+    // Méthode pour créer ou récupérer la catégorie de tickets
+    async ensureTicketCategory(guild) {
+        try {
+            // Chercher une catégorie existante avec le nom "🎫 Tickets"
+            let ticketCategory = guild.channels.cache.find(
+                channel => channel.type === ChannelType.GuildCategory && 
+                          (channel.name.includes('Tickets') || channel.name.includes('🎫'))
             );
 
-        await interaction.reply({
-            embeds: [emergencyEmbed],
-            components: [emergencyButton],
-            ephemeral: true
-        });
+            // Si la catégorie n'existe pas, la créer
+            if (!ticketCategory) {
+                ticketCategory = await guild.channels.create({
+                    name: '🎫 Tickets',
+                    type: ChannelType.GuildCategory,
+                    permissionOverwrites: [
+                        {
+                            id: guild.id,
+                            deny: [PermissionFlagsBits.ViewChannel]
+                        },
+                        {
+                            id: this.staffRoleId,
+                            allow: [
+                                PermissionFlagsBits.ViewChannel,
+                                PermissionFlagsBits.ManageChannels,
+                                PermissionFlagsBits.ManageMessages
+                            ]
+                        }
+                    ]
+                });
 
-        // Notifier l'équipe d'urgence
-        const emergencyChannel = interaction.guild.channels.cache.get(process.env.EMERGENCY_CHANNEL_ID);
-        if (emergencyChannel) {
-            await emergencyChannel.send({
-                content: `🚨 **ALERTE URGENCE** - ${interaction.user} a déclenché une urgence !`,
-                embeds: [emergencyEmbed]
+                this.logger.success(`Catégorie de tickets créée: ${ticketCategory.name}`);
+            }
+
+            // Mettre à jour l'ID de la catégorie
+            this.ticketCategoryId = ticketCategory.id;
+            
+            return ticketCategory;
+
+        } catch (error) {
+            this.logger.error('Erreur lors de la création/récupération de la catégorie de tickets:', error);
+            throw error;
+        }
+    }
+
+    // Méthode pour nettoyer les tickets fermés (optionnel)
+    async cleanupClosedTickets(guild) {
+        try {
+            const ticketCategory = guild.channels.cache.get(this.ticketCategoryId);
+            if (!ticketCategory) return;
+
+            const ticketChannels = ticketCategory.children.cache.filter(
+                channel => channel.type === ChannelType.GuildText && 
+                          channel.name.includes('ticket')
+            );
+
+            // Supprimer les tickets inactifs depuis plus de 7 jours
+            const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+            
+            for (const [id, channel] of ticketChannels) {
+                try {
+                    const messages = await channel.messages.fetch({ limit: 1 });
+                    const lastMessage = messages.first();
+                    
+                    if (!lastMessage || lastMessage.createdTimestamp < sevenDaysAgo) {
+                        await channel.delete('Nettoyage automatique - ticket inactif');
+                        this.logger.info(`Ticket inactif supprimé: ${channel.name}`);
+                    }
+                } catch (error) {
+                    // Ignorer les erreurs de suppression
+                }
+            }
+
+        } catch (error) {
+            this.logger.error('Erreur lors du nettoyage des tickets:', error);
+        }
+    }
+
+    // Méthode pour obtenir les statistiques des tickets
+    async getTicketStats(guild) {
+        try {
+            const ticketCategory = guild.channels.cache.get(this.ticketCategoryId);
+            if (!ticketCategory) return null;
+
+            const ticketChannels = ticketCategory.children.cache.filter(
+                channel => channel.type === ChannelType.GuildText && 
+                          channel.name.includes('ticket')
+            );
+
+            const stats = {
+                total: ticketChannels.size,
+                byType: {},
+                recent: 0
+            };
+
+            // Compter par type
+            Object.keys(this.ticketTypes).forEach(type => {
+                stats.byType[type] = ticketChannels.filter(
+                    channel => channel.name.includes(type)
+                ).size;
             });
+
+            // Compter les tickets récents (dernières 24h)
+            const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+            stats.recent = ticketChannels.filter(
+                channel => channel.createdTimestamp > oneDayAgo
+            ).size;
+
+            return stats;
+
+        } catch (error) {
+            this.logger.error('Erreur lors du calcul des statistiques:', error);
+            return null;
         }
     }
 }

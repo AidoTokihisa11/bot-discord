@@ -14,6 +14,7 @@ class Database {
             users: {},
             tickets: {},
             ticketNumbers: {},
+            streamers: {},
             stats: {
                 totalTickets: 0,
                 totalCommands: 0,
@@ -415,6 +416,55 @@ class Database {
         } catch (error) {
             console.error('Erreur lors de l\'ajout d\'utilisateur:', error);
             return false;
+        }
+    }
+
+    // === MÉTHODES POUR LES STREAMERS ===
+
+    async getStreamers() {
+        return Object.values(this.data.streamers) || [];
+    }
+
+    async saveStreamer(streamerData) {
+        try {
+            this.data.streamers[streamerData.id] = streamerData;
+            await this.save();
+            return true;
+        } catch (error) {
+            console.error('Erreur lors de la sauvegarde du streamer:', error);
+            return false;
+        }
+    }
+
+    async removeStreamer(streamerId) {
+        try {
+            if (this.data.streamers[streamerId]) {
+                delete this.data.streamers[streamerId];
+                await this.save();
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Erreur lors de la suppression du streamer:', error);
+            return false;
+        }
+    }
+
+    async getStreamer(streamerId) {
+        return this.data.streamers[streamerId] || null;
+    }
+
+    async updateStreamer(streamerId, updates) {
+        try {
+            if (this.data.streamers[streamerId]) {
+                Object.assign(this.data.streamers[streamerId], updates);
+                await this.save();
+                return this.data.streamers[streamerId];
+            }
+            return null;
+        } catch (error) {
+            console.error('Erreur lors de la mise à jour du streamer:', error);
+            return null;
         }
     }
 }
