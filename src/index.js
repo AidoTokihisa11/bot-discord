@@ -7,6 +7,7 @@ import { readdirSync, statSync } from 'fs';
 import Logger from './utils/Logger.js';
 import Database from './utils/Database.js';
 import ErrorHandler from './utils/ErrorHandler.js';
+import RoleMentionManager from './utils/RoleMentionManager.js';
 
 // Configuration
 config();
@@ -129,6 +130,10 @@ async function initialize() {
         logger.info('🗄️ Initialisation de la base de données...');
         await client.db.initialize();
         
+        // Initialisation du gestionnaire de mentions de rôles
+        logger.info('🎭 Initialisation du gestionnaire de mentions de rôles...');
+        client.roleMentionManager = new RoleMentionManager(client);
+        logger.success('✅ Gestionnaire de mentions de rôles initialisé');
         
         // Connexion du bot
         logger.info('🔗 Connexion à Discord...');
