@@ -39,7 +39,7 @@ export default {
 async function handleRuleRevocation(message, member, logger) {
     try {
         const guild = member.guild;
-        const validationRoleId = '1386990308679483393';
+        const validationRoleId = '1387536419588931616';
 
         // Vérifier si le message contient le règlement (recherche dans les embeds)
         const isRuleMessage = message.embeds.some(embed => 
