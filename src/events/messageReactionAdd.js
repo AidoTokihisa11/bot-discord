@@ -2,12 +2,18 @@ import Logger from '../utils/Logger.js';
 
 export default {
     name: 'messageReactionAdd',
-    async execute(reaction, user) {
+    async execute(reaction, user, client) {
         const logger = new Logger();
 
         try {
+            // Log de débogage pour vérifier que l'événement se déclenche
+            logger.info(`🔍 Réaction détectée: ${reaction.emoji.name} par ${user.tag}`);
+            
             // Ignorer les réactions du bot
-            if (user.bot) return;
+            if (user.bot) {
+                logger.info('🤖 Réaction du bot ignorée');
+                return;
+            }
 
             // Vérifier si la réaction est partielle et la récupérer complètement
             if (reaction.partial) {
@@ -25,7 +31,20 @@ export default {
 
             if (!member) return;
 
-            // Système de validation du règlement
+            // Système de rôles gaming avancé (priorité)
+            if (client.gamingRoleManager) {
+                const gameData = client.gamingRoleManager.getGameByEmoji(emoji.name);
+                if (gameData) {
+                    const handled = await client.gamingRoleManager.handleRoleAdd(reaction, user, gameData.key);
+                    if (handled) {
+                        logger.info(`🎮 Rôle gaming traité pour ${user.tag}: ${gameData.config.name}`);
+                        return;
+                    }
+                }
+            }
+
+
+            // Système de validation du règlement (fallback pour l'ancien système)
             if (emoji.name === '✅') {
                 await handleRuleValidation(message, member, logger);
             }
@@ -41,6 +60,9 @@ async function handleRuleValidation(message, member, logger) {
         const guild = member.guild;
         const validationRoleId = '1387536419588931616';
 
+        logger.info(`🎯 Traitement de la validation pour ${member.user.tag}`);
+        logger.info(`📋 ID du rôle de validation: ${validationRoleId}`);
+
         // Vérifier si le message contient le règlement (recherche dans les embeds)
         const isRuleMessage = message.embeds.some(embed => 
             embed.title?.includes('RÈGLEMENT') || 
@@ -48,7 +70,11 @@ async function handleRuleValidation(message, member, logger) {
             embed.description?.includes('VALIDATION DU RÈGLEMENT')
         );
 
-        if (!isRuleMessage) return;
+        logger.info(`📝 Message de règlement détecté: ${isRuleMessage}`);
+        if (!isRuleMessage) {
+            logger.info('❌ Ce n\'est pas un message de règlement, arrêt du traitement');
+            return;
+        }
 
         // Vérifier si le membre a déjà le rôle
         if (member.roles.cache.has(validationRoleId)) {

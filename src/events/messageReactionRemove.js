@@ -2,7 +2,7 @@ import Logger from '../utils/Logger.js';
 
 export default {
     name: 'messageReactionRemove',
-    async execute(reaction, user) {
+    async execute(reaction, user, client) {
         const logger = new Logger();
 
         try {
@@ -25,7 +25,20 @@ export default {
 
             if (!member) return;
 
-            // Système de révocation du règlement
+            // Système de rôles gaming avancé (priorité)
+            if (client.gamingRoleManager) {
+                const gameData = client.gamingRoleManager.getGameByEmoji(emoji.name);
+                if (gameData) {
+                    const handled = await client.gamingRoleManager.handleRoleRemove(reaction, user, gameData.key);
+                    if (handled) {
+                        logger.info(`🎮 Rôle gaming retiré pour ${user.tag}: ${gameData.config.name}`);
+                        return;
+                    }
+                }
+            }
+
+
+            // Système de révocation du règlement (fallback pour l'ancien système)
             if (emoji.name === '✅') {
                 await handleRuleRevocation(message, member, logger);
             }
