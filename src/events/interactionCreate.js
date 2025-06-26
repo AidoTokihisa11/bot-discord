@@ -133,35 +133,54 @@ async function handleGamingRoleButton(interaction) {
     const logger = new Logger();
     
     try {
-        // Vérifier si l'interaction est encore valide
-        if (!interaction.isRepliable()) {
-            logger.warn('Interaction expirée pour le bouton gaming');
-            return;
+        // Vérification immédiate de l'état de l'interaction
+        if (!interaction || !interaction.isRepliable()) {
+            return; // Sortir silencieusement si l'interaction n'est pas valide
+        }
+
+        // Vérifier si l'interaction a déjà été traitée
+        if (interaction.replied || interaction.deferred) {
+            return; // Éviter les doubles traitements
         }
 
         if (!interaction.client.gamingRoleManager) {
-            return await interaction.reply({
-                content: '❌ Le système de rôles gaming n\'est pas disponible.',
-                ephemeral: true
-            });
+            try {
+                await interaction.reply({
+                    content: '❌ Le système de rôles gaming n\'est pas disponible.',
+                    ephemeral: true
+                });
+            } catch (err) {
+                // Ignorer les erreurs de réponse
+            }
+            return;
         }
 
         const gameKey = interaction.customId.replace('gaming_role_', '');
         const gameConfig = interaction.client.gamingRoleManager.GAMING_CONFIG[gameKey];
         
         if (!gameConfig || gameConfig.disabled) {
-            return await interaction.reply({
-                content: '❌ Ce jeu n\'est pas disponible actuellement.',
-                ephemeral: true
-            });
+            try {
+                await interaction.reply({
+                    content: '❌ Ce jeu n\'est pas disponible actuellement.',
+                    ephemeral: true
+                });
+            } catch (err) {
+                // Ignorer les erreurs de réponse
+            }
+            return;
         }
 
         const member = interaction.guild.members.cache.get(interaction.user.id);
         if (!member) {
-            return await interaction.reply({
-                content: '❌ Impossible de vous trouver sur ce serveur.',
-                ephemeral: true
-            });
+            try {
+                await interaction.reply({
+                    content: '❌ Impossible de vous trouver sur ce serveur.',
+                    ephemeral: true
+                });
+            } catch (err) {
+                // Ignorer les erreurs de réponse
+            }
+            return;
         }
 
         // Vérifier le cooldown
@@ -183,118 +202,117 @@ async function handleGamingRoleButton(interaction) {
                 })
                 .setTimestamp();
 
-            return await interaction.reply({
-                embeds: [cooldownEmbed],
-                ephemeral: true
-            });
-        }
-
-        // Répondre immédiatement pour éviter l'expiration
-        await interaction.reply({
-            content: '⏳ Traitement en cours...',
-            ephemeral: true
-        });
-
-        // Vérifier si l'utilisateur a déjà le rôle
-        const hasRole = member.roles.cache.has(gameConfig.roleId);
-        const action = hasRole ? 'remove' : 'add';
-        
-        let success = false;
-        if (action === 'add') {
-            success = await interaction.client.gamingRoleManager.handleRoleAdd(
-                { message: interaction.message, emoji: { name: gameConfig.emoji } },
-                interaction.user,
-                gameKey
-            );
-        } else {
-            success = await interaction.client.gamingRoleManager.handleRoleRemove(
-                { message: interaction.message, emoji: { name: gameConfig.emoji } },
-                interaction.user,
-                gameKey
-            );
-        }
-
-        if (success) {
-            const actionText = action === 'add' ? 'obtenu' : 'retiré';
-            const emoji = action === 'add' ? '✅' : '➖';
-            
-            const successEmbed = new EmbedBuilder()
-                .setColor(action === 'add' ? gameConfig.color : 0x95A5A6)
-                .setTitle(`${emoji} **RÔLE ${actionText.toUpperCase()} !**`)
-                .setDescription(`Vous avez ${actionText} le rôle **${gameConfig.name}** avec succès !`)
-                .addFields(
-                    {
-                        name: '🎮 Jeu',
-                        value: `${gameConfig.emoji} ${gameConfig.name}`,
-                        inline: true
-                    },
-                    {
-                        name: '⏰ Cooldown',
-                        value: '30 secondes',
-                        inline: true
-                    }
-                )
-                .setFooter({ 
-                    text: `${interaction.guild.name} • Système Gaming`,
-                    iconURL: interaction.guild.iconURL()
-                })
-                .setTimestamp();
-
-            if (action === 'add') {
-                successEmbed.addFields({
-                    name: '🔗 Accès',
-                    value: 'Vous avez maintenant accès aux salons de ce jeu !',
-                    inline: false
+            try {
+                await interaction.reply({
+                    embeds: [cooldownEmbed],
+                    ephemeral: true
                 });
+            } catch (err) {
+                // Ignorer les erreurs de réponse
             }
-
-            await interaction.editReply({ 
-                content: null,
-                embeds: [successEmbed] 
-            });
-        } else {
-            const errorEmbed = new EmbedBuilder()
-                .setColor(0xFF6B6B)
-                .setTitle('❌ **ERREUR**')
-                .setDescription('Une erreur est survenue lors du traitement de votre demande.')
-                .setTimestamp();
-
-            await interaction.editReply({ 
-                content: null,
-                embeds: [errorEmbed] 
-            });
-        }
-
-    } catch (error) {
-        logger.error('Erreur dans handleGamingRoleButton:', error);
-        
-        // Ne pas essayer de répondre si l'interaction a déjà expiré
-        if (error.code === 10062 || error.code === 40060) {
-            logger.warn('Interaction expirée, impossible de répondre');
             return;
         }
-        
-        try {
-            const errorEmbed = new EmbedBuilder()
-                .setColor(0xFF6B6B)
-                .setTitle('❌ **ERREUR**')
-                .setDescription('Une erreur inattendue est survenue.')
-                .setTimestamp();
 
-            if (interaction.replied || interaction.deferred) {
-                await interaction.editReply({ 
-                    content: null,
-                    embeds: [errorEmbed] 
-                });
-            } else if (interaction.isRepliable()) {
-                await interaction.reply({ 
-                    embeds: [errorEmbed], 
-                    ephemeral: true 
+        // Traitement en arrière-plan sans attendre la réponse Discord
+        setImmediate(async () => {
+            try {
+                // Vérifier si l'utilisateur a déjà le rôle
+                const hasRole = member.roles.cache.has(gameConfig.roleId);
+                const action = hasRole ? 'remove' : 'add';
+                
+                let success = false;
+                if (action === 'add') {
+                    success = await interaction.client.gamingRoleManager.handleRoleAdd(
+                        { message: interaction.message, emoji: { name: gameConfig.emoji } },
+                        interaction.user,
+                        gameKey
+                    );
+                } else {
+                    success = await interaction.client.gamingRoleManager.handleRoleRemove(
+                        { message: interaction.message, emoji: { name: gameConfig.emoji } },
+                        interaction.user,
+                        gameKey
+                    );
+                }
+
+                // Envoyer une notification en MP plutôt que de répondre à l'interaction
+                if (success) {
+                    const actionText = action === 'add' ? 'obtenu' : 'retiré';
+                    const emoji = action === 'add' ? '✅' : '➖';
+                    
+                    const successEmbed = new EmbedBuilder()
+                        .setColor(action === 'add' ? gameConfig.color : 0x95A5A6)
+                        .setTitle(`${emoji} **RÔLE ${actionText.toUpperCase()} !**`)
+                        .setDescription(`Vous avez ${actionText} le rôle **${gameConfig.name}** avec succès !`)
+                        .addFields(
+                            {
+                                name: '🎮 Jeu',
+                                value: `${gameConfig.emoji} ${gameConfig.name}`,
+                                inline: true
+                            },
+                            {
+                                name: '⏰ Cooldown',
+                                value: '30 secondes',
+                                inline: true
+                            }
+                        )
+                        .setFooter({ 
+                            text: `${interaction.guild.name} • Système Gaming`,
+                            iconURL: interaction.guild.iconURL()
+                        })
+                        .setTimestamp();
+
+                    if (action === 'add') {
+                        successEmbed.addFields({
+                            name: '🔗 Accès',
+                            value: 'Vous avez maintenant accès aux salons de ce jeu !',
+                            inline: false
+                        });
+                    }
+
+                    // Envoyer en MP pour éviter les problèmes d'interaction
+                    try {
+                        await interaction.user.send({ embeds: [successEmbed] });
+                    } catch (dmError) {
+                        // Si impossible d'envoyer en MP, essayer de répondre à l'interaction
+                        try {
+                            if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
+                                await interaction.reply({ 
+                                    embeds: [successEmbed],
+                                    ephemeral: true
+                                });
+                            }
+                        } catch (replyError) {
+                            // Ignorer les erreurs de réponse
+                        }
+                    }
+                }
+            } catch (processError) {
+                logger.warn('Erreur lors du traitement en arrière-plan:', processError);
+            }
+        });
+
+        // Réponse immédiate simple pour éviter l'expiration
+        try {
+            if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
+                await interaction.reply({
+                    content: '✅ Traitement en cours... Vous recevrez une confirmation en message privé.',
+                    ephemeral: true
                 });
             }
         } catch (replyError) {
-            logger.warn('Impossible de répondre à l\'erreur:', replyError);
+            // Ignorer les erreurs de réponse immédiate
         }
+
+    } catch (error) {
+        // Gestion silencieuse des erreurs pour éviter le spam dans les logs
+        if (error.code === 10062 || error.code === 40060) {
+            // Interaction expirée ou déjà traitée - ignorer silencieusement
+            return;
+        }
+        
+        // Logger seulement les erreurs importantes
+        logger.warn('Erreur dans handleGamingRoleButton (non critique):', error.message);
     }
 }
 
