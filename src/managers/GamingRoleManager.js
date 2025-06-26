@@ -8,7 +8,7 @@ export default class GamingRoleManager {
         this.cooldowns = new Map(); // Cooldown pour les changements de rôles
         this.COOLDOWN_TIME = 30000; // 30 secondes de cooldown
         
-        // Configuration des jeux avec leurs rôles et catégories
+        // Configuration des jeux avec leurs rôles et salons spécifiques
         this.GAMING_CONFIG = {
             'cod': {
                 name: 'Call Of Duty',
@@ -16,7 +16,14 @@ export default class GamingRoleManager {
                 roleId: '1387537951105351721',
                 categoryId: '1368964121873350706',
                 color: 0x8B4513,
-                description: 'Accès aux salons Call of Duty'
+                description: 'Accès aux salons Call of Duty',
+                channels: [
+                    '1368964295181992079', // Actu COD
+                    '1368964553630679120', // Recrutement Fun
+                    '1368965572322267176', // Game Public
+                    '1368969082376028180', // Vocal : COD Public 1
+                    '1369002662346887248'  // Vocal : COD Public 2
+                ]
             },
             'valorant': {
                 name: 'Valorant',
@@ -24,7 +31,15 @@ export default class GamingRoleManager {
                 roleId: '1387538423140581488',
                 categoryId: '1368971968430215199',
                 color: 0xFF4655,
-                description: 'Accès aux salons Valorant'
+                description: 'Accès aux salons Valorant',
+                channels: [
+                    '1368999671652941885', // Actu Valorant
+                    '1369680014605422672', // Général Valorant
+                    '1369000102378602636', // Recrutement Fun
+                    '1369367480736288768', // Game Valo Public
+                    '1369001216016650392', // Vocal : Valo Public 1
+                    '1369049978600951878'  // Vocal : Valo Public 2
+                ]
             },
             'fortnite': {
                 name: 'Fortnite',
@@ -32,7 +47,14 @@ export default class GamingRoleManager {
                 roleId: '1387538536965607566',
                 categoryId: '1369622958208979005',
                 color: 0x9146FF,
-                description: 'Accès aux salons Fortnite'
+                description: 'Accès aux salons Fortnite',
+                channels: [
+                    '1369623153755557938', // Actu Fortnite
+                    '1369623864836882452', // Recrutement Fun
+                    '1369670288270426302', // Général Fortnite
+                    '1369635083119755274', // Vocal : Fortnite Public 1
+                    '1369635557277171783'  // Vocal : Fortnite Public 2
+                ]
             },
             'eafc': {
                 name: 'EA FC',
@@ -40,7 +62,13 @@ export default class GamingRoleManager {
                 roleId: '1387539408269479987',
                 categoryId: '1369048320957219058',
                 color: 0x00D4AA,
-                description: 'Accès aux salons EA FC'
+                description: 'Accès aux salons EA FC',
+                channels: [
+                    '1369049143821078729', // Actu EA
+                    '1369058455398252725', // Général EA
+                    '1369060858080264233', // Voc EA FC Public 1
+                    '1369060872860995687'  // Voc EA FC Public 2
+                ]
             },
             'rocketleague': {
                 name: 'Rocket League',
@@ -48,7 +76,13 @@ export default class GamingRoleManager {
                 roleId: '1387541367290593362',
                 categoryId: '1369713493015662622',
                 color: 0xFF6B35,
-                description: 'Accès aux salons Rocket League'
+                description: 'Accès aux salons Rocket League',
+                channels: [
+                    '1369713822113202266', // Actu RL
+                    '1369715320927027271', // Recrutement Fun
+                    '1369720064101584976', // Général RL
+                    '1369721260397039747'  // Vocal : Voc Public
+                ]
             },
             'nintendo': {
                 name: 'Nintendo',
@@ -56,16 +90,29 @@ export default class GamingRoleManager {
                 roleId: '1387543141908746331',
                 categoryId: '1369032240750919681',
                 color: 0xE60012,
-                description: 'Accès aux salons Nintendo'
+                description: 'Accès aux salons Nintendo',
+                channels: [
+                    '1369043936198525020', // Actu Nintendo
+                    '1369044243846533250', // Chat Général
+                    '1369594886126440510', // Game Public
+                    '1369600162493890641', // Vocal : Nintendo Public 1
+                    '1369600111721578526'  // Vocal : Nintendo Public 2
+                ]
             },
             'lol': {
                 name: 'League of Legends',
                 emoji: '⚔️',
-                roleId: null, // Pas encore créé
+                roleId: '1387754269158936576', // ID du rôle LOL fourni
                 categoryId: '1387753953395212308',
                 color: 0x0F2027,
                 description: 'Accès aux salons League of Legends',
-                disabled: true // Désactivé tant que le rôle n'existe pas
+                disabled: false, // Activé maintenant que le rôle existe
+                channels: [
+                    '1387757965397856386', // Actu LOL
+                    '1387778438487605279', // Général LOL
+                    '1387778742817915062', // Game Public
+                    '1387789312808063097'  // Voc Public LOL
+                ]
             }
         };
     }
@@ -275,32 +322,38 @@ export default class GamingRoleManager {
     async updateChannelVisibility(member, gameKey, action) {
         try {
             const gameConfig = this.GAMING_CONFIG[gameKey];
-            const category = member.guild.channels.cache.get(gameConfig.categoryId);
             
-            if (!category) {
-                this.logger.warn(`Catégorie introuvable: ${gameConfig.name} (${gameConfig.categoryId})`);
+            if (!gameConfig.channels || gameConfig.channels.length === 0) {
+                this.logger.warn(`Aucun salon configuré pour ${gameConfig.name}`);
                 return;
             }
 
-            // Obtenir tous les salons de la catégorie
-            const channels = category.children.cache;
-            
-            for (const channel of channels.values()) {
+            // Traiter chaque salon spécifique
+            for (const channelId of gameConfig.channels) {
                 try {
+                    const channel = member.guild.channels.cache.get(channelId);
+                    
+                    if (!channel) {
+                        this.logger.warn(`Salon introuvable: ${channelId} pour ${gameConfig.name}`);
+                        continue;
+                    }
+
                     if (action === 'add') {
-                        // Donner accès aux salons
+                        // Donner accès au salon spécifique
                         await channel.permissionOverwrites.edit(member.id, {
                             [PermissionFlagsBits.ViewChannel]: true,
                             [PermissionFlagsBits.SendMessages]: true,
                             [PermissionFlagsBits.Connect]: true,
                             [PermissionFlagsBits.Speak]: true
                         });
+                        this.logger.info(`✅ Accès donné à ${member.user.tag} pour ${channel.name} (${gameConfig.name})`);
                     } else {
-                        // Retirer l'accès aux salons
+                        // Retirer l'accès au salon spécifique
                         await channel.permissionOverwrites.delete(member.id);
+                        this.logger.info(`❌ Accès retiré à ${member.user.tag} pour ${channel.name} (${gameConfig.name})`);
                     }
                 } catch (permError) {
-                    this.logger.warn(`Erreur de permissions pour ${channel.name}:`, permError);
+                    this.logger.warn(`Erreur de permissions pour le salon ${channelId}:`, permError);
                 }
             }
 

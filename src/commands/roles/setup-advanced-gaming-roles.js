@@ -198,22 +198,9 @@ Cliquez simplement sur les boutons ci-dessous pour obtenir ou retirer vos rôles
                 }
             }
 
-            // Configurer les rôles réactifs dans le gestionnaire standard
-            for (const [gameKey, gameConfig] of Object.entries(validGames)) {
-                try {
-                    await client.reactionRoleManager.addReactionRole({
-                        messageId: roleMessage.id,
-                        channelId: TARGET_CHANNEL_ID,
-                        guildId: interaction.guild.id,
-                        emoji: gameConfig.emoji,
-                        roleId: gameConfig.roleId,
-                        type: 'toggle',
-                        description: `${gameConfig.description} - Système Gaming Avancé`
-                    });
-                } catch (error) {
-                    logger.error(`Erreur lors de la configuration du rôle ${gameConfig.name}:`, error);
-                }
-            }
+            // Les rôles sont maintenant gérés directement par le GamingRoleManager
+            // via les événements messageReactionAdd/Remove et les boutons
+            logger.info('Rôles gaming configurés avec le nouveau système avancé');
 
             // Enregistrer l'ID du message pour les boutons
             if (!client.db.data.gamingRoles) {
