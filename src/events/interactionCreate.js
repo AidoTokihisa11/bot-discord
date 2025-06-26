@@ -133,6 +133,12 @@ async function handleGamingRoleButton(interaction) {
     const logger = new Logger();
     
     try {
+        // Vérifier si l'interaction est encore valide
+        if (!interaction.isRepliable()) {
+            logger.warn('Interaction expirée pour le bouton gaming');
+            return;
+        }
+
         if (!interaction.client.gamingRoleManager) {
             return await interaction.reply({
                 content: '❌ Le système de rôles gaming n\'est pas disponible.',
@@ -183,7 +189,11 @@ async function handleGamingRoleButton(interaction) {
             });
         }
 
-        await interaction.deferReply({ ephemeral: true });
+        // Répondre immédiatement pour éviter l'expiration
+        await interaction.reply({
+            content: '⏳ Traitement en cours...',
+            ephemeral: true
+        });
 
         // Vérifier si l'utilisateur a déjà le rôle
         const hasRole = member.roles.cache.has(gameConfig.roleId);
@@ -238,7 +248,10 @@ async function handleGamingRoleButton(interaction) {
                 });
             }
 
-            await interaction.editReply({ embeds: [successEmbed] });
+            await interaction.editReply({ 
+                content: null,
+                embeds: [successEmbed] 
+            });
         } else {
             const errorEmbed = new EmbedBuilder()
                 .setColor(0xFF6B6B)
@@ -246,22 +259,41 @@ async function handleGamingRoleButton(interaction) {
                 .setDescription('Une erreur est survenue lors du traitement de votre demande.')
                 .setTimestamp();
 
-            await interaction.editReply({ embeds: [errorEmbed] });
+            await interaction.editReply({ 
+                content: null,
+                embeds: [errorEmbed] 
+            });
         }
 
     } catch (error) {
         logger.error('Erreur dans handleGamingRoleButton:', error);
         
-        const errorEmbed = new EmbedBuilder()
-            .setColor(0xFF6B6B)
-            .setTitle('❌ **ERREUR**')
-            .setDescription('Une erreur inattendue est survenue.')
-            .setTimestamp();
+        // Ne pas essayer de répondre si l'interaction a déjà expiré
+        if (error.code === 10062 || error.code === 40060) {
+            logger.warn('Interaction expirée, impossible de répondre');
+            return;
+        }
+        
+        try {
+            const errorEmbed = new EmbedBuilder()
+                .setColor(0xFF6B6B)
+                .setTitle('❌ **ERREUR**')
+                .setDescription('Une erreur inattendue est survenue.')
+                .setTimestamp();
 
-        if (interaction.deferred) {
-            await interaction.editReply({ embeds: [errorEmbed] });
-        } else {
-            await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+            if (interaction.replied || interaction.deferred) {
+                await interaction.editReply({ 
+                    content: null,
+                    embeds: [errorEmbed] 
+                });
+            } else if (interaction.isRepliable()) {
+                await interaction.reply({ 
+                    embeds: [errorEmbed], 
+                    ephemeral: true 
+                });
+            }
+        } catch (replyError) {
+            logger.warn('Impossible de répondre à l\'erreur:', replyError);
         }
     }
 }
