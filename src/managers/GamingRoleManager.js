@@ -328,7 +328,61 @@ export default class GamingRoleManager {
                 return;
             }
 
-            // Traiter chaque salon spécifique
+            if (action === 'add') {
+                // 1. D'abord, cacher TOUS les salons gaming (de tous les jeux)
+                await this.hideAllGamingChannels(member);
+                
+                // 2. Ensuite, montrer UNIQUEMENT les salons du jeu choisi
+                await this.showGameChannels(member, gameConfig);
+                
+            } else {
+                // Quand on retire un rôle, on cache ses salons et on montre les autres jeux si l'utilisateur en a
+                await this.hideGameChannels(member, gameConfig);
+                await this.showUserActiveGameChannels(member);
+            }
+
+        } catch (error) {
+            this.logger.error('Erreur lors de la mise à jour de la visibilité des salons:', error);
+        }
+    }
+
+    /**
+     * Cache tous les salons gaming pour un utilisateur
+     */
+    async hideAllGamingChannels(member) {
+        try {
+            // Récupérer tous les salons de tous les jeux
+            const allGamingChannels = [];
+            
+            for (const gameConfig of Object.values(this.GAMING_CONFIG)) {
+                if (gameConfig.channels && !gameConfig.disabled) {
+                    allGamingChannels.push(...gameConfig.channels);
+                }
+            }
+
+            // Cacher tous les salons gaming
+            for (const channelId of allGamingChannels) {
+                try {
+                    const channel = member.guild.channels.cache.get(channelId);
+                    if (channel) {
+                        await channel.permissionOverwrites.edit(member.id, {
+                            [PermissionFlagsBits.ViewChannel]: false
+                        });
+                    }
+                } catch (permError) {
+                    this.logger.warn(`Erreur lors du masquage du salon ${channelId}:`, permError);
+                }
+            }
+        } catch (error) {
+            this.logger.error('Erreur lors du masquage de tous les salons gaming:', error);
+        }
+    }
+
+    /**
+     * Montre les salons d'un jeu spécifique
+     */
+    async showGameChannels(member, gameConfig) {
+        try {
             for (const channelId of gameConfig.channels) {
                 try {
                     const channel = member.guild.channels.cache.get(channelId);
@@ -338,27 +392,66 @@ export default class GamingRoleManager {
                         continue;
                     }
 
-                    if (action === 'add') {
-                        // Donner accès au salon spécifique
-                        await channel.permissionOverwrites.edit(member.id, {
-                            [PermissionFlagsBits.ViewChannel]: true,
-                            [PermissionFlagsBits.SendMessages]: true,
-                            [PermissionFlagsBits.Connect]: true,
-                            [PermissionFlagsBits.Speak]: true
-                        });
-                        this.logger.info(`✅ Accès donné à ${member.user.tag} pour ${channel.name} (${gameConfig.name})`);
-                    } else {
-                        // Retirer l'accès au salon spécifique
-                        await channel.permissionOverwrites.delete(member.id);
-                        this.logger.info(`❌ Accès retiré à ${member.user.tag} pour ${channel.name} (${gameConfig.name})`);
-                    }
+                    // Donner accès au salon spécifique
+                    await channel.permissionOverwrites.edit(member.id, {
+                        [PermissionFlagsBits.ViewChannel]: true,
+                        [PermissionFlagsBits.SendMessages]: true,
+                        [PermissionFlagsBits.Connect]: true,
+                        [PermissionFlagsBits.Speak]: true
+                    });
+                    this.logger.info(`✅ Accès donné à ${member.user.tag} pour ${channel.name} (${gameConfig.name})`);
                 } catch (permError) {
                     this.logger.warn(`Erreur de permissions pour le salon ${channelId}:`, permError);
                 }
             }
-
         } catch (error) {
-            this.logger.error('Erreur lors de la mise à jour de la visibilité des salons:', error);
+            this.logger.error('Erreur lors de l\'affichage des salons du jeu:', error);
+        }
+    }
+
+    /**
+     * Cache les salons d'un jeu spécifique
+     */
+    async hideGameChannels(member, gameConfig) {
+        try {
+            for (const channelId of gameConfig.channels) {
+                try {
+                    const channel = member.guild.channels.cache.get(channelId);
+                    
+                    if (!channel) {
+                        continue;
+                    }
+
+                    // Retirer l'accès au salon spécifique
+                    await channel.permissionOverwrites.edit(member.id, {
+                        [PermissionFlagsBits.ViewChannel]: false
+                    });
+                    this.logger.info(`❌ Accès retiré à ${member.user.tag} pour ${channel.name} (${gameConfig.name})`);
+                } catch (permError) {
+                    this.logger.warn(`Erreur de permissions pour le salon ${channelId}:`, permError);
+                }
+            }
+        } catch (error) {
+            this.logger.error('Erreur lors du masquage des salons du jeu:', error);
+        }
+    }
+
+    /**
+     * Montre les salons des jeux actifs de l'utilisateur
+     */
+    async showUserActiveGameChannels(member) {
+        try {
+            // Vérifier quels rôles gaming l'utilisateur possède encore
+            for (const [gameKey, gameConfig] of Object.entries(this.GAMING_CONFIG)) {
+                if (gameConfig.disabled) continue;
+                
+                if (member.roles.cache.has(gameConfig.roleId)) {
+                    // L'utilisateur a encore ce rôle, montrer ses salons
+                    await this.showGameChannels(member, gameConfig);
+                }
+            }
+        } catch (error) {
+            this.logger.error('Erreur lors de l\'affichage des salons actifs:', error);
         }
     }
 
