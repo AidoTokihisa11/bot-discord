@@ -1,4 +1,4 @@
-import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags } from 'discord.js';
 import Database from '../utils/Database.js';
 import Logger from '../utils/Logger.js';
 
@@ -199,7 +199,7 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
             if (!config) {
                 return await interaction.reply({
                     content: '❌ Type de ticket invalide.',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -211,7 +211,7 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
             if (existingTickets.size > 0) {
                 return await interaction.reply({
                     content: `❌ Vous avez déjà un ticket ouvert : ${existingTickets.first()}`,
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -262,7 +262,7 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
             this.logger.error('Erreur lors de la création du ticket:', error);
             await interaction.reply({
                 content: '❌ Une erreur est survenue lors de la création du ticket.',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
     }
@@ -386,14 +386,14 @@ Votre avis compte énormément pour nous. Choisissez le type de suggestion qui c
             await interaction.reply({
                 embeds: [suggestionEmbed],
                 components: [selectRow],
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
 
         } catch (error) {
             this.logger.error('Erreur lors de la création de suggestion:', error);
             await interaction.reply({
                 content: '❌ Une erreur est survenue lors de la création de la suggestion.',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
     }
