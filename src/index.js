@@ -8,7 +8,6 @@ import Logger from './utils/Logger.js';
 import Database from './utils/Database.js';
 import ErrorHandler from './utils/ErrorHandler.js';
 import RoleMentionManager from './utils/RoleMentionManager.js';
-import GamingRoleManager from './managers/GamingRoleManager.js';
 
 // Configuration
 config();
@@ -136,11 +135,6 @@ async function initialize() {
         client.roleMentionManager = new RoleMentionManager(client);
         logger.success('✅ Gestionnaire de mentions de rôles initialisé');
         
-        // Initialisation du gestionnaire de rôles gaming
-        logger.info('🎮 Initialisation du gestionnaire de rôles gaming...');
-        client.gamingRoleManager = new GamingRoleManager(client);
-        await client.gamingRoleManager.initialize();
-        logger.success('✅ Gestionnaire de rôles gaming initialisé');
         
         // Connexion du bot
         logger.info('🔗 Connexion à Discord...');

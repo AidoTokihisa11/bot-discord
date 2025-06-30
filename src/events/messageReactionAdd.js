@@ -31,18 +31,6 @@ export default {
 
             if (!member) return;
 
-            // Système de rôles gaming avancé (priorité)
-            if (client.gamingRoleManager) {
-                const gameData = client.gamingRoleManager.getGameByEmoji(emoji.name);
-                if (gameData) {
-                    const handled = await client.gamingRoleManager.handleRoleAdd(reaction, user, gameData.key);
-                    if (handled) {
-                        logger.info(`🎮 Rôle gaming traité pour ${user.tag}: ${gameData.config.name}`);
-                        return;
-                    }
-                }
-            }
-
 
             // Système de validation du règlement (fallback pour l'ancien système)
             if (emoji.name === '✅') {
