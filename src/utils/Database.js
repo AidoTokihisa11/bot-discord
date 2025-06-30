@@ -35,7 +35,25 @@ class Database {
         try {
             if (existsSync(this.dbFile)) {
                 const fileData = readFileSync(this.dbFile, 'utf8');
-                this.data = { ...this.data, ...JSON.parse(fileData) };
+                
+                // Vérifier si le fichier n'est pas vide ou corrompu
+                if (fileData.trim() === '') {
+                    console.log('📄 Fichier de base de données vide, initialisation avec données par défaut');
+                } else {
+                    try {
+                        const parsedData = JSON.parse(fileData);
+                        this.data = { ...this.data, ...parsedData };
+                        console.log('✅ Base de données chargée avec succès');
+                    } catch (parseError) {
+                        console.error('❌ Fichier JSON corrompu, sauvegarde et réinitialisation...');
+                        // Sauvegarder le fichier corrompu
+                        const backupFile = this.dbFile + '.backup.' + Date.now();
+                        writeFileSync(backupFile, fileData);
+                        console.log(`💾 Sauvegarde créée: ${backupFile}`);
+                    }
+                }
+            } else {
+                console.log('📄 Nouveau fichier de base de données créé');
             }
             await this.save();
             return true;

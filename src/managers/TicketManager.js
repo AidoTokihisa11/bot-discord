@@ -1222,10 +1222,14 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
 
         } catch (error) {
             this.logger.error('Erreur lors de la sélection du type de suggestion:', error);
-            await interaction.reply({
-                content: '❌ Une erreur est survenue lors de la sélection du type de suggestion.',
-                ephemeral: true
-            });
+            try {
+                await interaction.reply({
+                    content: '❌ Une erreur est survenue lors de la sélection du type de suggestion.',
+                    ephemeral: true
+                });
+            } catch (replyError) {
+                console.error('Impossible de répondre à l\'interaction:', replyError);
+            }
         }
     }
 
@@ -1241,6 +1245,12 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
             const benefits = interaction.fields.getTextInputValue('suggestion_benefits');
             const implementation = interaction.fields.getTextInputValue('suggestion_implementation') || 'Non spécifié';
             const priority = interaction.fields.getTextInputValue('suggestion_priority') || '3';
+
+            // Vérifier si l'interaction est encore valide
+            if (interaction.replied || interaction.deferred) {
+                console.log('⚠️ Interaction déjà traitée, abandon...');
+                return;
+            }
 
             await interaction.deferReply({ ephemeral: true });
 
@@ -1370,11 +1380,11 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
             });
 
             // Stocker les informations de la suggestion pour le feedback
-            if (!this.client.db.data.suggestions) {
-                this.client.db.data.suggestions = {};
+            if (!this.db.data.suggestions) {
+                this.db.data.suggestions = {};
             }
             
-            this.client.db.data.suggestions[suggestionChannel.id] = {
+            this.db.data.suggestions[suggestionChannel.id] = {
                 id: suggestionNumber,
                 userId: user.id,
                 type: suggestionType,
@@ -1387,7 +1397,7 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
                 status: 'pending'
             };
             
-            await this.client.db.save();
+            await this.db.save();
 
             await interaction.editReply({
                 content: `✅ **Suggestion créée avec succès !** ${suggestionChannel}\n💡 Notre équipe va évaluer votre suggestion et vous donner un retour détaillé.`
@@ -1406,16 +1416,27 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
     // Gestion de la fermeture des suggestions avec feedback
     async handleSuggestionClose(interaction, status = 'closed') {
         try {
+            // Vérifier si l'interaction est encore valide
+            if (interaction.replied || interaction.deferred) {
+                console.log('⚠️ Interaction déjà traitée pour la fermeture de suggestion, abandon...');
+                return;
+            }
+
             const channel = interaction.channel;
             const feedbackChannelId = '1389009159403343932';
             
             // Récupérer les informations de la suggestion
-            const suggestionData = this.client.db.data.suggestions?.[channel.id];
+            const suggestionData = this.db.data.suggestions?.[channel.id];
             if (!suggestionData) {
-                return await interaction.reply({
-                    content: '❌ Impossible de trouver les données de cette suggestion.',
-                    ephemeral: true
-                });
+                try {
+                    return await interaction.reply({
+                        content: '❌ Impossible de trouver les données de cette suggestion.',
+                        ephemeral: true
+                    });
+                } catch (replyError) {
+                    console.error('Impossible de répondre à l\'interaction:', replyError);
+                    return;
+                }
             }
 
             // Modal pour le feedback constructif
@@ -1466,10 +1487,14 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
 
         } catch (error) {
             this.logger.error('Erreur lors de la fermeture de suggestion:', error);
-            await interaction.reply({
-                content: '❌ Une erreur est survenue lors de la fermeture de la suggestion.',
-                ephemeral: true
-            });
+            try {
+                await interaction.reply({
+                    content: '❌ Une erreur est survenue lors de la fermeture de la suggestion.',
+                    ephemeral: true
+                });
+            } catch (replyError) {
+                console.error('Impossible de répondre à l\'erreur d\'interaction:', replyError);
+            }
         }
     }
 
