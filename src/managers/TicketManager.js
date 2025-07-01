@@ -1437,7 +1437,7 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
                 try {
                     return await interaction.reply({
                         content: '❌ Impossible de trouver les données de cette suggestion.',
-                        ephemeral: true
+                        flags: MessageFlags.Ephemeral
                     });
                 } catch (replyError) {
                     this.logger.error('Impossible de répondre à l\'interaction (données manquantes):', replyError);
