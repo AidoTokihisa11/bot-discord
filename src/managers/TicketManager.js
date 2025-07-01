@@ -1416,9 +1416,9 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
     // Gestion de la fermeture des suggestions avec feedback
     async handleSuggestionClose(interaction, status = 'closed') {
         try {
-            // Vérifier si l'interaction est encore valide
+            // Vérification immédiate de l'état de l'interaction
             if (interaction.replied || interaction.deferred) {
-                this.logger.warn('⚠️ Interaction déjà traitée pour la fermeture de suggestion, abandon...');
+                this.logger.warn('⚠️ Interaction déjà traitée, abandon silencieux...');
                 return;
             }
 
@@ -1428,27 +1428,40 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
             // Récupérer les informations de la suggestion
             const suggestionData = this.db.data.suggestions?.[channel.id];
             if (!suggestionData) {
-                // Vérifier à nouveau si l'interaction est valide avant de répondre
-                if (interaction.replied || interaction.deferred) {
-                    this.logger.warn('Interaction expirée lors de la vérification des données de suggestion');
-                    return;
-                }
+                this.logger.warn('Données de suggestion manquantes pour le canal:', channel.id);
                 
+                // Tentative de réponse avec gestion d'erreur complète
                 try {
-                    return await interaction.reply({
-                        content: '❌ Impossible de trouver les données de cette suggestion.',
-                        flags: MessageFlags.Ephemeral
-                    });
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({
+                            content: '❌ Impossible de trouver les données de cette suggestion.',
+                            flags: MessageFlags.Ephemeral
+                        });
+                    }
                 } catch (replyError) {
-                    this.logger.error('Impossible de répondre à l\'interaction (données manquantes):', replyError);
-                    return;
+                    // Gestion spécifique de l'erreur 10062
+                    if (replyError.code === 10062) {
+                        this.logger.warn('⏰ Interaction expirée (10062) - abandon silencieux');
+                    } else {
+                        this.logger.error('Erreur lors de la réponse (données manquantes):', replyError);
+                    }
                 }
+                return;
             }
 
-            // Vérifier une dernière fois avant de montrer le modal
-            if (interaction.replied || interaction.deferred) {
-                this.logger.warn('Interaction expirée avant l\'affichage du modal');
-                return;
+            // Déférer immédiatement pour éviter l'expiration
+            try {
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.deferReply({ ephemeral: true });
+                }
+            } catch (deferError) {
+                if (deferError.code === 10062) {
+                    this.logger.warn('⏰ Impossible de déférer - interaction expirée (10062)');
+                    return;
+                } else {
+                    this.logger.error('Erreur lors du defer:', deferError);
+                    return;
+                }
             }
 
             // Modal pour le feedback constructif
@@ -1495,47 +1508,82 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
                 feedbackChannelId
             };
 
-            // Tenter d'afficher le modal avec gestion d'erreur
+            // Annuler le defer et afficher le modal
             try {
-                await interaction.showModal(feedbackModal);
+                // Répondre d'abord pour annuler le defer
+                await interaction.editReply({
+                    content: '⏳ Préparation du formulaire de feedback...'
+                });
+
+                // Attendre un court délai puis créer une nouvelle interaction pour le modal
+                setTimeout(async () => {
+                    try {
+                        // Créer un message avec un bouton pour déclencher le modal
+                        const modalButton = new ActionRowBuilder()
+                            .addComponents(
+                                new ButtonBuilder()
+                                    .setCustomId(`show_feedback_modal_${status}`)
+                                    .setLabel('Ouvrir le Formulaire de Feedback')
+                                    .setStyle(ButtonStyle.Primary)
+                                    .setEmoji('📝')
+                            );
+
+                        await interaction.editReply({
+                            content: '📝 **Cliquez sur le bouton ci-dessous pour ouvrir le formulaire de feedback :**',
+                            components: [modalButton]
+                        });
+                    } catch (editError) {
+                        this.logger.error('Erreur lors de l\'édition pour le bouton modal:', editError);
+                        
+                        // Nettoyer les données temporaires
+                        if (this.client.tempData && this.client.tempData[interaction.user.id]) {
+                            delete this.client.tempData[interaction.user.id];
+                        }
+                    }
+                }, 1000);
+
             } catch (modalError) {
-                this.logger.error('Erreur lors de l\'affichage du modal:', modalError);
+                this.logger.error('Erreur lors de la préparation du modal:', modalError);
                 
                 // Nettoyer les données temporaires en cas d'échec
                 if (this.client.tempData && this.client.tempData[interaction.user.id]) {
                     delete this.client.tempData[interaction.user.id];
                 }
                 
-                // Essayer de répondre avec un message d'erreur si possible
-                if (!interaction.replied && !interaction.deferred) {
-                    try {
-                        await interaction.reply({
-                            content: '❌ L\'interaction a expiré. Veuillez réessayer.',
-                            ephemeral: true
-                        });
-                    } catch (fallbackError) {
-                        this.logger.error('Impossible de répondre avec le message d\'erreur de fallback:', fallbackError);
-                    }
+                try {
+                    await interaction.editReply({
+                        content: '❌ Une erreur est survenue lors de la préparation du formulaire. Veuillez réessayer.'
+                    });
+                } catch (editError) {
+                    this.logger.error('Impossible d\'éditer la réponse d\'erreur:', editError);
                 }
             }
 
         } catch (error) {
-            this.logger.error('Erreur lors de la fermeture de suggestion:', error);
+            this.logger.error('Erreur générale lors de la fermeture de suggestion:', error);
             
             // Nettoyer les données temporaires en cas d'erreur
             if (this.client.tempData && this.client.tempData[interaction.user.id]) {
                 delete this.client.tempData[interaction.user.id];
             }
             
-            // Essayer de répondre seulement si l'interaction n'a pas encore été traitée
-            if (!interaction.replied && !interaction.deferred) {
-                try {
+            // Gestion d'erreur finale
+            try {
+                if (interaction.deferred && !interaction.replied) {
+                    await interaction.editReply({
+                        content: '❌ Une erreur est survenue lors de la fermeture de la suggestion.'
+                    });
+                } else if (!interaction.replied && !interaction.deferred) {
                     await interaction.reply({
                         content: '❌ Une erreur est survenue lors de la fermeture de la suggestion.',
                         ephemeral: true
                     });
-                } catch (replyError) {
-                    this.logger.error('Impossible de répondre à l\'erreur d\'interaction:', replyError);
+                }
+            } catch (finalError) {
+                if (finalError.code === 10062) {
+                    this.logger.warn('⏰ Interaction expirée lors de la gestion d\'erreur finale (10062)');
+                } else {
+                    this.logger.error('Erreur lors de la gestion d\'erreur finale:', finalError);
                 }
             }
         }

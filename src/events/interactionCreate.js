@@ -95,6 +95,66 @@ export default {
                     const ticketManager = new TicketManager(interaction.client);
                     await ticketManager.handleSuggestionClose(interaction, 'rejected');
                 }
+                
+                // Boutons de feedback modal
+                else if (interaction.customId.startsWith('show_feedback_modal_')) {
+                    const status = interaction.customId.split('_')[3];
+                    const tempData = interaction.client.tempData?.[interaction.user.id];
+                    
+                    if (!tempData) {
+                        return await interaction.reply({
+                            content: '❌ Session expirée. Veuillez recommencer.',
+                            flags: MessageFlags.Ephemeral
+                        });
+                    }
+
+                    // Modal pour le feedback constructif
+                    const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = await import('discord.js');
+                    
+                    const feedbackModal = new ModalBuilder()
+                        .setCustomId(`suggestion_feedback_${status}`)
+                        .setTitle('💬 Feedback Constructif');
+
+                    const reasonInput = new TextInputBuilder()
+                        .setCustomId('feedback_reason')
+                        .setLabel('Raison principale')
+                        .setStyle(TextInputStyle.Short)
+                        .setPlaceholder('Résumez en quelques mots la raison de cette décision')
+                        .setRequired(true)
+                        .setMaxLength(100);
+
+                    const feedbackInput = new TextInputBuilder()
+                        .setCustomId('feedback_message')
+                        .setLabel('Message de feedback détaillé')
+                        .setStyle(TextInputStyle.Paragraph)
+                        .setPlaceholder('Expliquez votre décision, donnez des conseils constructifs, des alternatives...')
+                        .setRequired(true)
+                        .setMaxLength(1500);
+
+                    const improvementInput = new TextInputBuilder()
+                        .setCustomId('feedback_improvement')
+                        .setLabel('Suggestions d\'amélioration (optionnel)')
+                        .setStyle(TextInputStyle.Paragraph)
+                        .setPlaceholder('Comment cette suggestion pourrait-elle être améliorée ?')
+                        .setRequired(false)
+                        .setMaxLength(800);
+
+                    feedbackModal.addComponents(
+                        new ActionRowBuilder().addComponents(reasonInput),
+                        new ActionRowBuilder().addComponents(feedbackInput),
+                        new ActionRowBuilder().addComponents(improvementInput)
+                    );
+
+                    try {
+                        await interaction.showModal(feedbackModal);
+                    } catch (modalError) {
+                        logger.error('Erreur lors de l\'affichage du modal de feedback:', modalError);
+                        await interaction.reply({
+                            content: '❌ Impossible d\'afficher le formulaire. Veuillez réessayer.',
+                            flags: MessageFlags.Ephemeral
+                        });
+                    }
+                }
             }
             
             // Gestion des menus de sélection
