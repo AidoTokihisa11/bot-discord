@@ -409,7 +409,7 @@ Votre avis compte énormément pour nous. Choisissez le type de suggestion qui c
             const description = interaction.fields.getTextInputValue('ticket_description');
             const priority = interaction.fields.getTextInputValue('ticket_priority') || '3';
 
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
             // Créer ou récupérer la catégorie de tickets
             const ticketCategory = await this.ensureTicketCategory(guild);
@@ -644,7 +644,7 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
             .setFooter({ text: 'Si votre question n\'est pas listée, créez un ticket !' })
             .setTimestamp();
 
-        await interaction.reply({ embeds: [faqEmbed], ephemeral: true });
+        await interaction.reply({ embeds: [faqEmbed], flags: MessageFlags.Ephemeral });
     }
 
     async showSupportStatus(interaction) {
@@ -667,7 +667,7 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
             .setFooter({ text: 'Dernière mise à jour maintenant' })
             .setTimestamp();
 
-        await interaction.reply({ embeds: [statusEmbed], ephemeral: true });
+        await interaction.reply({ embeds: [statusEmbed], flags: MessageFlags.Ephemeral });
     }
 
     async showUserTickets(interaction) {
@@ -688,7 +688,7 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
             .setFooter({ text: `Total: ${userTickets.size} ticket(s)` })
             .setTimestamp();
 
-        await interaction.reply({ embeds: [ticketsEmbed], ephemeral: true });
+        await interaction.reply({ embeds: [ticketsEmbed], flags: MessageFlags.Ephemeral });
     }
 
     async contactStaff(interaction) {
