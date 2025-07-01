@@ -1664,16 +1664,16 @@ Votre suggestion **"${suggestionData.title}"** a été évaluée par notre équi
             }
 
             // Mettre à jour les données de la suggestion
-            if (this.client.db.data.suggestions[channelId]) {
-                this.client.db.data.suggestions[channelId].status = status;
-                this.client.db.data.suggestions[channelId].closedAt = new Date().toISOString();
-                this.client.db.data.suggestions[channelId].closedBy = interaction.user.id;
-                this.client.db.data.suggestions[channelId].feedback = {
+            if (this.db.data.suggestions[channelId]) {
+                this.db.data.suggestions[channelId].status = status;
+                this.db.data.suggestions[channelId].closedAt = new Date().toISOString();
+                this.db.data.suggestions[channelId].closedBy = interaction.user.id;
+                this.db.data.suggestions[channelId].feedback = {
                     reason,
                     message: feedbackMessage,
                     improvement
                 };
-                await this.client.db.save();
+                await this.db.save();
             }
 
             // Nettoyer les données temporaires
