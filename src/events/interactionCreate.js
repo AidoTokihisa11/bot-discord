@@ -127,22 +127,40 @@ export default {
         } catch (error) {
             logger.error('Erreur lors du traitement de l\'interaction:', error);
             
+            // Vérifier si l'erreur est liée à une interaction expirée
+            if (error.code === 10062 || error.message?.includes('Unknown interaction')) {
+                logger.warn('Interaction expirée ou inconnue, abandon de la réponse');
+                return;
+            }
+            
             const errorMessage = '❌ Une erreur est survenue lors du traitement de votre demande. Veuillez réessayer ou contacter un administrateur.';
             
             try {
+                // Vérifier si l'interaction est encore valide avant de tenter une réponse
                 if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({ 
-                        content: errorMessage, 
-                        flags: MessageFlags.Ephemeral 
-                    });
+                    // Essayer un followUp seulement si l'interaction n'a pas expiré
+                    if (!error.code || error.code !== 10062) {
+                        await interaction.followUp({ 
+                            content: errorMessage, 
+                            flags: MessageFlags.Ephemeral 
+                        });
+                    }
                 } else {
-                    await interaction.reply({ 
-                        content: errorMessage, 
-                        flags: MessageFlags.Ephemeral 
-                    });
+                    // Essayer une réponse seulement si l'interaction n'a pas expiré
+                    if (!error.code || error.code !== 10062) {
+                        await interaction.reply({ 
+                            content: errorMessage, 
+                            flags: MessageFlags.Ephemeral 
+                        });
+                    }
                 }
             } catch (replyError) {
-                logger.error('Impossible de répondre à l\'erreur d\'interaction:', replyError);
+                // Si c'est une erreur d'interaction expirée, ne pas la logger comme erreur critique
+                if (replyError.code === 10062 || replyError.message?.includes('Unknown interaction')) {
+                    logger.warn('Impossible de répondre - interaction expirée:', replyError.message);
+                } else {
+                    logger.error('Impossible de répondre à l\'erreur d\'interaction:', replyError);
+                }
             }
         }
     }
