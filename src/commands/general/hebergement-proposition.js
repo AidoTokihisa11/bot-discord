@@ -17,7 +17,12 @@ export default {
             .addFields(
                 {
                     name: '📌 1. Contexte actuel : limites atteintes sur Railway',
-                    value: '• **Stockage utilisé :** 50 Go sur les 70 Go inclus → seuil critique\n• **Support technique inexistant** (communautaire uniquement)\n• **Pas de sécurité entreprise**, pas d\'environnements isolés\n• **Coût réel évolutif** (RAM, CPU, stockage, bande passante)',
+                    value: '• **Stockage utilisé :** 50 Go sur les 70 Go inclus → seuil critique prévu d\'ici une semaine\n• **Support technique inexistant** (communautaire uniquement)\n• **Pas de sécurité entreprise**, pas d\'environnements isolés',
+                    inline: false
+                },
+                {
+                    name: '💸 Problème de coûts évolutifs',
+                    value: '• **Coût réel évolutif** (RAM, CPU, stockage, bande passante)\n\nRailway est un excellent tremplin pour prototyper, mais ses coûts deviennent imprévisibles dès qu\'on passe à la production.',
                     inline: false
                 }
             )
@@ -35,8 +40,13 @@ export default {
             .setDescription('Je recommande fortement de basculer vers la plateforme Render.com avec le plan Organization à 29 $/mois/utilisateur pour les raisons suivantes :')
             .addFields(
                 {
-                    name: '🎯 Fonctionnalités critiques incluses :',
-                    value: '• **1 To de bande passante incluse**\n• **Autoscaling horizontal** sans surcoût\n• **Collaboration illimitée**\n• **Déploiements illimités** + environnement de test\n• **Environnements isolés**\n• **Support professionnel** (chat + email)\n• **Certifications SOC 2 & ISO 27001**\n• **Audit logs** complets\n• **Datastores managés** (PostgreSQL, Redis)',
+                    name: '🎯 Fonctionnalités critiques incluses dans ce plan :',
+                    value: '• **1 To de bande passante incluse**\n• **Autoscaling horizontal** sans surcoût ni configuration complexe\n• **Collaboration avec des membres multiples** (illimités)\n• **Déploiements illimités** et environnement de test par branche Git (preview)',
+                    inline: false
+                },
+                {
+                    name: '🔒 Sécurité et support professionnel :',
+                    value: '• **Environnements totalement isolés** (pas d\'interférence entre projets)\n• **Support par chat + email professionnel**\n• **Certifications de sécurité SOC 2 Type II & ISO 27001**\n• **Audit logs** pour assurer une traçabilité complète\n• **Datastores managés intégrés** (PostgreSQL, Redis, etc.)',
                     inline: false
                 }
             );
@@ -49,7 +59,12 @@ export default {
             .addFields(
                 {
                     name: 'Exigences critiques',
-                    value: '• **Fiabilité 24/7**\n• **Visibilité sur la performance**\n• **Sécurité conforme aux attentes modernes** (audit, ISO/SOC2)\n• **Stabilité financière des coûts :** Render propose une tarification claire, transparente, sans surprise\n• **Possibilité de travailler à plusieurs** sans changer de plateforme',
+                    value: '• **Fiabilité 24/7**\n• **Visibilité sur la performance**\n• **Sécurité conforme aux attentes modernes** (audit, ISO/SOC2)',
+                    inline: false
+                },
+                {
+                    name: 'Stabilité et collaboration',
+                    value: '• **Stabilité financière des coûts :** Render propose une tarification claire, transparente, sans surprise\n• **Possibilité de travailler à plusieurs** sans changer de plateforme',
                     inline: false
                 },
                 {
@@ -110,7 +125,12 @@ export default {
                 },
                 {
                     name: 'Recommandation officielle',
-                    value: 'Je recommande officiellement que nous passions sur ce plan **dès cette semaine**, afin d\'assurer la pérennité du projet.\n\nJe reste à votre disposition pour un tableau comparatif détaillé ou une démonstration technique.\n\n**Bien cordialement,**',
+                    value: 'Je recommande donc officiellement que nous passions sur ce plan **dès cette semaine**, afin d\'assurer la pérennité et la montée en charge du projet.',
+                    inline: false
+                },
+                {
+                    name: 'Disponibilité pour échanges',
+                    value: 'Je reste bien sûr à votre disposition pour présenter un tableau comparatif plus détaillé ou organiser une session de démonstration technique si vous le souhaitez.\n\n**Bien cordialement,**',
                     inline: false
                 }
             )

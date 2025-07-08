@@ -1,13 +1,27 @@
-import TicketManager from '../managers/TicketManager.js';
 import Logger from '../utils/Logger.js';
-import { EmbedBuilder, MessageFlags } from 'discord.js';
+import { MessageFlags } from 'discord.js';
+import ButtonHandler from '../handlers/ButtonHandler.js';
+import { handleModal } from '../handlers/ModalHandler.js';
+import TicketManager from '../managers/TicketManager.js';
+import InteractionValidator from '../utils/InteractionValidator.js';
 
 export default {
     name: 'interactionCreate',
     async execute(interaction) {
         const logger = new Logger();
         
+        // Initialiser le validateur d'interactions si nécessaire
+        if (!interaction.client.interactionValidator) {
+            interaction.client.interactionValidator = new InteractionValidator();
+        }
+        const validator = interaction.client.interactionValidator;
+        
         try {
+            // Validation robuste de l'interaction
+            if (!validator.validateInteraction(interaction)) {
+                return; // Interaction invalide, abandon silencieux
+            }
+
             // Gestion des commandes slash
             if (interaction.isChatInputCommand()) {
                 const command = interaction.client.commands.get(interaction.commandName);
@@ -18,210 +32,92 @@ export default {
                 }
 
                 logger.command(interaction.user, interaction.commandName, interaction.guild);
+                
+                // Vérification du cooldown
+                const now = Date.now();
+                const cooldownAmount = (command.cooldown ?? 3) * 1000;
+                
+                if (!interaction.client.cooldowns.has(interaction.commandName)) {
+                    interaction.client.cooldowns.set(interaction.commandName, new Map());
+                }
+                
+                const timestamps = interaction.client.cooldowns.get(interaction.commandName);
+                
+                if (timestamps.has(interaction.user.id)) {
+                    const expirationTime = timestamps.get(interaction.user.id) + cooldownAmount;
+                    
+                    if (now < expirationTime) {
+                        const timeLeft = (expirationTime - now) / 1000;
+                        return await interaction.reply({
+                            content: `⏰ Veuillez patienter ${timeLeft.toFixed(1)} seconde(s) avant de réutiliser cette commande.`,
+                            flags: MessageFlags.Ephemeral
+                        });
+                    }
+                }
+                
+                timestamps.set(interaction.user.id, now);
+                
                 await command.execute(interaction, interaction.client);
             }
             
-            // Gestion des boutons
+            // Gestion des boutons - ULTRA-SÉCURISÉE
             else if (interaction.isButton()) {
-                const ticketManager = new TicketManager(interaction.client);
-                
-                // Boutons de création de tickets
-                if (interaction.customId.startsWith('ticket_')) {
-                    const action = interaction.customId;
-                    
-                    switch (action) {
-                        // Boutons de types de tickets
-                        case 'ticket_support':
-                            await ticketManager.handleTicketCreation(interaction, 'support');
-                            break;
-                        case 'ticket_general':
-                            await ticketManager.handleTicketCreation(interaction, 'general');
-                            break;
-                        case 'ticket_report':
-                            await ticketManager.handleTicketCreation(interaction, 'report');
-                            break;
-                        case 'ticket_partnership':
-                            await ticketManager.handleTicketCreation(interaction, 'partnership');
-                            break;
-                        case 'ticket_suggestion':
-                            await ticketManager.handleTicketCreation(interaction, 'suggestion');
-                            break;
-                        case 'ticket_appeal':
-                            await ticketManager.handleTicketCreation(interaction, 'appeal');
-                            break;
-                            
-                        // Boutons d'actions rapides
-                        case 'ticket_faq':
-                        case 'ticket_status':
-                        case 'ticket_my_tickets':
-                        case 'ticket_contact_staff':
-                            await ticketManager.handleQuickAction(interaction);
-                            break;
-                            
-                        // Boutons d'actions dans les tickets
-                        case 'ticket_close':
-                        case 'ticket_claim':
-                        case 'ticket_add_user':
-                        case 'ticket_transcript':
-                            await ticketManager.handleTicketAction(interaction);
-                            break;
-                    }
+                // Vérification supplémentaire avant traitement
+                if (interaction.replied || interaction.deferred) {
+                    logger.warn('⚠️ Interaction bouton déjà traitée');
+                    return;
                 }
-                
-                // Boutons de confirmation
-                else if (interaction.customId === 'confirm_close') {
-                    const ticketManager = new TicketManager(interaction.client);
-                    await ticketManager.handleConfirmClose(interaction);
-                }
-                else if (interaction.customId === 'cancel_close') {
-                    const ticketManager = new TicketManager(interaction.client);
-                    await ticketManager.handleCancelClose(interaction);
-                }
-                
-                // Boutons de suggestions
-                else if (interaction.customId === 'suggestion_close') {
-                    const ticketManager = new TicketManager(interaction.client);
-                    await ticketManager.handleSuggestionClose(interaction, 'closed');
-                }
-                else if (interaction.customId === 'suggestion_approve') {
-                    const ticketManager = new TicketManager(interaction.client);
-                    await ticketManager.handleSuggestionClose(interaction, 'approved');
-                }
-                else if (interaction.customId === 'suggestion_consider') {
-                    const ticketManager = new TicketManager(interaction.client);
-                    await ticketManager.handleSuggestionClose(interaction, 'considered');
-                }
-                else if (interaction.customId === 'suggestion_reject') {
-                    const ticketManager = new TicketManager(interaction.client);
-                    await ticketManager.handleSuggestionClose(interaction, 'rejected');
-                }
-                
-                // Boutons de feedback modal
-                else if (interaction.customId.startsWith('show_feedback_modal_')) {
-                    const status = interaction.customId.split('_')[3];
-                    const tempData = interaction.client.tempData?.[interaction.user.id];
-                    
-                    if (!tempData) {
-                        return await interaction.reply({
-                            content: '❌ Session expirée. Veuillez recommencer.',
-                            flags: MessageFlags.Ephemeral
-                        });
-                    }
 
-                    // Modal pour le feedback constructif
-                    const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = await import('discord.js');
-                    
-                    const feedbackModal = new ModalBuilder()
-                        .setCustomId(`suggestion_feedback_${status}`)
-                        .setTitle('💬 Feedback Constructif');
+                logger.info(`🔘 Bouton cliqué: ${interaction.customId} par ${interaction.user.tag}`);
 
-                    const reasonInput = new TextInputBuilder()
-                        .setCustomId('feedback_reason')
-                        .setLabel('Raison principale')
-                        .setStyle(TextInputStyle.Short)
-                        .setPlaceholder('Résumez en quelques mots la raison de cette décision')
-                        .setRequired(true)
-                        .setMaxLength(100);
-
-                    const feedbackInput = new TextInputBuilder()
-                        .setCustomId('feedback_message')
-                        .setLabel('Message de feedback détaillé')
-                        .setStyle(TextInputStyle.Paragraph)
-                        .setPlaceholder('Expliquez votre décision, donnez des conseils constructifs, des alternatives...')
-                        .setRequired(true)
-                        .setMaxLength(1500);
-
-                    const improvementInput = new TextInputBuilder()
-                        .setCustomId('feedback_improvement')
-                        .setLabel('Suggestions d\'amélioration (optionnel)')
-                        .setStyle(TextInputStyle.Paragraph)
-                        .setPlaceholder('Comment cette suggestion pourrait-elle être améliorée ?')
-                        .setRequired(false)
-                        .setMaxLength(800);
-
-                    feedbackModal.addComponents(
-                        new ActionRowBuilder().addComponents(reasonInput),
-                        new ActionRowBuilder().addComponents(feedbackInput),
-                        new ActionRowBuilder().addComponents(improvementInput)
-                    );
-
-                    try {
-                        await interaction.showModal(feedbackModal);
-                    } catch (modalError) {
-                        logger.error('Erreur lors de l\'affichage du modal de feedback:', modalError);
-                        await interaction.reply({
-                            content: '❌ Impossible d\'afficher le formulaire. Veuillez réessayer.',
-                            flags: MessageFlags.Ephemeral
-                        });
-                    }
+                // Utiliser une seule instance de ButtonHandler stockée dans le client
+                if (!interaction.client.buttonHandler) {
+                    interaction.client.buttonHandler = new ButtonHandler(interaction.client);
                 }
+                await interaction.client.buttonHandler.handleButton(interaction);
             }
             
-            // Gestion des menus de sélection
+            // Gestion des menus de sélection - SÉCURISÉE
             else if (interaction.isStringSelectMenu()) {
-                const ticketManager = new TicketManager(interaction.client);
+                // Vérification supplémentaire avant traitement
+                if (interaction.replied || interaction.deferred) {
+                    logger.warn('⚠️ Interaction menu déjà traitée');
+                    return;
+                }
+
+                logger.info(`📋 Menu sélectionné: ${interaction.customId} par ${interaction.user.tag}`);
+
+                // Utiliser une seule instance de TicketManager stockée dans le client
+                if (!interaction.client.ticketManager) {
+                    interaction.client.ticketManager = new TicketManager(interaction.client);
+                }
                 
                 if (interaction.customId === 'suggestion_type_select') {
-                    await ticketManager.handleSuggestionTypeSelect(interaction);
+                    await interaction.client.ticketManager.handleSuggestionTypeSelect(interaction);
+                } else {
+                    logger.warn(`Menu non géré: ${interaction.customId}`);
                 }
             }
             
-            // Gestion des modals
+            // Gestion des modals - SÉCURISÉE
             else if (interaction.isModalSubmit()) {
-                const ticketManager = new TicketManager(interaction.client);
-                
-                if (interaction.customId.startsWith('ticket_modal_')) {
-                    await ticketManager.handleModalSubmit(interaction);
+                // Vérification supplémentaire avant traitement
+                if (interaction.replied || interaction.deferred) {
+                    logger.warn('⚠️ Interaction modal déjà traitée');
+                    return;
                 }
-                else if (interaction.customId.startsWith('suggestion_modal_')) {
-                    await ticketManager.handleSuggestionModalSubmit(interaction);
-                }
-                else if (interaction.customId === 'add_user_modal') {
-                    await ticketManager.handleAddUserModal(interaction);
-                }
-                else if (interaction.customId.startsWith('suggestion_feedback_')) {
-                    await ticketManager.handleSuggestionFeedbackModal(interaction);
-                }
+
+                logger.info(`📝 Modal soumis: ${interaction.customId} par ${interaction.user.tag}`);
+
+                await handleModal(interaction);
             }
             
         } catch (error) {
-            logger.error('Erreur lors du traitement de l\'interaction:', error);
-            
-            // Vérifier si l'erreur est liée à une interaction expirée
-            if (error.code === 10062 || error.message?.includes('Unknown interaction')) {
-                logger.warn('Interaction expirée ou inconnue, abandon de la réponse');
-                return;
-            }
-            
-            const errorMessage = '❌ Une erreur est survenue lors du traitement de votre demande. Veuillez réessayer ou contacter un administrateur.';
-            
-            try {
-                // Vérifier si l'interaction est encore valide avant de tenter une réponse
-                if (interaction.replied || interaction.deferred) {
-                    // Essayer un followUp seulement si l'interaction n'a pas expiré
-                    if (!error.code || error.code !== 10062) {
-                        await interaction.followUp({ 
-                            content: errorMessage, 
-                            flags: MessageFlags.Ephemeral 
-                        });
-                    }
-                } else {
-                    // Essayer une réponse seulement si l'interaction n'a pas expiré
-                    if (!error.code || error.code !== 10062) {
-                        await interaction.reply({ 
-                            content: errorMessage, 
-                            flags: MessageFlags.Ephemeral 
-                        });
-                    }
-                }
-            } catch (replyError) {
-                // Si c'est une erreur d'interaction expirée, ne pas la logger comme erreur critique
-                if (replyError.code === 10062 || replyError.message?.includes('Unknown interaction')) {
-                    logger.warn('Impossible de répondre - interaction expirée:', replyError.message);
-                } else {
-                    logger.error('Impossible de répondre à l\'erreur d\'interaction:', replyError);
-                }
-            }
+            // Utiliser le validator pour une gestion d'erreur robuste
+            await validator.handleInteractionError(interaction, error, 'interaction principale');
+        } finally {
+            // Marquer l'interaction comme terminée
+            validator.markInteractionAsCompleted(interaction);
         }
     }
 };

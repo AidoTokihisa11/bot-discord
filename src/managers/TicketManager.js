@@ -195,11 +195,59 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
 
     async handleTicketCreation(interaction, type) {
         try {
+            // TRAITEMENT SPÉCIAL POUR SUGGESTIONS - MODAL IMMÉDIAT
+            if (type === 'suggestion') {
+                // Vérification ultra-rapide d'état
+                if (interaction.replied || interaction.deferred) {
+                    this.logger.warn('⚠️ Interaction suggestion déjà traitée');
+                    return;
+                }
+
+                // Modal IMMÉDIAT - aucun autre traitement avant
+                const suggestionModal = new ModalBuilder()
+                    .setCustomId('suggestion_modal_general')
+                    .setTitle('💡 Nouvelle Suggestion');
+
+                const titleInput = new TextInputBuilder()
+                    .setCustomId('suggestion_title')
+                    .setLabel('Titre de votre suggestion')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Un titre court et explicite...')
+                    .setRequired(true)
+                    .setMaxLength(100);
+
+                const descriptionInput = new TextInputBuilder()
+                    .setCustomId('suggestion_description')
+                    .setLabel('Description détaillée')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder('Décrivez votre suggestion en détail...')
+                    .setRequired(true)
+                    .setMaxLength(1000);
+
+                suggestionModal.addComponents(
+                    new ActionRowBuilder().addComponents(titleInput),
+                    new ActionRowBuilder().addComponents(descriptionInput)
+                );
+
+                // AFFICHAGE IMMÉDIAT - PRIORITÉ ABSOLUE
+                await interaction.showModal(suggestionModal);
+                this.logger.info(`✅ Modal suggestion affiché immédiatement pour ${interaction.user.username}`);
+                return;
+            }
+
+            // Vérification standard pour les autres types
+            if (interaction.replied || interaction.deferred) {
+                this.logger.warn('⚠️ Interaction ticket creation déjà traitée');
+                return;
+            }
+
+            // Acquittement pour les autres types (non-suggestion)
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
             const config = this.ticketTypes[type];
             if (!config) {
-                return await interaction.reply({
-                    content: '❌ Type de ticket invalide.',
-                    flags: MessageFlags.Ephemeral
+                return await interaction.editReply({
+                    content: '❌ Type de ticket invalide.'
                 });
             }
 
@@ -209,10 +257,15 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
             );
 
             if (existingTickets.size > 0) {
-                return await interaction.reply({
-                    content: `❌ Vous avez déjà un ticket ouvert : ${existingTickets.first()}`,
-                    flags: MessageFlags.Ephemeral
-                });
+                const errorMsg = `❌ Vous avez déjà un ticket ouvert : ${existingTickets.first()}`;
+                if (interaction.deferred) {
+                    return await interaction.editReply({ content: errorMsg });
+                } else {
+                    return await interaction.reply({
+                        content: errorMsg,
+                        flags: MessageFlags.Ephemeral
+                    });
+                }
             }
 
             // Traitement spécial pour les suggestions
@@ -267,136 +320,11 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
         }
     }
 
-    async handleSuggestionCreation(interaction) {
-        try {
-            // Embed de sélection du type de suggestion
-            const suggestionEmbed = new EmbedBuilder()
-                .setColor('#f39c12')
-                .setTitle('💡 **CRÉER UNE SUGGESTION**')
-                .setDescription(`
-**Bienvenue dans notre système de suggestions avancé !**
-
-Votre avis compte énormément pour nous. Choisissez le type de suggestion qui correspond le mieux à votre idée :
-
-**🎯 Types de suggestions disponibles :**`)
-                .addFields(
-                    {
-                        name: '🎮 **Fonctionnalité Gaming**',
-                        value: 'Nouvelles fonctionnalités pour les jeux, rôles, salons gaming',
-                        inline: true
-                    },
-                    {
-                        name: '🤖 **Amélioration Bot**',
-                        value: 'Nouvelles commandes, fonctionnalités du bot Discord',
-                        inline: true
-                    },
-                    {
-                        name: '🏛️ **Organisation Serveur**',
-                        value: 'Structure des salons, catégories, organisation générale',
-                        inline: true
-                    },
-                    {
-                        name: '🎉 **Événements & Activités**',
-                        value: 'Tournois, événements communautaires, animations',
-                        inline: true
-                    },
-                    {
-                        name: '🛡️ **Modération & Règles**',
-                        value: 'Système de modération, règlement, sanctions',
-                        inline: true
-                    },
-                    {
-                        name: '🎨 **Design & Interface**',
-                        value: 'Apparence du serveur, emojis, design des messages',
-                        inline: true
-                    },
-                    {
-                        name: '🔧 **Technique & Performance**',
-                        value: 'Optimisations, corrections, améliorations techniques',
-                        inline: true
-                    },
-                    {
-                        name: '💬 **Communication**',
-                        value: 'Système de communication, notifications, annonces',
-                        inline: true
-                    },
-                    {
-                        name: '🌟 **Autre**',
-                        value: 'Suggestion qui ne rentre dans aucune catégorie',
-                        inline: true
-                    }
-                )
-                .setFooter({ text: 'Sélectionnez le type qui correspond le mieux à votre suggestion' })
-                .setTimestamp();
-
-            // Menu de sélection pour le type de suggestion
-            const suggestionSelect = new StringSelectMenuBuilder()
-                .setCustomId('suggestion_type_select')
-                .setPlaceholder('🎯 Choisissez le type de votre suggestion...')
-                .addOptions([
-                    new StringSelectMenuOptionBuilder()
-                        .setLabel('Fonctionnalité Gaming')
-                        .setDescription('Nouvelles fonctionnalités pour les jeux')
-                        .setValue('gaming')
-                        .setEmoji('🎮'),
-                    new StringSelectMenuOptionBuilder()
-                        .setLabel('Amélioration Bot')
-                        .setDescription('Nouvelles commandes, fonctionnalités du bot')
-                        .setValue('bot')
-                        .setEmoji('🤖'),
-                    new StringSelectMenuOptionBuilder()
-                        .setLabel('Organisation Serveur')
-                        .setDescription('Structure des salons, organisation')
-                        .setValue('server')
-                        .setEmoji('🏛️'),
-                    new StringSelectMenuOptionBuilder()
-                        .setLabel('Événements & Activités')
-                        .setDescription('Tournois, événements communautaires')
-                        .setValue('events')
-                        .setEmoji('🎉'),
-                    new StringSelectMenuOptionBuilder()
-                        .setLabel('Modération & Règles')
-                        .setDescription('Système de modération, règlement')
-                        .setValue('moderation')
-                        .setEmoji('🛡️'),
-                    new StringSelectMenuOptionBuilder()
-                        .setLabel('Design & Interface')
-                        .setDescription('Apparence du serveur, design')
-                        .setValue('design')
-                        .setEmoji('🎨'),
-                    new StringSelectMenuOptionBuilder()
-                        .setLabel('Technique & Performance')
-                        .setDescription('Optimisations, corrections techniques')
-                        .setValue('technical')
-                        .setEmoji('🔧'),
-                    new StringSelectMenuOptionBuilder()
-                        .setLabel('Communication')
-                        .setDescription('Système de communication, notifications')
-                        .setValue('communication')
-                        .setEmoji('💬'),
-                    new StringSelectMenuOptionBuilder()
-                        .setLabel('Autre')
-                        .setDescription('Suggestion qui ne rentre dans aucune catégorie')
-                        .setValue('other')
-                        .setEmoji('🌟')
-                ]);
-
-            const selectRow = new ActionRowBuilder().addComponents(suggestionSelect);
-
-            await interaction.reply({
-                embeds: [suggestionEmbed],
-                components: [selectRow],
-                flags: MessageFlags.Ephemeral
-            });
-
-        } catch (error) {
-            this.logger.error('Erreur lors de la création de suggestion:', error);
-            await interaction.reply({
-                content: '❌ Une erreur est survenue lors de la création de la suggestion.',
-                flags: MessageFlags.Ephemeral
-            });
-        }
-    }
+    // MÉTHODE DÉPRÉCIÉE - INTÉGRÉE DANS handleTicketCreation
+    // async handleSuggestionCreation(interaction) {
+    //     // Cette méthode a été déplacée directement dans handleTicketCreation
+    //     // pour éviter les timeouts Discord
+    // }
 
     async handleModalSubmit(interaction) {
         try {
@@ -714,7 +642,7 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
             .setFooter({ text: 'Notre équipe est là pour vous aider !' })
             .setTimestamp();
 
-        await interaction.reply({ embeds: [contactEmbed], ephemeral: true });
+        await interaction.reply({ embeds: [contactEmbed], flags: MessageFlags.Ephemeral });
     }
 
     // Gestionnaires pour les actions dans les tickets
@@ -772,7 +700,7 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
             await interaction.reply({
                 embeds: [confirmEmbed],
                 components: [confirmRow],
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
 
         } catch (error) {
@@ -1100,185 +1028,51 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
         }
     }
 
-    // Gestion de la sélection du type de suggestion
-    async handleSuggestionTypeSelect(interaction) {
-        try {
-            const selectedType = interaction.values[0];
-            
-            // Configuration des types de suggestions
-            const suggestionTypes = {
-                gaming: {
-                    name: 'Fonctionnalité Gaming',
-                    emoji: '🎮',
-                    color: '#9146FF',
-                    description: 'Nouvelles fonctionnalités pour les jeux, rôles, salons gaming'
-                },
-                bot: {
-                    name: 'Amélioration Bot',
-                    emoji: '🤖',
-                    color: '#5865F2',
-                    description: 'Nouvelles commandes, fonctionnalités du bot Discord'
-                },
-                server: {
-                    name: 'Organisation Serveur',
-                    emoji: '🏛️',
-                    color: '#3498DB',
-                    description: 'Structure des salons, catégories, organisation générale'
-                },
-                events: {
-                    name: 'Événements & Activités',
-                    emoji: '🎉',
-                    color: '#E91E63',
-                    description: 'Tournois, événements communautaires, animations'
-                },
-                moderation: {
-                    name: 'Modération & Règles',
-                    emoji: '🛡️',
-                    color: '#F44336',
-                    description: 'Système de modération, règlement, sanctions'
-                },
-                design: {
-                    name: 'Design & Interface',
-                    emoji: '🎨',
-                    color: '#FF9800',
-                    description: 'Apparence du serveur, emojis, design des messages'
-                },
-                technical: {
-                    name: 'Technique & Performance',
-                    emoji: '🔧',
-                    color: '#607D8B',
-                    description: 'Optimisations, corrections, améliorations techniques'
-                },
-                communication: {
-                    name: 'Communication',
-                    emoji: '💬',
-                    color: '#00BCD4',
-                    description: 'Système de communication, notifications, annonces'
-                },
-                other: {
-                    name: 'Autre',
-                    emoji: '🌟',
-                    color: '#FFC107',
-                    description: 'Suggestion qui ne rentre dans aucune catégorie'
-                }
-            };
+    // MÉTHODES MANQUANTES POUR LES SUGGESTIONS
 
-            const typeConfig = suggestionTypes[selectedType];
-            
-            // Modal spécialisé pour les suggestions
-            const suggestionModal = new ModalBuilder()
-                .setCustomId(`suggestion_modal_${selectedType}`)
-                .setTitle(`${typeConfig.emoji} ${typeConfig.name}`);
-
-            const titleInput = new TextInputBuilder()
-                .setCustomId('suggestion_title')
-                .setLabel('Titre de votre suggestion')
-                .setStyle(TextInputStyle.Short)
-                .setPlaceholder('Résumez votre suggestion en quelques mots...')
-                .setRequired(true)
-                .setMaxLength(100);
-
-            const descriptionInput = new TextInputBuilder()
-                .setCustomId('suggestion_description')
-                .setLabel('Description détaillée')
-                .setStyle(TextInputStyle.Paragraph)
-                .setPlaceholder('Décrivez votre suggestion en détail, expliquez pourquoi elle serait utile...')
-                .setRequired(true)
-                .setMaxLength(1500);
-
-            const benefitsInput = new TextInputBuilder()
-                .setCustomId('suggestion_benefits')
-                .setLabel('Avantages et bénéfices')
-                .setStyle(TextInputStyle.Paragraph)
-                .setPlaceholder('Quels sont les avantages de cette suggestion ? Comment améliorerait-elle l\'expérience ?')
-                .setRequired(true)
-                .setMaxLength(800);
-
-            const implementationInput = new TextInputBuilder()
-                .setCustomId('suggestion_implementation')
-                .setLabel('Idées d\'implémentation (optionnel)')
-                .setStyle(TextInputStyle.Paragraph)
-                .setPlaceholder('Avez-vous des idées sur comment cette suggestion pourrait être mise en place ?')
-                .setRequired(false)
-                .setMaxLength(500);
-
-            const priorityInput = new TextInputBuilder()
-                .setCustomId('suggestion_priority')
-                .setLabel('Priorité suggérée (1-5)')
-                .setStyle(TextInputStyle.Short)
-                .setPlaceholder('1 = Faible, 5 = Très importante')
-                .setRequired(false)
-                .setMaxLength(1);
-
-            suggestionModal.addComponents(
-                new ActionRowBuilder().addComponents(titleInput),
-                new ActionRowBuilder().addComponents(descriptionInput),
-                new ActionRowBuilder().addComponents(benefitsInput),
-                new ActionRowBuilder().addComponents(implementationInput),
-                new ActionRowBuilder().addComponents(priorityInput)
-            );
-
-            await interaction.showModal(suggestionModal);
-
-        } catch (error) {
-            this.logger.error('Erreur lors de la sélection du type de suggestion:', error);
-            try {
-                await interaction.reply({
-                    content: '❌ Une erreur est survenue lors de la sélection du type de suggestion.',
-                    ephemeral: true
-                });
-            } catch (replyError) {
-                console.error('Impossible de répondre à l\'interaction:', replyError);
-            }
-        }
-    }
-
-    // Gestion du modal de suggestion
     async handleSuggestionModalSubmit(interaction) {
         try {
-            const [, , suggestionType] = interaction.customId.split('_');
+            // Acquittement immédiat pour éviter les timeouts
+            if (!interaction.deferred && !interaction.replied) {
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            }
+
+            const suggestionTitle = interaction.fields.getTextInputValue('suggestion_title');
+            const suggestionDescription = interaction.fields.getTextInputValue('suggestion_description');
+            
+            // Gestion flexible des types de suggestion - rendre optionnel
+            let suggestionType = 'général';
+            let suggestionPriority = '3';
+            
+            try {
+                suggestionType = interaction.fields.getTextInputValue('suggestion_type') || 'général';
+            } catch (error) {
+                // Le champ n'existe pas dans ce modal, utiliser le type depuis customId
+                const modalType = interaction.customId.split('_')[2] || 'general';
+                suggestionType = modalType;
+                this.logger.info(`🔄 Type extrait du modal: ${suggestionType}`);
+            }
+            
+            try {
+                suggestionPriority = interaction.fields.getTextInputValue('suggestion_priority') || '3';
+            } catch (error) {
+                // Le champ priorité n'existe pas, utiliser valeur par défaut
+                this.logger.info('🔄 Priorité par défaut utilisée: 3');
+            }
+
             const guild = interaction.guild;
             const user = interaction.user;
 
-            const title = interaction.fields.getTextInputValue('suggestion_title');
-            const description = interaction.fields.getTextInputValue('suggestion_description');
-            const benefits = interaction.fields.getTextInputValue('suggestion_benefits');
-            const implementation = interaction.fields.getTextInputValue('suggestion_implementation') || 'Non spécifié';
-            const priority = interaction.fields.getTextInputValue('suggestion_priority') || '3';
-
-            // Vérifier si l'interaction est encore valide
-            if (interaction.replied || interaction.deferred) {
-                console.log('⚠️ Interaction déjà traitée, abandon...');
-                return;
-            }
-
-            await interaction.deferReply({ ephemeral: true });
-
-            // Configuration des types de suggestions
-            const suggestionTypes = {
-                gaming: { name: 'Fonctionnalité Gaming', emoji: '🎮', color: '#9146FF' },
-                bot: { name: 'Amélioration Bot', emoji: '🤖', color: '#5865F2' },
-                server: { name: 'Organisation Serveur', emoji: '🏛️', color: '#3498DB' },
-                events: { name: 'Événements & Activités', emoji: '🎉', color: '#E91E63' },
-                moderation: { name: 'Modération & Règles', emoji: '🛡️', color: '#F44336' },
-                design: { name: 'Design & Interface', emoji: '🎨', color: '#FF9800' },
-                technical: { name: 'Technique & Performance', emoji: '🔧', color: '#607D8B' },
-                communication: { name: 'Communication', emoji: '💬', color: '#00BCD4' },
-                other: { name: 'Autre', emoji: '🌟', color: '#FFC107' }
-            };
-
-            const typeConfig = suggestionTypes[suggestionType];
-
-            // Créer ou récupérer la catégorie de tickets
-            const ticketCategory = await this.ensureTicketCategory(guild);
+            // Créer ou récupérer la catégorie de suggestions
+            const suggestionCategory = await this.ensureSuggestionCategory(guild);
 
             // Créer le canal de suggestion
             const suggestionNumber = Date.now().toString().slice(-6);
             const suggestionChannel = await guild.channels.create({
-                name: `💡・suggestion-${suggestionType}-${user.username}-${suggestionNumber}`,
+                name: `💡・suggestion-${user.username}-${suggestionNumber}`,
                 type: ChannelType.GuildText,
-                parent: ticketCategory.id,
-                topic: `Suggestion ${typeConfig.name} • ${title} • Créé par ${user.tag}`,
+                parent: suggestionCategory.id,
+                topic: `Suggestion ${suggestionType} • ${suggestionTitle} • Créée par ${user.tag}`,
                 permissionOverwrites: [
                     {
                         id: guild.id,
@@ -1308,42 +1102,35 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
                 ]
             });
 
-            // Embed de bienvenue pour la suggestion
+            // Embed de la suggestion
             const suggestionEmbed = new EmbedBuilder()
-                .setColor(typeConfig.color)
-                .setTitle(`${typeConfig.emoji} **NOUVELLE SUGGESTION - ${typeConfig.name.toUpperCase()}**`)
+                .setColor('#f39c12')
+                .setTitle(`💡 **Suggestion #${suggestionNumber}**`)
                 .setDescription(`
 ╭─────────────────────────────────────╮
-│     **Merci pour votre suggestion !** 💡     │
+│       **Nouvelle Suggestion** ✨       │
 ╰─────────────────────────────────────╯
 
-**📋 Informations de la Suggestion :**
-• **Titre :** ${title}
-• **Type :** ${typeConfig.name}
+**📋 Informations :**
+• **Titre :** ${suggestionTitle}
+• **Type :** ${suggestionType}
 • **Numéro :** \`#${suggestionNumber}\`
-• **Priorité suggérée :** ${this.getPriorityDisplay(priority)}
+• **Priorité :** ${this.getPriorityDisplay(suggestionPriority)}
 • **Créée le :** <t:${Math.floor(Date.now() / 1000)}:F>
-• **Temps d'évaluation estimé :** \`2-7 jours\``)
-                .addFields(
-                    {
-                        name: '📝 **Description Détaillée**',
-                        value: `\`\`\`${description}\`\`\``,
-                        inline: false
-                    },
-                    {
-                        name: '✨ **Avantages et Bénéfices**',
-                        value: `\`\`\`${benefits}\`\`\``,
-                        inline: false
-                    },
-                    {
-                        name: '🔧 **Idées d\'Implémentation**',
-                        value: `\`\`\`${implementation}\`\`\``,
-                        inline: false
-                    }
-                )
+• **Auteur :** ${user}
+
+**📝 Description :**
+\`\`\`
+${suggestionDescription}
+\`\`\`
+
+**🎯 Prochaines Étapes :**
+1️⃣ L'équipe va examiner votre suggestion
+2️⃣ Nous vous donnerons un retour constructif
+3️⃣ Si approuvée, elle sera mise en développement`)
                 .setThumbnail(user.displayAvatarURL({ dynamic: true }))
                 .setFooter({ 
-                    text: `Suggestion ID: ${suggestionNumber} • Évaluation en cours`,
+                    text: `Suggestion ID: ${suggestionNumber} • En attente d'examen`,
                     iconURL: guild.iconURL({ dynamic: true })
                 })
                 .setTimestamp();
@@ -1351,11 +1138,6 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
             // Boutons d'actions pour la suggestion
             const suggestionActionsRow = new ActionRowBuilder()
                 .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('suggestion_close')
-                        .setLabel('Fermer la Suggestion')
-                        .setStyle(ButtonStyle.Danger)
-                        .setEmoji('🔒'),
                     new ButtonBuilder()
                         .setCustomId('suggestion_approve')
                         .setLabel('Approuver')
@@ -1369,8 +1151,13 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
                     new ButtonBuilder()
                         .setCustomId('suggestion_reject')
                         .setLabel('Rejeter')
+                        .setStyle(ButtonStyle.Danger)
+                        .setEmoji('❌'),
+                    new ButtonBuilder()
+                        .setCustomId('suggestion_close')
+                        .setLabel('Fermer')
                         .setStyle(ButtonStyle.Secondary)
-                        .setEmoji('❌')
+                        .setEmoji('🔒')
                 );
 
             await suggestionChannel.send({
@@ -1379,449 +1166,334 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
                 components: [suggestionActionsRow]
             });
 
-            // Stocker les informations de la suggestion pour le feedback
-            if (!this.db.data.suggestions) {
-                this.db.data.suggestions = {};
-            }
-            
-            this.db.data.suggestions[suggestionChannel.id] = {
-                id: suggestionNumber,
-                userId: user.id,
-                type: suggestionType,
-                title: title,
-                description: description,
-                benefits: benefits,
-                implementation: implementation,
-                priority: priority,
-                createdAt: new Date().toISOString(),
-                status: 'pending'
-            };
-            
-            await this.db.save();
-
             await interaction.editReply({
-                content: `✅ **Suggestion créée avec succès !** ${suggestionChannel}\n💡 Notre équipe va évaluer votre suggestion et vous donner un retour détaillé.`
+                content: `✅ **Suggestion créée avec succès !** ${suggestionChannel}\n💡 Votre suggestion sera examinée par notre équipe.`
             });
 
-            this.logger.info(`Suggestion #${suggestionNumber} créée: ${suggestionChannel.name} par ${user.tag} (${suggestionType})`);
+            this.logger.info(`Suggestion #${suggestionNumber} créée: ${suggestionChannel.name} par ${user.tag}`);
 
         } catch (error) {
             this.logger.error('Erreur lors du traitement de la suggestion:', error);
-            await interaction.editReply({
-                content: '❌ Une erreur est survenue lors de la création de la suggestion.'
-            });
-        }
-    }
-
-    // Gestion de la fermeture des suggestions avec feedback
-    async handleSuggestionClose(interaction, status = 'closed') {
-        try {
-            // Vérification immédiate de l'état de l'interaction
-            if (interaction.replied || interaction.deferred) {
-                this.logger.warn('⚠️ Interaction déjà traitée, abandon silencieux...');
-                return;
-            }
-
-            const channel = interaction.channel;
-            const feedbackChannelId = '1389009159403343932';
-            
-            // Récupérer les informations de la suggestion
-            const suggestionData = this.db.data.suggestions?.[channel.id];
-            if (!suggestionData) {
-                this.logger.warn('Données de suggestion manquantes pour le canal:', channel.id);
-                
-                // Tentative de réponse avec gestion d'erreur complète
-                try {
-                    if (!interaction.replied && !interaction.deferred) {
-                        await interaction.reply({
-                            content: '❌ Impossible de trouver les données de cette suggestion.',
-                            flags: MessageFlags.Ephemeral
-                        });
-                    }
-                } catch (replyError) {
-                    // Gestion spécifique de l'erreur 10062
-                    if (replyError.code === 10062) {
-                        this.logger.warn('⏰ Interaction expirée (10062) - abandon silencieux');
-                    } else {
-                        this.logger.error('Erreur lors de la réponse (données manquantes):', replyError);
-                    }
-                }
-                return;
-            }
-
-            // Déférer immédiatement pour éviter l'expiration
             try {
-                if (!interaction.replied && !interaction.deferred) {
-                    await interaction.deferReply({ ephemeral: true });
-                }
-            } catch (deferError) {
-                if (deferError.code === 10062) {
-                    this.logger.warn('⏰ Impossible de déférer - interaction expirée (10062)');
-                    return;
+                if (interaction.deferred) {
+                    await interaction.editReply({
+                        content: '❌ Une erreur est survenue lors de la création de la suggestion.'
+                    });
                 } else {
-                    this.logger.error('Erreur lors du defer:', deferError);
-                    return;
-                }
-            }
-
-            // Modal pour le feedback constructif
-            const feedbackModal = new ModalBuilder()
-                .setCustomId(`suggestion_feedback_${status}`)
-                .setTitle('💬 Feedback Constructif');
-
-            const feedbackInput = new TextInputBuilder()
-                .setCustomId('feedback_message')
-                .setLabel('Message de feedback détaillé')
-                .setStyle(TextInputStyle.Paragraph)
-                .setPlaceholder('Expliquez votre décision, donnez des conseils constructifs, des alternatives...')
-                .setRequired(true)
-                .setMaxLength(1500);
-
-            const reasonInput = new TextInputBuilder()
-                .setCustomId('feedback_reason')
-                .setLabel('Raison principale')
-                .setStyle(TextInputStyle.Short)
-                .setPlaceholder('Résumez en quelques mots la raison de cette décision')
-                .setRequired(true)
-                .setMaxLength(100);
-
-            const improvementInput = new TextInputBuilder()
-                .setCustomId('feedback_improvement')
-                .setLabel('Suggestions d\'amélioration (optionnel)')
-                .setStyle(TextInputStyle.Paragraph)
-                .setPlaceholder('Comment cette suggestion pourrait-elle être améliorée ?')
-                .setRequired(false)
-                .setMaxLength(800);
-
-            feedbackModal.addComponents(
-                new ActionRowBuilder().addComponents(reasonInput),
-                new ActionRowBuilder().addComponents(feedbackInput),
-                new ActionRowBuilder().addComponents(improvementInput)
-            );
-
-            // Stocker temporairement le statut et les données
-            if (!this.client.tempData) this.client.tempData = {};
-            this.client.tempData[interaction.user.id] = {
-                suggestionData,
-                channelId: channel.id,
-                status,
-                feedbackChannelId
-            };
-
-            // Annuler le defer et afficher le modal
-            try {
-                // Répondre d'abord pour annuler le defer
-                await interaction.editReply({
-                    content: '⏳ Préparation du formulaire de feedback...'
-                });
-
-                // Attendre un court délai puis créer une nouvelle interaction pour le modal
-                setTimeout(async () => {
-                    try {
-                        // Créer un message avec un bouton pour déclencher le modal
-                        const modalButton = new ActionRowBuilder()
-                            .addComponents(
-                                new ButtonBuilder()
-                                    .setCustomId(`show_feedback_modal_${status}`)
-                                    .setLabel('Ouvrir le Formulaire de Feedback')
-                                    .setStyle(ButtonStyle.Primary)
-                                    .setEmoji('📝')
-                            );
-
-                        await interaction.editReply({
-                            content: '📝 **Cliquez sur le bouton ci-dessous pour ouvrir le formulaire de feedback :**',
-                            components: [modalButton]
-                        });
-                    } catch (editError) {
-                        this.logger.error('Erreur lors de l\'édition pour le bouton modal:', editError);
-                        
-                        // Nettoyer les données temporaires
-                        if (this.client.tempData && this.client.tempData[interaction.user.id]) {
-                            delete this.client.tempData[interaction.user.id];
-                        }
-                    }
-                }, 1000);
-
-            } catch (modalError) {
-                this.logger.error('Erreur lors de la préparation du modal:', modalError);
-                
-                // Nettoyer les données temporaires en cas d'échec
-                if (this.client.tempData && this.client.tempData[interaction.user.id]) {
-                    delete this.client.tempData[interaction.user.id];
-                }
-                
-                try {
-                    await interaction.editReply({
-                        content: '❌ Une erreur est survenue lors de la préparation du formulaire. Veuillez réessayer.'
-                    });
-                } catch (editError) {
-                    this.logger.error('Impossible d\'éditer la réponse d\'erreur:', editError);
-                }
-            }
-
-        } catch (error) {
-            this.logger.error('Erreur générale lors de la fermeture de suggestion:', error);
-            
-            // Nettoyer les données temporaires en cas d'erreur
-            if (this.client.tempData && this.client.tempData[interaction.user.id]) {
-                delete this.client.tempData[interaction.user.id];
-            }
-            
-            // Gestion d'erreur finale
-            try {
-                if (interaction.deferred && !interaction.replied) {
-                    await interaction.editReply({
-                        content: '❌ Une erreur est survenue lors de la fermeture de la suggestion.'
-                    });
-                } else if (!interaction.replied && !interaction.deferred) {
                     await interaction.reply({
-                        content: '❌ Une erreur est survenue lors de la fermeture de la suggestion.',
+                        content: '❌ Une erreur est survenue lors de la création de la suggestion.',
                         ephemeral: true
                     });
                 }
-            } catch (finalError) {
-                if (finalError.code === 10062) {
-                    this.logger.warn('⏰ Interaction expirée lors de la gestion d\'erreur finale (10062)');
-                } else {
-                    this.logger.error('Erreur lors de la gestion d\'erreur finale:', finalError);
-                }
+            } catch (replyError) {
+                this.logger.warn('⏰ Impossible de répondre - interaction expirée');
             }
         }
     }
 
-    // Gestion du feedback modal
     async handleSuggestionFeedbackModal(interaction) {
         try {
-            const [, , status] = interaction.customId.split('_');
-            const tempData = this.client.tempData?.[interaction.user.id];
-            
-            if (!tempData) {
-                return await interaction.reply({
-                    content: '❌ Session expirée. Veuillez recommencer.',
-                    ephemeral: true
-                });
-            }
-
-            const feedbackMessage = interaction.fields.getTextInputValue('feedback_message');
+            const status = interaction.customId.split('_')[2];
             const reason = interaction.fields.getTextInputValue('feedback_reason');
-            const improvement = interaction.fields.getTextInputValue('feedback_improvement') || 'Aucune suggestion d\'amélioration fournie';
+            const message = interaction.fields.getTextInputValue('feedback_message');
+            const improvement = interaction.fields.getTextInputValue('feedback_improvement') || '';
 
             await interaction.deferReply({ ephemeral: true });
 
-            // Configuration des statuts
-            const statusConfig = {
-                approved: { emoji: '✅', color: '#2ECC71', title: 'SUGGESTION APPROUVÉE', action: 'approuvée' },
-                rejected: { emoji: '❌', color: '#E74C3C', title: 'SUGGESTION REJETÉE', action: 'rejetée' },
-                considered: { emoji: '🤔', color: '#F39C12', title: 'SUGGESTION À CONSIDÉRER', action: 'mise en considération' },
-                closed: { emoji: '🔒', color: '#95A5A6', title: 'SUGGESTION FERMÉE', action: 'fermée' }
+            const channel = interaction.channel;
+            const statusColors = {
+                approved: '#2ecc71',
+                rejected: '#e74c3c',
+                considered: '#3498db',
+                closed: '#95a5a6'
             };
 
-            const config = statusConfig[status] || statusConfig.closed;
-            const { suggestionData, channelId, feedbackChannelId } = tempData;
+            const statusEmojis = {
+                approved: '✅',
+                rejected: '❌',
+                considered: '🤔',
+                closed: '🔒'
+            };
 
-            // Créer l'embed de feedback pour le canal public
+            const statusTexts = {
+                approved: 'APPROUVÉE',
+                rejected: 'REJETÉE',
+                considered: 'À CONSIDÉRER',
+                closed: 'FERMÉE'
+            };
+
             const feedbackEmbed = new EmbedBuilder()
-                .setColor(config.color)
-                .setTitle(`${config.emoji} **${config.title}**`)
+                .setColor(statusColors[status])
+                .setTitle(`${statusEmojis[status]} **SUGGESTION ${statusTexts[status]}**`)
                 .setDescription(`
-**📋 Suggestion #${suggestionData.id} - ${config.action}**
+**📋 Feedback de l'équipe :**
 
-**👤 Auteur :** <@${suggestionData.userId}>
-**📝 Titre :** ${suggestionData.title}
-**🎯 Type :** ${this.getSuggestionTypeDisplay(suggestionData.type)}
-**📅 Créée le :** <t:${Math.floor(new Date(suggestionData.createdAt).getTime() / 1000)}:F>
-**⚖️ Évaluée par :** ${interaction.user}`)
-                .addFields(
-                    {
-                        name: '📝 **Description Originale**',
-                        value: `\`\`\`${suggestionData.description.substring(0, 500)}${suggestionData.description.length > 500 ? '...' : ''}\`\`\``,
-                        inline: false
-                    },
-                    {
-                        name: '🎯 **Raison de la Décision**',
-                        value: `\`\`\`${reason}\`\`\``,
-                        inline: false
-                    },
-                    {
-                        name: '💬 **Feedback Détaillé**',
-                        value: `\`\`\`${feedbackMessage}\`\`\``,
-                        inline: false
-                    },
-                    {
-                        name: '💡 **Suggestions d\'Amélioration**',
-                        value: `\`\`\`${improvement}\`\`\``,
-                        inline: false
-                    }
-                )
-                .setFooter({ 
-                    text: `Suggestion ID: ${suggestionData.id} • Merci pour votre contribution !`,
-                    iconURL: interaction.guild.iconURL()
-                })
+**📝 Raison principale :**
+${reason}
+
+**💬 Message détaillé :**
+${message}
+
+${improvement ? `**💡 Suggestions d'amélioration :**\n${improvement}` : ''}
+
+**👤 Traité par :** ${interaction.user}
+**📅 Date :** <t:${Math.floor(Date.now() / 1000)}:F>`)
+                .setFooter({ text: `Suggestion ${statusTexts[status].toLowerCase()} avec feedback` })
                 .setTimestamp();
 
-            // Envoyer le feedback dans le canal public
-            const feedbackChannel = interaction.guild.channels.cache.get(feedbackChannelId);
-            if (feedbackChannel) {
-                await feedbackChannel.send({
-                    content: `<@${suggestionData.userId}> **Votre suggestion a été évaluée !**`,
-                    embeds: [feedbackEmbed]
-                });
-            }
+            await channel.send({ embeds: [feedbackEmbed] });
 
-            // Envoyer un MP à l'auteur de la suggestion
+            // Mise à jour du nom du canal pour refléter le statut
             try {
-                const author = await interaction.guild.members.fetch(suggestionData.userId);
-                const dmEmbed = new EmbedBuilder()
-                    .setColor(config.color)
-                    .setTitle(`${config.emoji} **Votre suggestion a été ${config.action} !**`)
-                    .setDescription(`
-**Bonjour ${author.displayName} !**
-
-Votre suggestion **"${suggestionData.title}"** a été évaluée par notre équipe.
-
-**📋 Résumé :**
-• **Statut :** ${config.title}
-• **Évaluée par :** ${interaction.user.tag}
-• **Date d'évaluation :** <t:${Math.floor(Date.now() / 1000)}:F>`)
-                    .addFields(
-                        {
-                            name: '🎯 **Raison**',
-                            value: reason,
-                            inline: false
-                        },
-                        {
-                            name: '💬 **Feedback de l\'équipe**',
-                            value: feedbackMessage,
-                            inline: false
-                        },
-                        {
-                            name: '💡 **Conseils pour l\'avenir**',
-                            value: improvement,
-                            inline: false
-                        }
-                    )
-                    .setFooter({ 
-                        text: `${interaction.guild.name} • Merci pour votre contribution !`,
-                        iconURL: interaction.guild.iconURL()
-                    })
-                    .setTimestamp();
-
-                await author.send({ embeds: [dmEmbed] });
-            } catch (dmError) {
-                this.logger.warn(`Impossible d'envoyer un MP à l'auteur de la suggestion: ${dmError.message}`);
-            }
-
-            // Mettre à jour les données de la suggestion
-            if (this.db.data.suggestions[channelId]) {
-                this.db.data.suggestions[channelId].status = status;
-                this.db.data.suggestions[channelId].closedAt = new Date().toISOString();
-                this.db.data.suggestions[channelId].closedBy = interaction.user.id;
-                this.db.data.suggestions[channelId].feedback = {
-                    reason,
-                    message: feedbackMessage,
-                    improvement
-                };
-                await this.db.save();
-            }
-
-            // Nettoyer les données temporaires
-            delete this.client.tempData[interaction.user.id];
-
-            // Fermer le canal après un délai
-            const closingEmbed = new EmbedBuilder()
-                .setColor('#e74c3c')
-                .setTitle('🔒 **SUGGESTION TRAITÉE**')
-                .setDescription(`
-**Cette suggestion a été ${config.action} avec succès !**
-
-**📋 Résumé :**
-• **Feedback envoyé** dans <#${feedbackChannelId}>
-• **Notification MP** envoyée à l'auteur
-• **Données sauvegardées** pour référence future
-
-**Ce canal sera fermé dans 30 secondes...**`)
-                .setFooter({ text: 'Merci pour votre contribution à l\'amélioration du serveur !' })
-                .setTimestamp();
-
-            const channel = interaction.guild.channels.cache.get(channelId);
-            if (channel) {
-                await channel.send({ embeds: [closingEmbed] });
-                
-                setTimeout(async () => {
-                    try {
-                        await channel.delete('Suggestion traitée avec feedback');
-                    } catch (error) {
-                        this.logger.error('Erreur lors de la suppression du canal de suggestion:', error);
-                    }
-                }, 30000);
+                const newChannelName = channel.name.replace('suggestion-', `suggestion-${status}-`);
+                await channel.setName(newChannelName);
+            } catch (nameError) {
+                this.logger.warn('Impossible de modifier le nom du canal:', nameError);
             }
 
             await interaction.editReply({
-                content: `✅ **Feedback envoyé avec succès !**\n• Publié dans <#${feedbackChannelId}>\n• MP envoyé à l'auteur\n• Canal fermé dans 30 secondes`
+                content: `✅ **Feedback envoyé avec succès !**\n📋 La suggestion a été marquée comme **${statusTexts[status]}**.`
             });
-
-            this.logger.info(`Suggestion #${suggestionData.id} ${config.action} par ${interaction.user.tag}`);
 
         } catch (error) {
             this.logger.error('Erreur lors du traitement du feedback:', error);
-            await interaction.editReply({
-                content: '❌ Une erreur est survenue lors de l\'envoi du feedback.'
-            });
+            try {
+                if (interaction.deferred) {
+                    await interaction.editReply({
+                        content: '❌ Une erreur est survenue lors de l\'envoi du feedback.'
+                    });
+                }
+            } catch (replyError) {
+                this.logger.warn('⏰ Impossible de répondre - interaction expirée');
+            }
         }
     }
 
-    getSuggestionTypeDisplay(type) {
-        const types = {
-            gaming: '🎮 Fonctionnalité Gaming',
-            bot: '🤖 Amélioration Bot',
-            server: '🏛️ Organisation Serveur',
-            events: '🎉 Événements & Activités',
-            moderation: '🛡️ Modération & Règles',
-            design: '🎨 Design & Interface',
-            technical: '🔧 Technique & Performance',
-            communication: '💬 Communication',
-            other: '🌟 Autre'
-        };
-        return types[type] || '❓ Type inconnu';
-    }
-
-    // Méthode pour obtenir les statistiques des tickets
-    async getTicketStats(guild) {
+    async handleSuggestionTypeSelect(interaction) {
         try {
-            const ticketCategory = guild.channels.cache.get(this.ticketCategoryId);
-            if (!ticketCategory) return null;
+            // Acquittement immédiat pour éviter les timeouts
+            if (interaction.replied || interaction.deferred) {
+                this.logger.warn('⚠️ Interaction suggestion type select déjà traitée');
+                return;
+            }
 
-            const ticketChannels = ticketCategory.children.cache.filter(
-                channel => channel.type === ChannelType.GuildText && 
-                          channel.name.includes('ticket')
-            );
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-            const stats = {
-                total: ticketChannels.size,
-                byType: {},
-                recent: 0
+            const selectedType = interaction.values[0];
+            
+            // Stocker temporairement le type sélectionné
+            if (!this.client.tempData) this.client.tempData = {};
+            this.client.tempData[interaction.user.id] = {
+                suggestionType: selectedType,
+                timestamp: Date.now()
             };
 
-            // Compter par type
-            Object.keys(this.ticketTypes).forEach(type => {
-                stats.byType[type] = ticketChannels.filter(
-                    channel => channel.name.includes(type)
-                ).size;
+            await interaction.editReply({
+                content: `✅ **Type sélectionné :** ${selectedType}\n\nMaintenant, créez votre suggestion avec le bouton correspondant ci-dessus.`
             });
 
-            // Compter les tickets récents (dernières 24h)
-            const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
-            stats.recent = ticketChannels.filter(
-                channel => channel.createdTimestamp > oneDayAgo
-            ).size;
-
-            return stats;
+            this.logger.info(`📋 Type de suggestion sélectionné: ${selectedType} par ${interaction.user.username}`);
 
         } catch (error) {
-            this.logger.error('Erreur lors du calcul des statistiques:', error);
-            return null;
+            // Gestion spécifique des erreurs d'interaction
+            if (error.code === 10062) {
+                this.logger.warn('⏰ Interaction suggestion type select expirée (10062)');
+                return;
+            }
+            
+            if (error.code === 40060) {
+                this.logger.warn('⚠️ Interaction suggestion type select déjà acquittée (40060)');
+                return;
+            }
+
+            this.logger.error('Erreur lors de la sélection du type:', error);
+            
+            try {
+                if (interaction.deferred) {
+                    await interaction.editReply({
+                        content: '❌ Une erreur est survenue lors de la sélection.'
+                    });
+                } else if (!interaction.replied) {
+                    await interaction.reply({
+                        content: '❌ Une erreur est survenue lors de la sélection.',
+                        flags: MessageFlags.Ephemeral
+                    });
+                }
+            } catch (replyError) {
+                this.logger.warn('⏰ Impossible de répondre à l\'erreur de sélection');
+            }
         }
     }
+
+    async handleSuggestionAction(interaction, status) {
+        try {
+            const channel = interaction.channel;
+            const guild = interaction.guild;
+            const notificationChannelId = '1368933588976013392';
+            
+            // Récupérer les informations de la suggestion depuis le nom du canal
+            const suggestionInfo = this.extractSuggestionInfo(channel);
+            
+            const statusColors = {
+                approved: '#2ecc71',
+                rejected: '#e74c3c',
+                considered: '#3498db',
+                closed: '#95a5a6'
+            };
+
+            const statusEmojis = {
+                approved: '✅',
+                rejected: '❌',
+                considered: '🤔',
+                closed: '🔒'
+            };
+
+            const statusTexts = {
+                approved: 'APPROUVÉE',
+                rejected: 'REJETÉE', 
+                considered: 'À CONSIDÉRER',
+                closed: 'FERMÉE'
+            };
+
+            // Embed pour le canal de suggestion
+            const closingEmbed = new EmbedBuilder()
+                .setColor(statusColors[status])
+                .setTitle(`${statusEmojis[status]} **SUGGESTION ${statusTexts[status]}**`)
+                .setDescription(`
+**Cette suggestion a été ${statusTexts[status].toLowerCase()} par ${interaction.user}**
+
+**📅 Date :** <t:${Math.floor(Date.now() / 1000)}:F>
+**👤 Traité par :** ${interaction.user}
+**🎯 Statut final :** ${statusTexts[status]}
+
+${status === 'approved' ? '**🎉 Cette suggestion sera prise en compte dans nos développements futurs !**' : ''}
+${status === 'considered' ? '**🤔 Cette suggestion est intéressante et sera étudiée plus en détail.**' : ''}
+${status === 'rejected' ? '**❌ Cette suggestion ne peut pas être implementée pour le moment.**' : ''}
+${status === 'closed' ? '**🔒 Cette suggestion a été fermée.**' : ''}
+
+**💾 Ce canal sera fermé dans 10 secondes...**`)
+                .setFooter({ text: `Suggestion ${statusTexts[status].toLowerCase()}` })
+                .setTimestamp();
+
+            await channel.send({ embeds: [closingEmbed] });
+
+            // Notification dans le salon spécifié pour les suggestions approuvées ou rejetées
+            if (status === 'approved' || status === 'rejected') {
+                try {
+                    const notificationChannel = guild.channels.cache.get(notificationChannelId);
+                    if (notificationChannel) {
+                        const notificationEmbed = new EmbedBuilder()
+                            .setColor(statusColors[status])
+                            .setTitle(`${statusEmojis[status]} Suggestion ${statusTexts[status]}`)
+                            .setDescription(`
+**📝 Suggestion :** ${suggestionInfo.title || 'Titre non trouvé'}
+**👤 Auteur :** ${suggestionInfo.author || 'Auteur non trouvé'}
+**👨‍💼 Traité par :** ${interaction.user}
+**📅 Date :** <t:${Math.floor(Date.now() / 1000)}:F>
+
+${status === 'approved' ? 
+    '**🎉 Cette suggestion a été approuvée et sera prise en compte dans nos développements futurs !**' : 
+    '**❌ Cette suggestion a été rejetée après étude.**'}
+                            `)
+                            .setFooter({ text: `Système de suggestions • ${guild.name}` })
+                            .setTimestamp();
+
+                        await notificationChannel.send({ embeds: [notificationEmbed] });
+                        this.logger.info(`📢 Notification envoyée dans le salon ${notificationChannelId} pour suggestion ${status}`);
+                    } else {
+                        this.logger.warn(`⚠️ Canal de notification ${notificationChannelId} non trouvé`);
+                    }
+                } catch (notificationError) {
+                    this.logger.error('Erreur lors de l\'envoi de la notification:', notificationError);
+                }
+            }
+
+            // Fermer le canal après 10 secondes
+            setTimeout(async () => {
+                try {
+                    await channel.delete(`Suggestion ${status} par ${interaction.user.tag}`);
+                    this.logger.info(`🗑️ Canal de suggestion supprimé après traitement (${status})`);
+                } catch (error) {
+                    this.logger.error('Erreur lors de la suppression du canal de suggestion:', error);
+                }
+            }, 10000);
+
+        } catch (error) {
+            this.logger.error('Erreur lors du traitement de l\'action de suggestion:', error);
+            throw error;
+        }
+    }
+
+    // Méthode pour extraire les informations de la suggestion depuis le canal
+    extractSuggestionInfo(channel) {
+        try {
+            // Essayer d'extraire du nom du canal
+            const channelName = channel.name;
+            const matches = channelName.match(/suggestion-(.+)-\d+/);
+            
+            let title = 'Information non disponible';
+            let author = 'Auteur non trouvé';
+            
+            if (matches) {
+                author = matches[1];
+            }
+            
+            // Essayer d'extraire le titre depuis le topic du canal
+            if (channel.topic) {
+                const topicMatches = channel.topic.match(/(.+) • Créée par (.+)/);
+                if (topicMatches) {
+                    title = topicMatches[1];
+                    author = topicMatches[2];
+                }
+            }
+            
+            return { title, author };
+        } catch (error) {
+            this.logger.error('Erreur lors de l\'extraction des informations de suggestion:', error);
+            return { title: 'Information non disponible', author: 'Auteur non trouvé' };
+        }
+    }
+
+    async ensureSuggestionCategory(guild) {
+        try {
+            // Chercher une catégorie existante pour les suggestions
+            let suggestionCategory = guild.channels.cache.find(
+                channel => channel.type === ChannelType.GuildCategory && 
+                          (channel.name.includes('Suggestion') || channel.name.includes('💡'))
+            );
+
+            // Si la catégorie n'existe pas, la créer
+            if (!suggestionCategory) {
+                suggestionCategory = await guild.channels.create({
+                    name: '💡 Suggestions',
+                    type: ChannelType.GuildCategory,
+                    permissionOverwrites: [
+                        {
+                            id: guild.id,
+                            deny: [PermissionFlagsBits.ViewChannel]
+                        },
+                        {
+                            id: this.staffRoleId,
+                            allow: [
+                                PermissionFlagsBits.ViewChannel,
+                                PermissionFlagsBits.ManageChannels,
+                                PermissionFlagsBits.ManageMessages
+                            ]
+                        }
+                    ]
+                });
+
+                this.logger.success(`Catégorie de suggestions créée: ${suggestionCategory.name}`);
+            }
+
+            return suggestionCategory;
+        } catch (error) {
+            this.logger.error('Erreur lors de la création de la catégorie de suggestions:', error);
+            throw error;
+        }
+    }
+
+    // Gestion de la sélection du type de suggestion
 }
 
 export default TicketManager;

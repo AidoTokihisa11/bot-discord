@@ -8,6 +8,7 @@ import Logger from './utils/Logger.js';
 import Database from './utils/Database.js';
 import ErrorHandler from './utils/ErrorHandler.js';
 import RoleMentionManager from './utils/RoleMentionManager.js';
+import CacheManager from './utils/CacheManager.js';
 
 // Configuration
 config();
@@ -50,6 +51,12 @@ client.events = new Collection();
 client.cooldowns = new Collection();
 client.tickets = new Collection();
 client.config = new Collection();
+
+// Collections pour les interactions et données temporaires
+client.embedTemplates = new Collection();
+client.embedBuilder = new Collection();
+client.embedIA = new Collection();
+client.tempData = {};
 
 // Initialisation de la base de données
 client.db = new Database();
@@ -135,6 +142,10 @@ async function initialize() {
         client.roleMentionManager = new RoleMentionManager(client);
         logger.success('✅ Gestionnaire de mentions de rôles initialisé');
         
+        // Initialisation du gestionnaire de cache
+        logger.info('🧹 Initialisation du gestionnaire de cache...');
+        client.cacheManager = new CacheManager(client);
+        logger.success('✅ Gestionnaire de cache initialisé');
         
         // Connexion du bot
         logger.info('🔗 Connexion à Discord...');
@@ -159,12 +170,14 @@ process.on('uncaughtException', (error) => {
 // Gestion de l'arrêt propre
 process.on('SIGINT', async () => {
     logger.info('🛑 Arrêt du bot...');
+    client.cacheManager?.stopAutoCleanup();
     await client.destroy();
     process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
     logger.info('🛑 Arrêt du bot...');
+    client.cacheManager?.stopAutoCleanup();
     await client.destroy();
     process.exit(0);
 });
