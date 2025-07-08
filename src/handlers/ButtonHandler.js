@@ -12,6 +12,12 @@ class ButtonHandler {
         const { customId } = interaction;
 
         try {
+            // Vérification préalable de l'état de l'interaction
+            if (interaction.replied || interaction.deferred) {
+                this.logger.warn(`⚠️ Interaction ${customId} déjà traitée, abandon`);
+                return;
+            }
+
             this.logger.info(`🔘 Traitement du bouton: ${customId} par ${interaction.user.tag}`);
 
             // Boutons de tickets
@@ -79,6 +85,12 @@ class ButtonHandler {
 
     async handleTicketButtons(interaction) {
         try {
+            // Vérification préalable pour éviter les interactions expirées
+            if (interaction.replied || interaction.deferred) {
+                this.logger.warn('⚠️ Interaction ticket déjà traitée, abandon');
+                return;
+            }
+
             // Utiliser l'instance TicketManager stockée dans le client pour optimiser
             if (!this.client.ticketManager) {
                 this.client.ticketManager = new TicketManager(this.client);
@@ -135,6 +147,12 @@ class ButtonHandler {
 
     async handleConfirmationButtons(interaction) {
         try {
+            // Vérification préalable pour éviter les interactions expirées
+            if (interaction.replied || interaction.deferred) {
+                this.logger.warn('⚠️ Interaction confirmation déjà traitée, abandon');
+                return;
+            }
+
             // Utiliser l'instance TicketManager stockée dans le client
             if (!this.client.ticketManager) {
                 this.client.ticketManager = new TicketManager(this.client);

@@ -229,9 +229,17 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                     new ActionRowBuilder().addComponents(descriptionInput)
                 );
 
-                // AFFICHAGE IMMÉDIAT - PRIORITÉ ABSOLUE
-                await interaction.showModal(suggestionModal);
-                this.logger.info(`✅ Modal suggestion affiché immédiatement pour ${interaction.user.username}`);
+                // AFFICHAGE IMMÉDIAT avec gestion d'erreur renforcée
+                try {
+                    await interaction.showModal(suggestionModal);
+                    this.logger.info(`✅ Modal suggestion affiché immédiatement pour ${interaction.user.username}`);
+                } catch (error) {
+                    if (error.code === 10062) {
+                        this.logger.warn('⏰ Interaction suggestion expirée lors de showModal');
+                        return;
+                    }
+                    throw error;
+                }
                 return;
             }
 
@@ -241,8 +249,16 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                 return;
             }
 
-            // Acquittement pour les autres types (non-suggestion)
-            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            // Acquittement pour les autres types (non-suggestion) avec gestion d'erreur
+            try {
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            } catch (error) {
+                if (error.code === 10062) {
+                    this.logger.warn('⏰ Interaction ticket creation expirée lors du deferReply');
+                    return;
+                }
+                throw error;
+            }
 
             const config = this.ticketTypes[type];
             if (!config) {
@@ -717,7 +733,7 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
             if (member.roles.cache.has(restrictedRoleId)) {
                 return await interaction.reply({
                     content: '❌ **Accès refusé !**\n\nVous n\'avez pas les permissions nécessaires pour prendre en charge un ticket.\n\n💡 Cette action est réservée à l\'équipe de modération.',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -725,7 +741,7 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
             if (!member.roles.cache.has(this.staffRoleId)) {
                 return await interaction.reply({
                     content: '❌ **Permissions insuffisantes !**\n\nSeuls les membres du staff peuvent prendre en charge un ticket.',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -774,7 +790,7 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
 
     async createTranscript(interaction) {
         try {
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
             const channel = interaction.channel;
             const messages = await channel.messages.fetch({ limit: 100 });
@@ -848,7 +864,7 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
             if (!user) {
                 return await interaction.reply({
                     content: '❌ Utilisateur introuvable. Vérifiez l\'ID ou la mention.',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -884,7 +900,7 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
             this.logger.error('Erreur lors de l\'ajout d\'utilisateur:', error);
             await interaction.reply({
                 content: '❌ Une erreur est survenue lors de l\'ajout de l\'utilisateur.',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
     }
@@ -1032,9 +1048,21 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
 
     async handleSuggestionModalSubmit(interaction) {
         try {
-            // Acquittement immédiat pour éviter les timeouts
-            if (!interaction.deferred && !interaction.replied) {
+            // Vérification immédiate de l'état de l'interaction
+            if (interaction.replied || interaction.deferred) {
+                this.logger.warn('⚠️ Interaction suggestion modal déjà traitée, abandon');
+                return;
+            }
+
+            // Acquittement immédiat avec gestion d'erreur renforcée
+            try {
                 await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            } catch (error) {
+                if (error.code === 10062) {
+                    this.logger.warn('⏰ Interaction suggestion modal expirée lors du deferReply');
+                    return;
+                }
+                throw error;
             }
 
             const suggestionTitle = interaction.fields.getTextInputValue('suggestion_title');
@@ -1182,7 +1210,7 @@ ${suggestionDescription}
                 } else {
                     await interaction.reply({
                         content: '❌ Une erreur est survenue lors de la création de la suggestion.',
-                        ephemeral: true
+                        flags: MessageFlags.Ephemeral
                     });
                 }
             } catch (replyError) {
@@ -1198,7 +1226,7 @@ ${suggestionDescription}
             const message = interaction.fields.getTextInputValue('feedback_message');
             const improvement = interaction.fields.getTextInputValue('feedback_improvement') || '';
 
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
             const channel = interaction.channel;
             const statusColors = {
