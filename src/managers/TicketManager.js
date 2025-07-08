@@ -227,15 +227,43 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
     }
 
     async handleTicketCreation(interaction, type) {
+        const startTime = Date.now();
+        const maxProcessingTime = 2500; // 2.5 secondes max avant expiration
+        
         try {
+            // Vérification ultra-rapide d'état pour TOUS les types
+            if (interaction.replied || interaction.deferred) {
+                this.logger.warn(`⚠️ Interaction ${type} déjà traitée`);
+                return;
+            }
+
+            // Protection supplémentaire contre les doublons
+            const interactionKey = `${interaction.id}_${type}`;
+            if (!this.processingInteractions) {
+                this.processingInteractions = new Set();
+            }
+            
+            if (this.processingInteractions.has(interactionKey)) {
+                this.logger.warn(`🔄 Traitement dupliqué détecté pour ${type}: ${interaction.id}`);
+                return;
+            }
+            
+            this.processingInteractions.add(interactionKey);
+            
+            // Nettoyer après 10 secondes
+            setTimeout(() => {
+                this.processingInteractions.delete(interactionKey);
+            }, 10000);
+
             // TRAITEMENT SPÉCIAL POUR SUGGESTIONS - MODAL IMMÉDIAT
             if (type === 'suggestion') {
-                // Vérification ultra-rapide d'état
-                if (interaction.replied || interaction.deferred) {
-                    this.logger.warn('⚠️ Interaction suggestion déjà traitée');
+                // Vérification de timing
+                const elapsed = Date.now() - startTime;
+                if (elapsed > maxProcessingTime) {
+                    this.logger.warn(`⏰ Traitement ${type} trop lent (${elapsed}ms), abandon`);
                     return;
                 }
-
+                
                 // Modal IMMÉDIAT - aucun autre traitement avant
                 const suggestionModal = new ModalBuilder()
                     .setCustomId('suggestion_modal_general')
@@ -265,7 +293,8 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                 // AFFICHAGE IMMÉDIAT avec gestion d'erreur renforcée
                 try {
                     await interaction.showModal(suggestionModal);
-                    this.logger.info(`✅ Modal suggestion affiché immédiatement pour ${interaction.user.username}`);
+                    const totalTime = Date.now() - startTime;
+                    this.logger.info(`✅ Modal suggestion affiché en ${totalTime}ms pour ${interaction.user.username}`);
                 } catch (error) {
                     if (error.code === 10062) {
                         this.logger.warn('⏰ Interaction suggestion expirée lors de showModal');
@@ -276,59 +305,29 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                 return;
             }
 
-            // Vérification standard pour les autres types
-            if (interaction.replied || interaction.deferred) {
-                this.logger.warn('⚠️ Interaction ticket creation déjà traitée');
+            // Pour les autres types : Vérification de timing
+            const elapsed = Date.now() - startTime;
+            if (elapsed > maxProcessingTime) {
+                this.logger.warn(`⏰ Traitement ${type} trop lent (${elapsed}ms), abandon`);
                 return;
             }
 
-            // Acquittement pour les autres types (non-suggestion) avec gestion d'erreur
-            try {
-                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-            } catch (error) {
-                if (error.code === 10062) {
-                    this.logger.warn('⏰ Interaction ticket creation expirée lors du deferReply');
-                    return;
-                }
-                throw error;
-            }
-
+            // Configuration du modal IMMÉDIATEMENT
             const config = this.ticketTypes[type];
             if (!config) {
-                return await interaction.editReply({
-                    content: '❌ Type de ticket invalide.'
-                });
-            }
-
-            // Vérifier si l'utilisateur a déjà un ticket ouvert
-            const existingTickets = interaction.guild.channels.cache.filter(
-                channel => channel.name.includes(interaction.user.id) && channel.name.includes('ticket')
-            );
-
-            if (existingTickets.size > 0) {
-                const errorMsg = `❌ Vous avez déjà un ticket ouvert : ${existingTickets.first()}`;
+                // Réponse rapide pour erreur de type
                 try {
-                    if (interaction.deferred) {
-                        return await interaction.editReply({ content: errorMsg });
-                    } else if (!interaction.replied) {
-                        return await interaction.reply({
-                            content: errorMsg,
-                            flags: MessageFlags.Ephemeral
-                        });
-                    }
+                    await interaction.reply({
+                        content: '❌ Type de ticket invalide.',
+                        flags: MessageFlags.Ephemeral
+                    });
                 } catch (error) {
-                    if (error.code === 'InteractionAlreadyReplied' || error.code === 10062) {
-                        this.logger.warn('⚠️ Interaction déjà traitée lors de la vérification des tickets existants');
-                        return;
-                    }
-                    throw error;
+                    this.logger.warn(`⚠️ Erreur reply type invalide: ${error.code}`);
                 }
+                return;
             }
 
-            // Les suggestions sont déjà gérées au début de la méthode
-            // Plus besoin de cette vérification ici car les suggestions ont leur propre logique
-
-            // Modal pour collecter les informations (autres types)
+            // Modal IMMÉDIAT pour tous les autres types (pas de vérifications qui ralentissent)
             const modal = new ModalBuilder()
                 .setCustomId(`ticket_modal_${type}`)
                 .setTitle(`${config.emoji} ${config.name}`);
@@ -363,43 +362,37 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                 new ActionRowBuilder().addComponents(priorityInput)
             );
 
-            // Vérification finale avant showModal
+            // AFFICHAGE IMMÉDIAT du modal (priorité absolue)
+            // Vérification finale juste avant showModal
             if (interaction.replied || interaction.deferred) {
-                this.logger.warn('⚠️ Interaction déjà traitée avant showModal, abandon');
+                this.logger.warn(`⚠️ Interaction ${type} déjà acquittée juste avant showModal`);
                 return;
             }
-
-            await interaction.showModal(modal);
+            
+            try {
+                await interaction.showModal(modal);
+                const totalTime = Date.now() - startTime;
+                this.logger.info(`✅ Modal ${type} affiché en ${totalTime}ms pour ${interaction.user.username}`);
+            } catch (error) {
+                if (error.code === 10062) {
+                    this.logger.warn(`⏰ Interaction ${type} expirée lors de showModal`);
+                    return;
+                }
+                if (error.code === 40060) {
+                    this.logger.warn(`⚠️ Interaction ${type} déjà acquittée lors de showModal`);
+                    return;
+                }
+                if (error.code === 'InteractionAlreadyReplied') {
+                    this.logger.warn(`⚠️ Interaction ${type} déjà répondue lors de showModal`);
+                    return;
+                }
+                this.logger.error(`❌ Erreur showModal ${type}:`, error);
+                return;
+            }
 
         } catch (error) {
-            // Gestion d'erreur plus spécifique
-            if (error.code === 'InteractionAlreadyReplied') {
-                this.logger.warn('⚠️ Interaction déjà répondue lors de la création du ticket');
-                return;
-            }
-            
-            if (error.code === 10062) {
-                this.logger.warn('⏰ Interaction expirée lors de la création du ticket');
-                return;
-            }
-
-            this.logger.error('Erreur lors de la création du ticket:', error);
-            
-            // Vérifier l'état avant de répondre
-            try {
-                if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({
-                        content: '❌ Une erreur est survenue lors de la création du ticket.',
-                        flags: MessageFlags.Ephemeral
-                    });
-                }
-            } catch (replyError) {
-                if (replyError.code === 'InteractionAlreadyReplied' || replyError.code === 10062) {
-                    this.logger.warn('⏰ Impossible de répondre à l\'erreur - interaction déjà traitée');
-                } else {
-                    this.logger.error('Erreur lors de la réponse d\'erreur:', replyError);
-                }
-            }
+            // Gestion d'erreur simplifiée
+            this.logger.error(`Erreur lors de la création du ticket ${type}:`, error);
         }
     }
 
@@ -421,6 +414,17 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
             const priority = interaction.fields.getTextInputValue('ticket_priority') || '3';
 
             await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+            // Vérifier si l'utilisateur a déjà un ticket ouvert APRÈS le modal
+            const existingTickets = guild.channels.cache.filter(
+                channel => channel.name.includes(user.id) && channel.name.includes('ticket')
+            );
+
+            if (existingTickets.size > 0) {
+                return await interaction.editReply({
+                    content: `❌ Vous avez déjà un ticket ouvert : ${existingTickets.first()}\n\n💡 Veuillez fermer votre ticket existant avant d'en créer un nouveau.`
+                });
+            }
 
             // Créer ou récupérer la catégorie de tickets
             const ticketCategory = await this.ensureTicketCategory(guild);

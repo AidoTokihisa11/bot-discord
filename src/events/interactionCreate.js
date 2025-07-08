@@ -10,6 +10,24 @@ export default {
     async execute(interaction) {
         const logger = new Logger();
         
+        // Protection contre les doublons de Discord.js
+        if (!interaction.client.interactionCache) {
+            interaction.client.interactionCache = new Set();
+        }
+        
+        const interactionKey = `${interaction.id}_${interaction.user.id}_${Date.now()}`;
+        if (interaction.client.interactionCache.has(interaction.id)) {
+            logger.warn(`🔄 Interaction dupliquée détectée: ${interaction.id}`);
+            return;
+        }
+        
+        interaction.client.interactionCache.add(interaction.id);
+        
+        // Nettoyer le cache après 30 secondes
+        setTimeout(() => {
+            interaction.client.interactionCache.delete(interaction.id);
+        }, 30000);
+        
         // Initialiser le validateur d'interactions si nécessaire
         if (!interaction.client.interactionValidator) {
             interaction.client.interactionValidator = new InteractionValidator();
