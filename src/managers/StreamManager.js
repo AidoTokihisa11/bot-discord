@@ -349,10 +349,34 @@ export default class StreamManager {
                 return;
             }
 
-            this.logger.info(`🔍 Vérification de ${streamersToCheck.length} streamer(s) en mode démo...`);
+            // Vérifier les paramètres d'activation pour chaque serveur
+            const guildStreamers = new Map();
+            for (const streamer of streamersToCheck) {
+                if (!guildStreamers.has(streamer.guildId)) {
+                    const guildData = await this.db.getGuildData(streamer.guildId);
+                    const isEnabled = guildData.streamSettings?.enabled !== false; // Activé par défaut
+                    guildStreamers.set(streamer.guildId, { enabled: isEnabled, streamers: [] });
+                }
+                guildStreamers.get(streamer.guildId).streamers.push(streamer);
+            }
+
+            // Ne traiter que les serveurs où le système est activé
+            const enabledStreamers = [];
+            for (const [guildId, guildInfo] of guildStreamers) {
+                if (guildInfo.enabled) {
+                    enabledStreamers.push(...guildInfo.streamers);
+                }
+            }
+
+            if (enabledStreamers.length === 0) {
+                this.logger.info('⏸️ Aucun serveur avec notifications activées');
+                return;
+            }
+
+            this.logger.info(`🔍 Vérification de ${enabledStreamers.length} streamer(s) en mode démo...`);
 
             // Mode démo : simuler aléatoirement des streamers en live
-            for (const streamer of streamersToCheck) {
+            for (const streamer of enabledStreamers) {
                 const key = `${streamer.guildId}-${streamer.platform}-${streamer.username.toLowerCase()}`;
                 const wasLive = this.currentlyLive.has(key);
                 
@@ -376,20 +400,26 @@ export default class StreamManager {
     }
 
     createDemoStreamData(platform, username) {
-        const games = ['Fortnite', 'Valorant', 'League of Legends', 'Minecraft', 'GTA V', 'Call of Duty', 'Apex Legends', 'World of Warcraft'];
-        const titles = [
-            'LIVE! Chill stream avec les viewers',
-            'TOURNOI EN COURS! 🏆',
-            'Nouveau record personnel!',
-            'Stream détente après une longue journée',
-            'PREMIÈRE FOIS sur ce jeu!',
-            'Collaboration avec des amis',
-            'Challenge communautaire!'
+        const epicTitles = [
+            '🔥 EVENT SPÉCIAL - 24H DE FOLIE !',
+            '🏆 TOURNOI ÉPIQUE - Finale en cours !',
+            '💎 PREMIÈRE MONDIALE - Nouveau jeu !',
+            '🎉 STREAM ANNIVERSAIRE - Cadeaux à gagner !',
+            '⚡ SPEEDRUN RECORD - Tentative historique !',
+            '🌟 COLLABORATION EXCLUSIVE !',
+            '🎮 MARATHON GAMING - Plus de 12H !',
+            '🔴 LIVE EXCEPTIONNEL - Ne ratez pas ça !'
+        ];
+        
+        const epicGames = [
+            'Fortnite', 'League of Legends', 'Valorant', 'Minecraft',
+            'Grand Theft Auto V', 'Call of Duty', 'Apex Legends', 'FIFA',
+            'Just Chatting', 'World of Warcraft', 'Counter-Strike 2', 'Overwatch 2'
         ];
 
-        const randomGame = games[Math.floor(Math.random() * games.length)];
-        const randomTitle = titles[Math.floor(Math.random() * titles.length)];
-        const randomViewers = Math.floor(Math.random() * 50000) + 100;
+        const randomTitle = epicTitles[Math.floor(Math.random() * epicTitles.length)];
+        const randomGame = epicGames[Math.floor(Math.random() * epicGames.length)];
+        const randomViewers = Math.floor(Math.random() * 100000) + 500; // Plus de viewers pour le mode démo
 
         switch (platform) {
             case 'twitch':
@@ -398,7 +428,7 @@ export default class StreamManager {
                     title: randomTitle,
                     game_name: randomGame,
                     viewer_count: randomViewers,
-                    thumbnail_url: `https://via.placeholder.com/320x180/6441a4/ffffff?text=LIVE+${username.toUpperCase()}`
+                    thumbnail_url: `https://via.placeholder.com/1920x1080/9146FF/ffffff?text=${encodeURIComponent(`🔴 ${username.toUpperCase()} LIVE`)}`
                 };
             case 'youtube':
                 return {
@@ -411,7 +441,7 @@ export default class StreamManager {
                     session_title: randomTitle,
                     viewer_count: randomViewers,
                     categories: [{ name: randomGame }],
-                    thumbnail: { url: `https://via.placeholder.com/320x180/53FC18/ffffff?text=LIVE+${username.toUpperCase()}` }
+                    thumbnail: { url: `https://via.placeholder.com/1920x1080/53FC18/ffffff?text=${encodeURIComponent(`🎯 ${username.toUpperCase()} LIVE`)}` }
                 };
             default:
                 return { title: randomTitle };
@@ -541,36 +571,147 @@ export default class StreamManager {
             .setColor(this.getPlatformColor(platform))
             .setTimestamp();
 
+        const platformEmojis = {
+            'twitch': '🟣',
+            'youtube': '🔴', 
+            'kick': '🎯'
+        };
+
+        const platformNames = {
+            'twitch': 'Twitch',
+            'youtube': 'YouTube',
+            'kick': 'Kick'
+        };
+
         switch (platform) {
             case 'twitch':
+                const twitchTitle = streamData.title || 'Aucun titre disponible';
+                const twitchGame = streamData.game_name || 'Jeu non spécifié';
+                const twitchViewers = streamData.viewer_count || 0;
+                
                 embed
-                    .setTitle(`🟣 ${streamData.user_name} est en live sur Twitch!`)
-                    .setDescription(streamData.title || 'Aucun titre')
+                    .setAuthor({ 
+                        name: `${streamData.user_name || streamer.username}`, 
+                        iconURL: 'https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/twitch.png',
+                        url: `https://twitch.tv/${streamer.username}`
+                    })
+                    .setTitle(`🔴 ${platformEmojis[platform]} EN DIRECT SUR ${platformNames[platform].toUpperCase()}`)
+                    .setDescription(`**${twitchTitle}**\n\n💬 *"${this.getTwitchQuote(twitchGame)}"*`)
                     .addFields(
-                        { name: '🎮 Jeu', value: streamData.game_name || 'Non spécifié', inline: true },
-                        { name: '👥 Spectateurs', value: streamData.viewer_count.toString(), inline: true },
-                        { name: '🏷️ Tags', value: streamData.tag_ids?.join(', ') || 'Aucun', inline: true }
+                        { 
+                            name: '🎮 Catégorie', 
+                            value: `\`\`\`${twitchGame}\`\`\``, 
+                            inline: true 
+                        },
+                        { 
+                            name: '👥 Spectateurs', 
+                            value: `\`\`\`${this.formatViewerCount(twitchViewers)}\`\`\``, 
+                            inline: true 
+                        },
+                        { 
+                            name: '⏰ Statut', 
+                            value: `\`\`\`🟢 EN LIGNE\`\`\``, 
+                            inline: true 
+                        },
+                        {
+                            name: '📊 Statistiques',
+                            value: `**Plateforme:** ${platformNames[platform]}\n**Qualité:** HD 1080p\n**Langue:** Français`,
+                            inline: false
+                        }
                     )
                     .setURL(`https://twitch.tv/${streamer.username}`)
-                    .setThumbnail(streamData.thumbnail_url?.replace('{width}', '320').replace('{height}', '180'));
+                    .setImage(streamData.thumbnail_url?.replace('{width}', '1920').replace('{height}', '1080') || 'https://via.placeholder.com/1920x1080/9146FF/ffffff?text=TWITCH+LIVE')
+                    .setThumbnail(`https://logo.clearbit.com/twitch.tv`)
+                    .setFooter({ 
+                        text: `Stream démarré • ${this.getRelativeTime()} • Notification automatique`, 
+                        iconURL: 'https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/twitch.png' 
+                    });
                 break;
 
             case 'youtube':
+                const youtubeTitle = streamData.title || 'Stream en direct';
+                
                 embed
-                    .setTitle(`🔴 ${streamer.username} est en live sur YouTube!`)
-                    .setURL(`https://youtube.com/channel/${streamer.username}`);
+                    .setAuthor({ 
+                        name: `${streamer.username}`, 
+                        iconURL: 'https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/youtube.png',
+                        url: `https://youtube.com/@${streamer.username}`
+                    })
+                    .setTitle(`🔴 ${platformEmojis[platform]} EN DIRECT SUR ${platformNames[platform].toUpperCase()}`)
+                    .setDescription(`**${youtubeTitle}**\n\n🎬 *"Découvrez le contenu en direct sur YouTube !"*`)
+                    .addFields(
+                        { 
+                            name: '🎮 Type de contenu', 
+                            value: `\`\`\`Live Streaming\`\`\``, 
+                            inline: true 
+                        },
+                        { 
+                            name: '📱 Plateforme', 
+                            value: `\`\`\`YouTube Live\`\`\``, 
+                            inline: true 
+                        },
+                        { 
+                            name: '⏰ Statut', 
+                            value: `\`\`\`🔴 EN DIRECT\`\`\``, 
+                            inline: true 
+                        },
+                        {
+                            name: '📊 Informations',
+                            value: `**Plateforme:** ${platformNames[platform]}\n**Qualité:** 4K Ultra HD\n**Chat:** Activé`,
+                            inline: false
+                        }
+                    )
+                    .setURL(`https://youtube.com/@${streamer.username}`)
+                    .setImage('https://via.placeholder.com/1920x1080/FF0000/ffffff?text=YOUTUBE+LIVE')
+                    .setThumbnail('https://logo.clearbit.com/youtube.com')
+                    .setFooter({ 
+                        text: `Stream YouTube • ${this.getRelativeTime()} • Notification automatique`, 
+                        iconURL: 'https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/youtube.png' 
+                    });
                 break;
 
             case 'kick':
+                const kickTitle = streamData.session_title || 'Stream en direct';
+                const kickCategory = streamData.categories?.[0]?.name || 'Catégorie non spécifiée';
+                const kickViewers = streamData.viewer_count || 0;
+                
                 embed
-                    .setTitle(`🎯 ${streamData.session_title || streamer.username} est en live sur Kick!`)
-                    .setDescription(streamData.session_title || 'Aucun titre')
+                    .setAuthor({ 
+                        name: `${streamer.username}`, 
+                        iconURL: 'https://assets-global.website-files.com/635ae30b3547d10c95b77ad8/6398f7fa14ac4b3e8e64e77a_Logo%20Mark%20Green.svg',
+                        url: `https://kick.com/${streamer.username}`
+                    })
+                    .setTitle(`🔴 ${platformEmojis[platform]} EN DIRECT SUR ${platformNames[platform].toUpperCase()}`)
+                    .setDescription(`**${kickTitle}**\n\n⚡ *"L'expérience de streaming nouvelle génération !"*`)
                     .addFields(
-                        { name: '🎮 Catégorie', value: streamData.categories?.[0]?.name || 'Non spécifiée', inline: true },
-                        { name: '👥 Spectateurs', value: (streamData.viewer_count || 0).toString(), inline: true }
+                        { 
+                            name: '🎮 Catégorie', 
+                            value: `\`\`\`${kickCategory}\`\`\``, 
+                            inline: true 
+                        },
+                        { 
+                            name: '👥 Spectateurs', 
+                            value: `\`\`\`${this.formatViewerCount(kickViewers)}\`\`\``, 
+                            inline: true 
+                        },
+                        { 
+                            name: '⏰ Statut', 
+                            value: `\`\`\`🟢 LIVE\`\`\``, 
+                            inline: true 
+                        },
+                        {
+                            name: '📊 Détails du stream',
+                            value: `**Plateforme:** ${platformNames[platform]}\n**Qualité:** HD+\n**Latence:** Ultra-faible`,
+                            inline: false
+                        }
                     )
                     .setURL(`https://kick.com/${streamer.username}`)
-                    .setThumbnail(streamData.thumbnail?.url);
+                    .setImage(streamData.thumbnail?.url || 'https://via.placeholder.com/1920x1080/53FC18/ffffff?text=KICK+LIVE')
+                    .setThumbnail('https://assets-global.website-files.com/635ae30b3547d10c95b77ad8/6398f7fa14ac4b3e8e64e77a_Logo%20Mark%20Green.svg')
+                    .setFooter({ 
+                        text: `Stream Kick • ${this.getRelativeTime()} • Notification automatique`, 
+                        iconURL: 'https://assets-global.website-files.com/635ae30b3547d10c95b77ad8/6398f7fa14ac4b3e8e64e77a_Logo%20Mark%20Green.svg' 
+                    });
                 break;
         }
 
@@ -584,30 +725,51 @@ export default class StreamManager {
             case 'twitch':
                 row.addComponents(
                     new ButtonBuilder()
-                        .setLabel('Regarder sur Twitch')
+                        .setLabel('🟣 Regarder sur Twitch')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL(`https://twitch.tv/${streamer.username}`),
+                    new ButtonBuilder()
+                        .setLabel('💬 Chat Twitch')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL(`https://twitch.tv/popout/${streamer.username}/chat`),
+                    new ButtonBuilder()
+                        .setLabel('� Suivre')
                         .setStyle(ButtonStyle.Link)
                         .setURL(`https://twitch.tv/${streamer.username}`)
-                        .setEmoji('🟣')
                 );
                 break;
 
             case 'youtube':
                 row.addComponents(
                     new ButtonBuilder()
-                        .setLabel('Regarder sur YouTube')
+                        .setLabel('🔴 Regarder sur YouTube')
                         .setStyle(ButtonStyle.Link)
-                        .setURL(`https://youtube.com/channel/${streamer.username}`)
-                        .setEmoji('🔴')
+                        .setURL(`https://youtube.com/@${streamer.username}`),
+                    new ButtonBuilder()
+                        .setLabel('👍 Liker la vidéo')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL(`https://youtube.com/@${streamer.username}`),
+                    new ButtonBuilder()
+                        .setLabel('� S\'abonner')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL(`https://youtube.com/@${streamer.username}`)
                 );
                 break;
 
             case 'kick':
                 row.addComponents(
                     new ButtonBuilder()
-                        .setLabel('Regarder sur Kick')
+                        .setLabel('🎯 Regarder sur Kick')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL(`https://kick.com/${streamer.username}`),
+                    new ButtonBuilder()
+                        .setLabel('💰 Supporter')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL(`https://kick.com/${streamer.username}`),
+                    new ButtonBuilder()
+                        .setLabel('👥 Suivre')
                         .setStyle(ButtonStyle.Link)
                         .setURL(`https://kick.com/${streamer.username}`)
-                        .setEmoji('🎯')
                 );
                 break;
         }
@@ -622,6 +784,36 @@ export default class StreamManager {
             'kick': '#53FC18'
         };
         return colors[platform] || '#0099ff';
+    }
+
+    formatViewerCount(count) {
+        if (count >= 1000000) {
+            return `${(count / 1000000).toFixed(1)}M`;
+        } else if (count >= 1000) {
+            return `${(count / 1000).toFixed(1)}K`;
+        }
+        return count.toString();
+    }
+
+    getRelativeTime() {
+        const now = new Date();
+        return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    }
+
+    getTwitchQuote(game) {
+        const quotes = {
+            'Just Chatting': 'Venez discuter et passer un bon moment !',
+            'Fortnite': 'Battle Royale en cours, action garantie !',
+            'League of Legends': 'MOBA intense avec des plays épiques !',
+            'Valorant': 'FPS tactique, chaque round compte !',
+            'Minecraft': 'Construction et aventure dans un monde infini !',
+            'Grand Theft Auto V': 'Roleplay et action dans Los Santos !',
+            'Call of Duty': 'Action FPS non-stop !',
+            'Apex Legends': 'Battle Royale avec des légendes !',
+            'World of Warcraft': 'MMORPG épique en Azeroth !',
+            'FIFA': 'Football virtuel au plus haut niveau !'
+        };
+        return quotes[game] || 'Stream de qualité, ne ratez pas ça !';
     }
 
     async sendTestNotification(guildId, platform, username) {
@@ -645,28 +837,48 @@ export default class StreamManager {
     }
 
     createTestStreamData(platform, username) {
+        const testTitles = [
+            '🔥 STREAM ÉPIQUE - Nouvelle mise à jour !',
+            '🎮 Session gaming intense avec la communauté',
+            '✨ Découverte du nouveau contenu - Première !',
+            '🚀 Challenge impossible - On y arrivera ?',
+            '💎 Stream spécial - Événement exclusif !'
+        ];
+        
+        const testGames = [
+            'Just Chatting', 'Fortnite', 'League of Legends', 'Valorant', 
+            'Minecraft', 'Grand Theft Auto V', 'Call of Duty', 'Apex Legends'
+        ];
+
+        const randomTitle = testTitles[Math.floor(Math.random() * testTitles.length)];
+        const randomGame = testGames[Math.floor(Math.random() * testGames.length)];
+        const randomViewers = Math.floor(Math.random() * 50000) + 100;
+
         switch (platform) {
             case 'twitch':
                 return {
                     user_name: username,
-                    title: '🧪 TEST - Stream de test pour les notifications',
-                    game_name: 'Just Chatting',
-                    viewer_count: 42,
-                    thumbnail_url: 'https://static-cdn.jtvnw.net/previews-ttv/live_user_{login}-{width}x{height}.jpg'
+                    title: randomTitle,
+                    game_name: randomGame,
+                    viewer_count: randomViewers,
+                    thumbnail_url: `https://static-cdn.jtvnw.net/previews-ttv/live_user_${username.toLowerCase()}-1920x1080.jpg`,
+                    tag_ids: ['Français', 'Chill', 'Interactive']
                 };
             case 'youtube':
                 return {
-                    title: '🧪 TEST - Stream de test pour les notifications'
+                    title: randomTitle,
+                    game_name: randomGame,
+                    viewer_count: randomViewers
                 };
             case 'kick':
                 return {
-                    session_title: '🧪 TEST - Stream de test pour les notifications',
-                    viewer_count: 42,
-                    categories: [{ name: 'Just Chatting' }],
-                    thumbnail: { url: 'https://via.placeholder.com/320x180/53FC18/ffffff?text=KICK+TEST' }
+                    session_title: randomTitle,
+                    viewer_count: randomViewers,
+                    categories: [{ name: randomGame }],
+                    thumbnail: { url: `https://images.kick.com/video_thumbnails/${username}/live_thumbnail.webp` }
                 };
             default:
-                return {};
+                return { title: randomTitle };
         }
     }
 

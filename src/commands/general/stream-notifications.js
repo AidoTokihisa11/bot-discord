@@ -111,6 +111,16 @@ export default {
                         .setRequired(true)
                         .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
                 )
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('enable')
+                .setDescription('✅ Activer le système de notifications de stream')
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('disable')
+                .setDescription('❌ Désactiver le système de notifications de stream')
         ),
 
     async execute(interaction) {
@@ -144,6 +154,12 @@ export default {
                     break;
                 case 'demo':
                     await handleDemo(interaction, streamManager);
+                    break;
+                case 'enable':
+                    await handleEnable(interaction, streamManager);
+                    break;
+                case 'disable':
+                    await handleDisable(interaction, streamManager);
                     break;
                 default:
                     await interaction.editReply({
@@ -325,16 +341,22 @@ async function handleTestNotification(interaction, streamManager) {
 async function handleStatus(interaction, streamManager) {
     const stats = await streamManager.getStats(interaction.guild.id);
     
+    // Vérifier l'état d'activation du système
+    const guildData = await streamManager.db.getGuildData(interaction.guild.id);
+    const isSystemEnabled = guildData.streamSettings?.enabled !== false; // Activé par défaut
+    const systemStatus = isSystemEnabled ? '🟢 Activé' : '🔴 Désactivé';
+    const systemColor = isSystemEnabled ? '#00ff88' : '#ff4444';
+    
     const embed = new EmbedBuilder()
-        .setColor('#00ff88')
+        .setColor(systemColor)
         .setTitle('📊 Statut du système de notifications')
         .addFields(
+            { name: '⚡ Système', value: systemStatus, inline: true },
             { name: '👥 Streamers surveillés', value: `${stats.totalStreamers}`, inline: true },
             { name: '🟢 Actuellement en live', value: `${stats.currentlyLive}`, inline: true },
             { name: '📢 Notifications envoyées', value: `${stats.notificationsSent}`, inline: true },
             { name: '⏱️ Dernière vérification', value: `<t:${Math.floor(stats.lastCheck / 1000)}:R>`, inline: true },
-            { name: '🔄 Intervalle de vérification', value: '2 minutes', inline: true },
-            { name: '📊 Statut', value: stats.isRunning ? '🟢 Actif' : '🔴 Arrêté', inline: true }
+            { name: '🔄 Surveillance', value: stats.isRunning ? '🟢 Active' : '🔴 Arrêtée', inline: true }
         )
         .setTimestamp();
 
@@ -346,6 +368,36 @@ async function handleStatus(interaction, streamManager) {
         embed.addFields({
             name: '🎮 Par plateforme',
             value: platformStats || 'Aucune',
+            inline: false
+        });
+    }
+
+    // Ajouter des informations d'activation/désactivation si disponibles
+    if (guildData.streamSettings?.enabledBy || guildData.streamSettings?.disabledBy) {
+        const lastActionUser = isSystemEnabled ? guildData.streamSettings.enabledBy : guildData.streamSettings.disabledBy;
+        const lastActionTime = isSystemEnabled ? guildData.streamSettings.enabledAt : guildData.streamSettings.disabledAt;
+        const actionType = isSystemEnabled ? 'Activé' : 'Désactivé';
+        
+        if (lastActionTime) {
+            embed.addFields({
+                name: `📝 ${actionType} par`,
+                value: `<@${lastActionUser}> • <t:${Math.floor(lastActionTime / 1000)}:R>`,
+                inline: false
+            });
+        }
+    }
+
+    // Ajouter des conseils selon l'état
+    if (!isSystemEnabled) {
+        embed.addFields({
+            name: '💡 Pour réactiver',
+            value: 'Utilisez `/stream-notifications enable`',
+            inline: false
+        });
+    } else if (stats.totalStreamers === 0) {
+        embed.addFields({
+            name: '💡 Pour commencer',
+            value: 'Utilisez `/stream-notifications add` ou `/setup-demo-streamers`',
             inline: false
         });
     }
@@ -406,6 +458,124 @@ async function handleDemo(interaction, streamManager) {
         console.error('Erreur lors de la démo:', error);
         await interaction.editReply({
             content: '❌ Erreur lors de la démonstration.'
+        });
+    }
+}
+
+// Fonction pour activer le système
+async function handleEnable(interaction, streamManager) {
+    try {
+        const guildId = interaction.guild.id;
+        
+        // Vérifier si le système est déjà activé
+        const guildData = await streamManager.db.getGuildData(guildId);
+        if (!guildData.streamSettings) {
+            guildData.streamSettings = {};
+        }
+        
+        if (guildData.streamSettings.enabled === true) {
+            const embed = new EmbedBuilder()
+                .setColor('#ffa500')
+                .setTitle('⚠️ Système déjà activé')
+                .setDescription('Le système de notifications de stream est déjà **activé** sur ce serveur.')
+                .addFields(
+                    { name: '📊 Statut', value: '✅ Actif', inline: true },
+                    { name: '🎮 Streamers surveillés', value: `${streamManager.streamers.size || 0}`, inline: true }
+                )
+                .setTimestamp();
+            
+            return await interaction.editReply({ embeds: [embed] });
+        }
+        
+        // Activer le système
+        guildData.streamSettings.enabled = true;
+        guildData.streamSettings.enabledAt = Date.now();
+        guildData.streamSettings.enabledBy = interaction.user.id;
+        
+        await streamManager.db.saveGuildData(guildId, guildData);
+        
+        // Redémarrer la surveillance si nécessaire
+        if (!streamManager.checkInterval) {
+            streamManager.startMonitoring();
+        }
+        
+        const embed = new EmbedBuilder()
+            .setColor('#00ff88')
+            .setTitle('✅ Système activé !')
+            .setDescription('Le système de notifications de stream a été **activé** avec succès.')
+            .addFields(
+                { name: '📊 Statut', value: '✅ Actif', inline: true },
+                { name: '👤 Activé par', value: `${interaction.user}`, inline: true },
+                { name: '🔄 Vérification', value: 'Toutes les 2 minutes', inline: true },
+                { name: '🎮 Streamers surveillés', value: `${streamManager.streamers.size || 0}`, inline: true }
+            )
+            .setFooter({ text: 'Utilisez /stream-notifications add pour ajouter des streamers à surveiller' })
+            .setTimestamp();
+        
+        await interaction.editReply({ embeds: [embed] });
+        
+    } catch (error) {
+        console.error('Erreur lors de l\'activation:', error);
+        await interaction.editReply({
+            content: '❌ Une erreur est survenue lors de l\'activation du système.'
+        });
+    }
+}
+
+// Fonction pour désactiver le système
+async function handleDisable(interaction, streamManager) {
+    try {
+        const guildId = interaction.guild.id;
+        
+        // Vérifier si le système est déjà désactivé
+        const guildData = await streamManager.db.getGuildData(guildId);
+        if (!guildData.streamSettings) {
+            guildData.streamSettings = {};
+        }
+        
+        if (guildData.streamSettings.enabled === false) {
+            const embed = new EmbedBuilder()
+                .setColor('#ffa500')
+                .setTitle('⚠️ Système déjà désactivé')
+                .setDescription('Le système de notifications de stream est déjà **désactivé** sur ce serveur.')
+                .addFields(
+                    { name: '📊 Statut', value: '❌ Inactif', inline: true },
+                    { name: '🎮 Streamers configurés', value: `${streamManager.streamers.size || 0}`, inline: true }
+                )
+                .setFooter({ text: 'Utilisez /stream-notifications enable pour le réactiver' })
+                .setTimestamp();
+            
+            return await interaction.editReply({ embeds: [embed] });
+        }
+        
+        // Désactiver le système
+        guildData.streamSettings.enabled = false;
+        guildData.streamSettings.disabledAt = Date.now();
+        guildData.streamSettings.disabledBy = interaction.user.id;
+        
+        await streamManager.db.saveGuildData(guildId, guildData);
+        
+        const streamersCount = streamManager.streamers.size || 0;
+        
+        const embed = new EmbedBuilder()
+            .setColor('#ff4444')
+            .setTitle('❌ Système désactivé')
+            .setDescription('Le système de notifications de stream a été **désactivé**.')
+            .addFields(
+                { name: '📊 Statut', value: '❌ Inactif', inline: true },
+                { name: '👤 Désactivé par', value: `${interaction.user}`, inline: true },
+                { name: '🎮 Streamers configurés', value: `${streamersCount}`, inline: true },
+                { name: '💡 Information', value: 'Les streamers restent configurés mais aucune notification ne sera envoyée', inline: false }
+            )
+            .setFooter({ text: 'Utilisez /stream-notifications enable pour réactiver le système' })
+            .setTimestamp();
+        
+        await interaction.editReply({ embeds: [embed] });
+        
+    } catch (error) {
+        console.error('Erreur lors de la désactivation:', error);
+        await interaction.editReply({
+            content: '❌ Une erreur est survenue lors de la désactivation du système.'
         });
     }
 }
