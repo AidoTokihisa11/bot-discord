@@ -9,6 +9,7 @@ import Database from './utils/Database.js';
 import ErrorHandler from './utils/ErrorHandler.js';
 import RoleMentionManager from './utils/RoleMentionManager.js';
 import CacheManager from './utils/CacheManager.js';
+import StreamManager from './managers/StreamManager.js';
 
 // Configuration
 config();
@@ -147,6 +148,11 @@ async function initialize() {
         client.cacheManager = new CacheManager(client);
         logger.success('✅ Gestionnaire de cache initialisé');
         
+        // Initialisation du gestionnaire de streams
+        logger.info('🎮 Initialisation du gestionnaire de streams...');
+        client.streamManager = new StreamManager(client);
+        logger.success('✅ Gestionnaire de streams initialisé');
+        
         // Connexion du bot
         logger.info('🔗 Connexion à Discord...');
         await client.login(process.env.DISCORD_TOKEN);
@@ -171,6 +177,7 @@ process.on('uncaughtException', (error) => {
 process.on('SIGINT', async () => {
     logger.info('🛑 Arrêt du bot...');
     client.cacheManager?.stopAutoCleanup();
+    client.streamManager?.stopMonitoring();
     await client.destroy();
     process.exit(0);
 });
@@ -178,6 +185,7 @@ process.on('SIGINT', async () => {
 process.on('SIGTERM', async () => {
     logger.info('🛑 Arrêt du bot...');
     client.cacheManager?.stopAutoCleanup();
+    client.streamManager?.stopMonitoring();
     await client.destroy();
     process.exit(0);
 });
