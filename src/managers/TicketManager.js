@@ -63,6 +63,39 @@ class TicketManager {
         };
     }
 
+    // Méthode utilitaire pour répondre aux interactions de manière sécurisée
+    async safeInteractionReply(interaction, replyOptions) {
+        try {
+            // Vérifier l'état de l'interaction avant de répondre
+            if (interaction.replied) {
+                this.logger.warn('⚠️ Tentative de réponse à une interaction déjà répondue');
+                return false;
+            }
+            
+            if (interaction.deferred) {
+                await interaction.editReply(replyOptions);
+                return true;
+            }
+            
+            await interaction.reply(replyOptions);
+            return true;
+            
+        } catch (error) {
+            if (error.code === 'InteractionAlreadyReplied') {
+                this.logger.warn('⚠️ Interaction déjà répondue lors de safeInteractionReply');
+                return false;
+            }
+            
+            if (error.code === 10062) {
+                this.logger.warn('⏰ Interaction expirée lors de safeInteractionReply');
+                return false;
+            }
+            
+            this.logger.error('Erreur lors de safeInteractionReply:', error);
+            throw error;
+        }
+    }
+
     async createTicketPanel(channel) {
         try {
             // Embed principal ultra moderne
@@ -274,21 +307,26 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
 
             if (existingTickets.size > 0) {
                 const errorMsg = `❌ Vous avez déjà un ticket ouvert : ${existingTickets.first()}`;
-                if (interaction.deferred) {
-                    return await interaction.editReply({ content: errorMsg });
-                } else {
-                    return await interaction.reply({
-                        content: errorMsg,
-                        flags: MessageFlags.Ephemeral
-                    });
+                try {
+                    if (interaction.deferred) {
+                        return await interaction.editReply({ content: errorMsg });
+                    } else if (!interaction.replied) {
+                        return await interaction.reply({
+                            content: errorMsg,
+                            flags: MessageFlags.Ephemeral
+                        });
+                    }
+                } catch (error) {
+                    if (error.code === 'InteractionAlreadyReplied' || error.code === 10062) {
+                        this.logger.warn('⚠️ Interaction déjà traitée lors de la vérification des tickets existants');
+                        return;
+                    }
+                    throw error;
                 }
             }
 
-            // Traitement spécial pour les suggestions
-            if (type === 'suggestion') {
-                await this.handleSuggestionCreation(interaction);
-                return;
-            }
+            // Les suggestions sont déjà gérées au début de la méthode
+            // Plus besoin de cette vérification ici car les suggestions ont leur propre logique
 
             // Modal pour collecter les informations (autres types)
             const modal = new ModalBuilder()
@@ -325,14 +363,43 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                 new ActionRowBuilder().addComponents(priorityInput)
             );
 
+            // Vérification finale avant showModal
+            if (interaction.replied || interaction.deferred) {
+                this.logger.warn('⚠️ Interaction déjà traitée avant showModal, abandon');
+                return;
+            }
+
             await interaction.showModal(modal);
 
         } catch (error) {
+            // Gestion d'erreur plus spécifique
+            if (error.code === 'InteractionAlreadyReplied') {
+                this.logger.warn('⚠️ Interaction déjà répondue lors de la création du ticket');
+                return;
+            }
+            
+            if (error.code === 10062) {
+                this.logger.warn('⏰ Interaction expirée lors de la création du ticket');
+                return;
+            }
+
             this.logger.error('Erreur lors de la création du ticket:', error);
-            await interaction.reply({
-                content: '❌ Une erreur est survenue lors de la création du ticket.',
-                flags: MessageFlags.Ephemeral
-            });
+            
+            // Vérifier l'état avant de répondre
+            try {
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.reply({
+                        content: '❌ Une erreur est survenue lors de la création du ticket.',
+                        flags: MessageFlags.Ephemeral
+                    });
+                }
+            } catch (replyError) {
+                if (replyError.code === 'InteractionAlreadyReplied' || replyError.code === 10062) {
+                    this.logger.warn('⏰ Impossible de répondre à l\'erreur - interaction déjà traitée');
+                } else {
+                    this.logger.error('Erreur lors de la réponse d\'erreur:', replyError);
+                }
+            }
         }
     }
 
@@ -588,7 +655,7 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
             .setFooter({ text: 'Si votre question n\'est pas listée, créez un ticket !' })
             .setTimestamp();
 
-        await interaction.reply({ embeds: [faqEmbed], flags: MessageFlags.Ephemeral });
+        await this.safeInteractionReply(interaction, { embeds: [faqEmbed], flags: MessageFlags.Ephemeral });
     }
 
     async showSupportStatus(interaction) {
@@ -611,7 +678,7 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
             .setFooter({ text: 'Dernière mise à jour maintenant' })
             .setTimestamp();
 
-        await interaction.reply({ embeds: [statusEmbed], flags: MessageFlags.Ephemeral });
+        await this.safeInteractionReply(interaction, { embeds: [statusEmbed], flags: MessageFlags.Ephemeral });
     }
 
     async showUserTickets(interaction) {
@@ -632,7 +699,7 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
             .setFooter({ text: `Total: ${userTickets.size} ticket(s)` })
             .setTimestamp();
 
-        await interaction.reply({ embeds: [ticketsEmbed], flags: MessageFlags.Ephemeral });
+        await this.safeInteractionReply(interaction, { embeds: [ticketsEmbed], flags: MessageFlags.Ephemeral });
     }
 
     async contactStaff(interaction) {
@@ -658,7 +725,7 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
             .setFooter({ text: 'Notre équipe est là pour vous aider !' })
             .setTimestamp();
 
-        await interaction.reply({ embeds: [contactEmbed], flags: MessageFlags.Ephemeral });
+        await this.safeInteractionReply(interaction, { embeds: [contactEmbed], flags: MessageFlags.Ephemeral });
     }
 
     // Gestionnaires pour les actions dans les tickets
@@ -731,7 +798,7 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
 
             // Vérifier si l'utilisateur a le rôle restreint
             if (member.roles.cache.has(restrictedRoleId)) {
-                return await interaction.reply({
+                return await this.safeInteractionReply(interaction, {
                     content: '❌ **Accès refusé !**\n\nVous n\'avez pas les permissions nécessaires pour prendre en charge un ticket.\n\n💡 Cette action est réservée à l\'équipe de modération.',
                     flags: MessageFlags.Ephemeral
                 });
@@ -739,7 +806,7 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
 
             // Vérifier si l'utilisateur a le rôle staff
             if (!member.roles.cache.has(this.staffRoleId)) {
-                return await interaction.reply({
+                return await this.safeInteractionReply(interaction, {
                     content: '❌ **Permissions insuffisantes !**\n\nSeuls les membres du staff peuvent prendre en charge un ticket.',
                     flags: MessageFlags.Ephemeral
                 });
@@ -764,7 +831,7 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
                 .setFooter({ text: 'Ticket assigné avec succès' })
                 .setTimestamp();
 
-            await interaction.reply({ embeds: [claimEmbed] });
+            await this.safeInteractionReply(interaction, { embeds: [claimEmbed] });
 
         } catch (error) {
             this.logger.error('Erreur lors de la prise en charge:', error);
@@ -862,7 +929,7 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
 
             const user = await guild.members.fetch(userId).catch(() => null);
             if (!user) {
-                return await interaction.reply({
+                return await this.safeInteractionReply(interaction, {
                     content: '❌ Utilisateur introuvable. Vérifiez l\'ID ou la mention.',
                     flags: MessageFlags.Ephemeral
                 });
@@ -894,11 +961,11 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
                 .setFooter({ text: 'Utilisateur ajouté avec succès' })
                 .setTimestamp();
 
-            await interaction.reply({ embeds: [addUserEmbed] });
+            await this.safeInteractionReply(interaction, { embeds: [addUserEmbed] });
 
         } catch (error) {
             this.logger.error('Erreur lors de l\'ajout d\'utilisateur:', error);
-            await interaction.reply({
+            await this.safeInteractionReply(interaction, {
                 content: '❌ Une erreur est survenue lors de l\'ajout de l\'utilisateur.',
                 flags: MessageFlags.Ephemeral
             });
@@ -1394,10 +1461,18 @@ ${improvement ? `**💡 Suggestions d'amélioration :**\n${improvement}` : ''}
 **👤 Traité par :** ${interaction.user}
 **🎯 Statut final :** ${statusTexts[status]}
 
-${status === 'approved' ? '**🎉 Cette suggestion sera prise en compte dans nos développements futurs !**' : ''}
-${status === 'considered' ? '**🤔 Cette suggestion est intéressante et sera étudiée plus en détail.**' : ''}
-${status === 'rejected' ? '**❌ Cette suggestion ne peut pas être implementée pour le moment.**' : ''}
-${status === 'closed' ? '**🔒 Cette suggestion a été fermée.**' : ''}
+${status === 'approved' ? 
+    '**🎉 Cette suggestion sera prise en compte dans nos développements futurs !**' : 
+    ''}
+${status === 'considered' ? 
+    '**🤔 Cette suggestion est intéressante et sera étudiée plus en détail.**' : 
+    ''}
+${status === 'rejected' ? 
+    '**❌ Cette suggestion ne peut pas être implementée pour le moment.**' : 
+    ''}
+${status === 'closed' ? 
+    '**🔒 Cette suggestion a été fermée.**' : 
+    ''}
 
 **💾 Ce canal sera fermé dans 10 secondes...**`)
                 .setFooter({ text: `Suggestion ${statusTexts[status].toLowerCase()}` })
