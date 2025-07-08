@@ -10,7 +10,6 @@
   "scripts": {
     "start": "node src/index.js",
     "deploy": "node src/deploy-secure.js",
-    "railway-deploy": "node src/railway-deploy.js",
     "dev": "node --watch src/index.js",
     "test": "node test-config.js",
     "test:config": "node test-config.js"

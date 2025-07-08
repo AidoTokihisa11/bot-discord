@@ -124,18 +124,6 @@ async function initialize() {
     try {
         logger.info('🚀 Initialisation du bot...');
         
-        // Déployer les commandes automatiquement sur Railway
-        if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
-            try {
-                logger.info('🌐 Déploiement automatique des commandes sur Railway...');
-                const { default: deployToDiscord } = await import('./railway-deploy.js');
-                await deployToDiscord();
-                logger.success('✅ Commandes déployées automatiquement');
-            } catch (deployError) {
-                logger.warn('⚠️ Erreur lors du déploiement automatique:', deployError.message);
-            }
-        }
-        
         // Chargement des commandes
         logger.info('📁 Chargement des commandes...');
         await loadCommands();
