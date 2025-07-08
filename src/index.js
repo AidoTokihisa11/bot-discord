@@ -19,13 +19,7 @@ const __dirname = dirname(__filename);
 // Initialisation du logger
 const logger = new Logger();
 
-// Vérification simple des variables d'environnement
-if (!process.env.DISCORD_TOKEN || !process.env.CLIENT_ID) {
-    logger.error('Variables d\'environnement manquantes: DISCORD_TOKEN ou CLIENT_ID');
-    process.exit(1);
-}
-
-// Création du client Discord
+// Création du client Discord avec optimisations
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -49,15 +43,17 @@ const client = new Client({
     }
 });
 
-// Ajouter le logger au client
+// Ajouter le logger au client pour y accéder partout
 client.logger = logger;
 
-// Collections
+// Collections pour les données du bot
 client.commands = new Collection();
 client.events = new Collection();
 client.cooldowns = new Collection();
 client.tickets = new Collection();
 client.config = new Collection();
+
+// Collections pour les interactions et données temporaires
 client.embedTemplates = new Collection();
 client.embedBuilder = new Collection();
 client.embedIA = new Collection();
@@ -70,7 +66,7 @@ client.db = new Database();
 const errorHandler = new ErrorHandler(client, logger);
 client.errorHandler = errorHandler;
 
-// Fonction pour charger les commandes
+// Fonction pour charger les commandes récursivement
 async function loadCommands(dir = join(__dirname, 'commands'), baseDir = join(__dirname, 'commands')) {
     const files = readdirSync(dir);
     
@@ -88,6 +84,8 @@ async function loadCommands(dir = join(__dirname, 'commands'), baseDir = join(__
                 if ('data' in commandData && 'execute' in commandData) {
                     client.commands.set(commandData.data.name, commandData);
                     logger.success(`Commande chargée: ${commandData.data.name}`);
+                } else {
+                    logger.warn(`Commande ${file} manque 'data' ou 'execute'`);
                 }
             } catch (error) {
                 logger.error(`Erreur lors du chargement de ${file}:`, error);
@@ -97,26 +95,26 @@ async function loadCommands(dir = join(__dirname, 'commands'), baseDir = join(__
 }
 
 // Fonction pour charger les événements
-async function loadEvents() {
-    const eventsPath = join(__dirname, 'events');
-    const eventFiles = readdirSync(eventsPath).filter(file => file.endsWith('.js'));
+async function loadEvents(dir = join(__dirname, 'events')) {
+    const files = readdirSync(dir);
     
-    for (const file of eventFiles) {
-        try {
-            const filePath = join(eventsPath, file);
-            const event = await import(pathToFileURL(filePath).href);
-            const eventData = event.default || event;
-            
-            if (eventData.once) {
-                client.once(eventData.name, (...args) => eventData.execute(...args, client));
-            } else {
-                client.on(eventData.name, (...args) => eventData.execute(...args, client));
+    for (const file of files) {
+        if (file.endsWith('.js')) {
+            try {
+                const event = await import(pathToFileURL(join(dir, file)).href);
+                const eventData = event.default || event;
+                
+                if (eventData.once) {
+                    client.once(eventData.name, (...args) => eventData.execute(...args, client));
+                } else {
+                    client.on(eventData.name, (...args) => eventData.execute(...args, client));
+                }
+                
+                client.events.set(eventData.name, eventData);
+                logger.success(`Événement chargé: ${eventData.name}`);
+            } catch (error) {
+                logger.error(`Erreur lors du chargement de ${file}:`, error);
             }
-            
-            client.events.set(eventData.name, eventData);
-            logger.success(`Événement chargé: ${eventData.name}`);
-        } catch (error) {
-            logger.error(`Erreur lors du chargement de ${file}:`, error);
         }
     }
 }
@@ -140,12 +138,20 @@ async function initialize() {
         logger.info('🗄️ Initialisation de la base de données...');
         await client.db.initialize();
         
-        // Initialisation des gestionnaires
-        logger.info('🎭 Initialisation des gestionnaires...');
+        // Initialisation du gestionnaire de mentions de rôles
+        logger.info('🎭 Initialisation du gestionnaire de mentions de rôles...');
         client.roleMentionManager = new RoleMentionManager(client);
+        logger.success('✅ Gestionnaire de mentions de rôles initialisé');
+        
+        // Initialisation du gestionnaire de cache
+        logger.info('🧹 Initialisation du gestionnaire de cache...');
         client.cacheManager = new CacheManager(client);
+        logger.success('✅ Gestionnaire de cache initialisé');
+        
+        // Initialisation du gestionnaire de streams
+        logger.info('🎮 Initialisation du gestionnaire de streams...');
         client.streamManager = new StreamManager(client);
-        logger.success('✅ Gestionnaires initialisés');
+        logger.success('✅ Gestionnaire de streams initialisé');
         
         // Connexion du bot
         logger.info('🔗 Connexion à Discord...');
@@ -157,24 +163,30 @@ async function initialize() {
     }
 }
 
-// Gestion simple des erreurs
+// Gestion des erreurs globales
 process.on('unhandledRejection', (error) => {
-    logger.error('Unhandled Promise Rejection:', error);
+    errorHandler.handleError(error, 'Unhandled Promise Rejection');
 });
 
 process.on('uncaughtException', (error) => {
-    logger.error('Uncaught Exception:', error);
+    errorHandler.handleError(error, 'Uncaught Exception');
     process.exit(1);
 });
 
-// Gestion de l'arrêt
-process.on('SIGINT', () => {
+// Gestion de l'arrêt propre
+process.on('SIGINT', async () => {
     logger.info('🛑 Arrêt du bot...');
+    client.cacheManager?.stopAutoCleanup();
+    client.streamManager?.stopMonitoring();
+    await client.destroy();
     process.exit(0);
 });
 
-process.on('SIGTERM', () => {
-    logger.info('🛑 Arrêt du bot (SIGTERM)...');
+process.on('SIGTERM', async () => {
+    logger.info('🛑 Arrêt du bot...');
+    client.cacheManager?.stopAutoCleanup();
+    client.streamManager?.stopMonitoring();
+    await client.destroy();
     process.exit(0);
 });
 
