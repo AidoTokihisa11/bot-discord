@@ -16,6 +16,21 @@ config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Vérification des variables d'environnement critiques
+if (!process.env.DISCORD_TOKEN) {
+    console.error('❌ ERREUR FATALE: Variable DISCORD_TOKEN manquante');
+    console.error('💡 Ajoutez DISCORD_TOKEN dans vos variables d\'environnement Railway');
+    process.exit(1);
+}
+
+if (!process.env.CLIENT_ID) {
+    console.error('❌ ERREUR FATALE: Variable CLIENT_ID manquante');
+    console.error('💡 Ajoutez CLIENT_ID dans vos variables d\'environnement Railway');
+    process.exit(1);
+}
+
+console.log('✅ Variables d\'environnement validées');
+
 // Initialisation du logger
 const logger = new Logger();
 
@@ -119,8 +134,14 @@ async function loadEvents(dir = join(__dirname, 'events')) {
     }
 }
 
-// Fonction d'initialisation
+// Fonction d'initialisation avec timeout
 async function initialize() {
+    // Timeout de 30 secondes pour l'initialisation
+    const initTimeout = setTimeout(() => {
+        console.error('❌ TIMEOUT: L\'initialisation prend trop de temps');
+        process.exit(1);
+    }, 30000);
+
     try {
         logger.info('🚀 Initialisation du bot...');
         
@@ -148,47 +169,90 @@ async function initialize() {
         client.cacheManager = new CacheManager(client);
         logger.success('✅ Gestionnaire de cache initialisé');
         
-        // Initialisation du gestionnaire de streams
-        logger.info('🎮 Initialisation du gestionnaire de streams...');
-        client.streamManager = new StreamManager(client);
-        logger.success('✅ Gestionnaire de streams initialisé');
+        // Initialisation du gestionnaire de streams (optionnel)
+        try {
+            logger.info('🎮 Initialisation du gestionnaire de streams...');
+            client.streamManager = new StreamManager(client);
+            logger.success('✅ Gestionnaire de streams initialisé');
+        } catch (streamError) {
+            logger.warn('⚠️ Gestionnaire de streams non initialisé:', streamError.message);
+        }
         
         // Connexion du bot
         logger.info('🔗 Connexion à Discord...');
         await client.login(process.env.DISCORD_TOKEN);
         
+        // Annuler le timeout si tout s'est bien passé
+        clearTimeout(initTimeout);
+        
     } catch (error) {
+        clearTimeout(initTimeout);
         logger.error('❌ Erreur lors de l\'initialisation:', error);
+        console.error('💥 Détails de l\'erreur:', error.stack);
         process.exit(1);
     }
 }
 
 // Gestion des erreurs globales
-process.on('unhandledRejection', (error) => {
-    errorHandler.handleError(error, 'Unhandled Promise Rejection');
+process.on('unhandledRejection', (error, promise) => {
+    console.error('❌ UNHANDLED PROMISE REJECTION:', error);
+    if (client.logger) {
+        client.logger.error('Unhandled Promise Rejection', error);
+    }
+    // Sur Railway, ne pas exit pour les rejections non gérées
+    // Laisser le bot continuer à fonctionner
 });
 
 process.on('uncaughtException', (error) => {
-    errorHandler.handleError(error, 'Uncaught Exception');
-    process.exit(1);
+    console.error('❌ UNCAUGHT EXCEPTION:', error);
+    if (client.logger) {
+        client.logger.error('Uncaught Exception', error);
+    }
+    
+    // Pour les exceptions critiques, tenter un arrêt gracieux
+    if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+        console.log('⚠️ Erreur réseau, tentative de reconnexion...');
+        return; // Ne pas exit pour les erreurs réseau
+    }
+    
+    // Pour les autres exceptions critiques
+    console.log('💀 Exception critique - Arrêt dans 5 secondes...');
+    setTimeout(() => {
+        process.exit(1);
+    }, 5000);
 });
 
 // Gestion de l'arrêt propre
-process.on('SIGINT', async () => {
-    logger.info('🛑 Arrêt du bot...');
-    client.cacheManager?.stopAutoCleanup();
-    client.streamManager?.stopMonitoring();
-    await client.destroy();
-    process.exit(0);
-});
+let shutdownInProgress = false;
 
-process.on('SIGTERM', async () => {
-    logger.info('🛑 Arrêt du bot...');
-    client.cacheManager?.stopAutoCleanup();
-    client.streamManager?.stopMonitoring();
-    await client.destroy();
-    process.exit(0);
-});
+async function shutdown(signal) {
+    if (shutdownInProgress) return;
+    shutdownInProgress = true;
+    
+    console.log(`🔄 ${signal} reçu - Arrêt gracieux...`);
+    logger.info(`🛑 Arrêt du bot (${signal})...`);
+    
+    try {
+        if (client.cacheManager) {
+            client.cacheManager.stopAutoCleanup();
+        }
+        
+        // Vérifier si le client est prêt avant de le détruire
+        if (client.readyAt) {
+            await client.destroy();
+            console.log('✅ Client Discord déconnecté');
+        }
+        
+        console.log('✅ Arrêt gracieux terminé');
+        process.exit(0);
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'arrêt:', error);
+        process.exit(1);
+    }
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 // Démarrage
 initialize();
