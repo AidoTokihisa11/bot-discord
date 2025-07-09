@@ -1,4 +1,4 @@
-import { EmbedBuilder, WebhookClient } from 'discord.js';
+import { EmbedBuilder, WebhookClient, MessageFlags } from 'discord.js';
 import moment from 'moment';
 
 class ErrorHandler {
@@ -111,7 +111,7 @@ class ErrorHandler {
 
                 await interaction.reply({
                     embeds: [userErrorEmbed],
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             } catch (replyError) {
                 this.logger.error('Impossible de répondre à l\'interaction:', replyError);

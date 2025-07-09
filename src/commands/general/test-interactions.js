@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, MessageFlags } from 'discord.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -45,7 +45,7 @@ export default {
             console.error('Erreur test interactions:', error);
             await interaction.reply({
                 content: '❌ Une erreur est survenue lors du test.',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
     }
@@ -103,7 +103,7 @@ async function testButtons(interaction) {
     await interaction.reply({
         embeds: [testEmbed],
         components: [buttonRow1, buttonRow2],
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
     });
 }
 
@@ -120,7 +120,7 @@ async function testModals(interaction) {
 
     await interaction.reply({
         embeds: [testEmbed],
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
     });
 }
 
@@ -166,7 +166,7 @@ async function testTickets(interaction) {
     await interaction.reply({
         embeds: [testEmbed],
         components: [ticketButtons, quickActions],
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
     });
 }
 
@@ -208,6 +208,6 @@ async function testEmbeds(interaction) {
     await interaction.reply({
         embeds: [testEmbed],
         components: [embedButtons],
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
     });
 }

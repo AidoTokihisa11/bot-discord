@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, MessageFlags } from 'discord.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -190,7 +190,7 @@ Notre équipe est disponible pour vous accompagner dans toutes vos demandes. Sé
         await interaction.reply({
             embeds: [mainEmbed, categoriesEmbed],
             components: [selectRow, categoryButtonsRow1, categoryButtonsRow2, infoRow],
-            ephemeral: true
+            flags: MessageFlags.Ephemeral
         });
     },
 };

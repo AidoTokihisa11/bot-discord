@@ -282,6 +282,17 @@ class Database {
         return guild;
     }
 
+    // Méthodes de compatibilité pour StreamManager
+    async getGuildData(guildId) {
+        return this.getGuild(guildId);
+    }
+
+    async setGuildData(guildId, data) {
+        const guild = this.getGuild(guildId);
+        Object.assign(guild, data);
+        return guild;
+    }
+
     // === STATISTIQUES GLOBALES ===
 
     getStats() {

@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ChannelType, MessageFlags } from 'discord.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -125,7 +125,13 @@ export default {
 
     async execute(interaction) {
         try {
-            await interaction.deferReply({ ephemeral: true });
+            // Utiliser le validateur d'interactions pour une déférence rapide
+            const validator = interaction.client.interactionValidator;
+            const deferred = await validator.quickDefer(interaction, { flags: MessageFlags.Ephemeral });
+            
+            if (!deferred) {
+                return; // Interaction expirée ou déjà traitée
+            }
 
             const subcommand = interaction.options.getSubcommand();
             const streamManager = interaction.client.streamManager;
@@ -342,7 +348,7 @@ async function handleStatus(interaction, streamManager) {
     const stats = await streamManager.getStats(interaction.guild.id);
     
     // Vérifier l'état d'activation du système
-    const guildData = await streamManager.db.getGuildData(interaction.guild.id);
+    const guildData = streamManager.db.getGuild(interaction.guild.id);
     const isSystemEnabled = guildData.streamSettings?.enabled !== false; // Activé par défaut
     const systemStatus = isSystemEnabled ? '🟢 Activé' : '🔴 Désactivé';
     const systemColor = isSystemEnabled ? '#00ff88' : '#ff4444';

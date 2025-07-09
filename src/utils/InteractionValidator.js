@@ -19,6 +19,15 @@ class InteractionValidator {
      */
     validateInteraction(interaction) {
         try {
+            // Vérification de l'expiration de l'interaction (3 minutes max)
+            const interactionAge = Date.now() - interaction.createdTimestamp;
+            const maxAge = 3 * 60 * 1000; // 3 minutes
+            
+            if (interactionAge > maxAge) {
+                this.logger.warn(`⏰ Interaction ${interaction.id} expirée (âge: ${Math.round(interactionAge/1000)}s)`);
+                return false;
+            }
+
             // Vérification de base de l'état de l'interaction
             if (interaction.replied || interaction.deferred) {
                 this.logger.warn(`⚠️ Interaction ${interaction.id} déjà traitée (replied: ${interaction.replied}, deferred: ${interaction.deferred})`);
@@ -80,6 +89,32 @@ class InteractionValidator {
     markInteractionAsCompleted(interaction) {
         const key = this.getInteractionKey(interaction);
         this.processedInteractions.delete(key);
+    }
+
+    /**
+     * Défère une interaction rapidement pour éviter l'expiration
+     * @param {Interaction} interaction 
+     * @param {Object} options - Options pour deferReply
+     * @returns {boolean} - True si la déférence a réussi
+     */
+    async quickDefer(interaction, options = {}) {
+        try {
+            // Vérification rapide avant déférence
+            if (interaction.replied || interaction.deferred) {
+                return false;
+            }
+
+            // Défère immédiatement pour éviter l'expiration
+            await interaction.deferReply(options);
+            return true;
+        } catch (error) {
+            if (error.code === 10062 || error.code === 40060) {
+                this.logger.warn('⏰ Impossible de différer - interaction déjà expirée');
+            } else {
+                this.logger.error('Erreur lors de la déférence rapide:', error);
+            }
+            return false;
+        }
     }
 
     /**

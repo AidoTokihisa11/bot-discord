@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import Logger from '../../utils/Logger.js';
 
 export default {
@@ -12,7 +12,13 @@ export default {
         const logger = new Logger();
 
         try {
-            await interaction.deferReply({ ephemeral: true });
+            // Utiliser le validateur d'interactions pour une déférence rapide
+            const validator = interaction.client.interactionValidator;
+            const deferred = await validator.quickDefer(interaction, { flags: MessageFlags.Ephemeral });
+            
+            if (!deferred) {
+                return; // Interaction expirée ou déjà traitée
+            }
 
             // Embed simple et propre du règlement
             const ruleEmbed = new EmbedBuilder()

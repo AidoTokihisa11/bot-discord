@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ChannelType } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ChannelType, MessageFlags } from 'discord.js';
 import TicketManager from '../../managers/TicketManager.js';
 import Logger from '../../utils/Logger.js';
 
@@ -13,7 +13,13 @@ export default {
         const logger = new Logger();
 
         try {
-            await interaction.deferReply({ ephemeral: true });
+            // Utiliser le validateur d'interactions pour une déférence rapide
+            const validator = interaction.client.interactionValidator;
+            const deferred = await validator.quickDefer(interaction, { flags: MessageFlags.Ephemeral });
+            
+            if (!deferred) {
+                return; // Interaction expirée ou déjà traitée
+            }
 
             // Initialiser le gestionnaire de tickets
             if (!client.ticketManager) {

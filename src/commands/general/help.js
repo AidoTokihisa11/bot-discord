@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -135,7 +135,7 @@ async function showCommandHelp(interaction, client, commandName) {
             })
             .setTimestamp();
 
-        return await interaction.reply({ embeds: [embed], ephemeral: true });
+        return await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 
     // Créer l'embed d'aide détaillée
@@ -206,7 +206,7 @@ async function showCommandHelp(interaction, client, commandName) {
     await interaction.reply({
         embeds: [embed],
         components: [backButton],
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
     });
 }
 
@@ -255,19 +255,19 @@ export async function handleHelpInteraction(interaction, client) {
             case 'help_quick_setup':
                 await interaction.reply({
                     content: '🚀 Utilisez `/config setup` pour configurer rapidement le bot !',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
                 break;
             case 'help_create_ticket':
                 await interaction.reply({
                     content: '🎫 Utilisez `/ticket create` pour créer un nouveau ticket !',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
                 break;
             case 'help_bot_stats':
                 await interaction.reply({
                     content: '📊 Utilisez `/stats` pour voir les statistiques du bot !',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
                 break;
         }

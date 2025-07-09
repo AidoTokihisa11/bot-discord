@@ -184,7 +184,13 @@ export default {
     async handleRapideEmbed(interaction, logger) {
         const { options } = interaction;
         
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        // Utiliser le validateur d'interactions pour une déférence rapide
+        const validator = interaction.client.interactionValidator;
+        const deferred = await validator.quickDefer(interaction, { flags: MessageFlags.Ephemeral });
+        
+        if (!deferred) {
+            return; // Interaction expirée ou déjà traitée
+        }
 
         const titre = options.getString('titre');
         const description = options.getString('description');
@@ -314,7 +320,7 @@ export default {
     async handleTemplatesGallery(interaction, logger) {
         const { options } = interaction;
         
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const categorie = options.getString('categorie') || 'communication';
 
@@ -450,7 +456,7 @@ export default {
     },
 
     async handleStudioCreation(interaction, logger) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const targetChannel = interaction.options.getChannel('canal') || interaction.channel;
 
@@ -642,7 +648,7 @@ export default {
         const { options } = interaction;
         const action = options.getString('action');
 
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         // Initialiser le système de favoris
         if (!interaction.client.embedFavorites) {
@@ -671,7 +677,7 @@ export default {
         const { options } = interaction;
         const action = options.getString('action');
 
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         switch (action) {
             case 'import':
@@ -690,7 +696,7 @@ export default {
         const { options } = interaction;
         const detaille = options.getBoolean('detaille') || false;
 
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         // Simuler des statistiques (en production, ces données viendraient d'une base de données)
         const stats = {
@@ -987,7 +993,7 @@ export default {
     async handleSimpleEmbed(interaction, logger) {
         const { options, guild, client } = interaction;
         
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const titre = options.getString('titre');
         const description = options.getString('description');
@@ -1068,7 +1074,7 @@ export default {
     },
 
     async handleTemplate(interaction, template, logger) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const templates = {
             annonce: {
@@ -1271,7 +1277,7 @@ export default {
     },
 
     async handleEmbedBuilder(interaction, logger) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const targetChannel = interaction.options.getChannel('canal');
 
@@ -1340,7 +1346,7 @@ export default {
     async handleJsonEmbed(interaction, logger) {
         const { options } = interaction;
         
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const jsonCode = options.getString('code');
         const targetChannel = options.getChannel('canal') || interaction.channel;
