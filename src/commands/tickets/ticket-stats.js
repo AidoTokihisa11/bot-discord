@@ -9,7 +9,13 @@ export default {
         const { client, guild } = interaction;
 
         try {
-            await interaction.deferReply();
+            // Utiliser le validateur d'interactions pour une déférence rapide
+            const validator = interaction.client.interactionValidator;
+            const deferred = await validator.quickDefer(interaction);
+            
+            if (!deferred) {
+                return; // Interaction expirée ou déjà traitée
+            }
 
             // Récupérer les statistiques depuis la base de données
             const stats = client.db.getTicketStats();

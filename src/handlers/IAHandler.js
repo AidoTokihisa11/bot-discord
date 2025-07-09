@@ -44,7 +44,13 @@ export async function handleIAButtons(interaction) {
 
 async function handleIADeploy(interaction) {
     try {
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        // Utiliser le validateur d'interactions pour une déférence rapide
+        const validator = interaction.client.interactionValidator;
+        const deferred = await validator.quickDefer(interaction, { flags: MessageFlags.Ephemeral });
+        
+        if (!deferred) {
+            return; // Interaction expirée ou déjà traitée
+        }
 
         const userId = interaction.customId.split('_')[2];
         if (userId !== interaction.user.id) {
@@ -142,7 +148,13 @@ async function handleIACustomize(interaction) {
 
 async function handleIAAlternatives(interaction) {
     try {
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        // Utiliser le validateur d'interactions pour une déférence rapide
+            const validator = interaction.client.interactionValidator;
+            const deferred = await validator.quickDefer(interaction, { flags: MessageFlags.Ephemeral });
+            
+            if (!deferred) {
+                return; // Interaction expirée ou déjà traitée
+            }
 
         const userId = interaction.customId.split('_')[2];
         if (userId !== interaction.user.id) {

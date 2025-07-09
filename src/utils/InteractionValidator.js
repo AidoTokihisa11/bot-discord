@@ -99,19 +99,39 @@ class InteractionValidator {
      */
     async quickDefer(interaction, options = {}) {
         try {
-            // Vérification rapide avant déférence
-            if (interaction.replied || interaction.deferred) {
+            // Vérification rapide de l'expiration AVANT de tenter quoi que ce soit
+            const interactionAge = Date.now() - interaction.createdTimestamp;
+            if (interactionAge > 2500) { // 2.5 secondes, seuil très conservateur
+                this.logger.warn(`⏰ Interaction ${interaction.id} trop ancienne (${interactionAge}ms) - abandon`);
                 return false;
             }
 
-            // Défère immédiatement pour éviter l'expiration
-            await interaction.deferReply(options);
+            // Vérification rapide avant déférence
+            if (interaction.replied || interaction.deferred) {
+                this.logger.warn(`⚠️ Interaction ${interaction.id} déjà traitée`);
+                return false;
+            }
+
+            // Marquer comme en cours de traitement immédiatement
+            this.markInteractionAsProcessing(interaction);
+
+            // Défère avec timeout très court
+            const deferPromise = interaction.deferReply(options);
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Defer timeout')), 2000);
+            });
+
+            await Promise.race([deferPromise, timeoutPromise]);
+            
+            this.logger.debug(`✅ Interaction ${interaction.id} différée avec succès`);
             return true;
         } catch (error) {
             if (error.code === 10062 || error.code === 40060) {
-                this.logger.warn('⏰ Impossible de différer - interaction déjà expirée');
+                this.logger.warn(`⏰ Interaction ${interaction.id} expirée lors de la déférence`);
+            } else if (error.message === 'Defer timeout') {
+                this.logger.warn(`⏰ Timeout lors de la déférence de l'interaction ${interaction.id}`);
             } else {
-                this.logger.error('Erreur lors de la déférence rapide:', error);
+                this.logger.error(`❌ Erreur lors de la déférence de l'interaction ${interaction.id}:`, error);
             }
             return false;
         }
@@ -235,6 +255,99 @@ class InteractionValidator {
             } else {
                 this.logger.error('Erreur critique lors de la réponse d\'erreur:', finalError);
             }
+        }
+    }
+
+    /**
+     * Répond de manière sécurisée à une interaction différée
+     * @param {Interaction} interaction 
+     * @param {Object} content - Contenu de la réponse
+     * @returns {boolean} - True si la réponse a réussi
+     */
+    async safeEditReply(interaction, content) {
+        try {
+            // Vérification de l'état de l'interaction
+            if (!interaction.deferred && !interaction.replied) {
+                this.logger.warn(`⚠️ Interaction ${interaction.id} non différée - tentative de réponse directe`);
+                return await this.safeReply(interaction, content);
+            }
+
+            // Vérification de l'âge de l'interaction
+            const interactionAge = Date.now() - interaction.createdTimestamp;
+            if (interactionAge > 14 * 60 * 1000) { // 14 minutes (limite Discord: 15 min)
+                this.logger.warn(`⏰ Interaction ${interaction.id} trop ancienne pour editReply (${Math.round(interactionAge/1000)}s)`);
+                return false;
+            }
+
+            await interaction.editReply(content);
+            return true;
+        } catch (error) {
+            if (error.code === 10062 || error.code === 40060) {
+                this.logger.warn(`⏰ Impossible d'éditer la réponse - interaction ${interaction.id} expirée`);
+            } else {
+                this.logger.error(`❌ Erreur lors de l'édition de la réponse:`, error);
+            }
+            return false;
+        }
+    }
+
+    /**
+     * Répond de manière sécurisée à une interaction
+     * @param {Interaction} interaction 
+     * @param {Object} content - Contenu de la réponse
+     * @returns {boolean} - True si la réponse a réussi
+     */
+    async safeReply(interaction, content) {
+        try {
+            // Vérification de l'état de l'interaction
+            if (interaction.replied || interaction.deferred) {
+                this.logger.warn(`⚠️ Interaction ${interaction.id} déjà traitée - tentative de followUp`);
+                return await this.safeFollowUp(interaction, content);
+            }
+
+            // Vérification de l'âge de l'interaction
+            const interactionAge = Date.now() - interaction.createdTimestamp;
+            if (interactionAge > 3000) { // 3 secondes
+                this.logger.warn(`⏰ Interaction ${interaction.id} trop ancienne pour reply (${interactionAge}ms)`);
+                return false;
+            }
+
+            await interaction.reply(content);
+            return true;
+        } catch (error) {
+            if (error.code === 10062 || error.code === 40060) {
+                this.logger.warn(`⏰ Impossible de répondre - interaction ${interaction.id} expirée`);
+            } else {
+                this.logger.error(`❌ Erreur lors de la réponse:`, error);
+            }
+            return false;
+        }
+    }
+
+    /**
+     * Effectue un followUp de manière sécurisée
+     * @param {Interaction} interaction 
+     * @param {Object} content - Contenu du followUp
+     * @returns {boolean} - True si le followUp a réussi
+     */
+    async safeFollowUp(interaction, content) {
+        try {
+            // Vérification de l'âge de l'interaction
+            const interactionAge = Date.now() - interaction.createdTimestamp;
+            if (interactionAge > 14 * 60 * 1000) { // 14 minutes
+                this.logger.warn(`⏰ Interaction ${interaction.id} trop ancienne pour followUp (${Math.round(interactionAge/1000)}s)`);
+                return false;
+            }
+
+            await interaction.followUp(content);
+            return true;
+        } catch (error) {
+            if (error.code === 10062 || error.code === 40060) {
+                this.logger.warn(`⏰ Impossible de faire un followUp - interaction ${interaction.id} expirée`);
+            } else {
+                this.logger.error(`❌ Erreur lors du followUp:`, error);
+            }
+            return false;
         }
     }
 

@@ -99,7 +99,13 @@ async function handleAdvancedEmbedModal(interaction) {
             return;
         }
 
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        // Utiliser le validateur d'interactions pour une déférence rapide
+            const validator = interaction.client.interactionValidator;
+            const deferred = await validator.quickDefer(interaction, { flags: MessageFlags.Ephemeral });
+            
+            if (!deferred) {
+                return; // Interaction expirée ou déjà traitée
+            }
 
         const title = interaction.fields.getTextInputValue('embed_title');
         const description = interaction.fields.getTextInputValue('embed_description');
@@ -368,7 +374,13 @@ async function handleIACustomizeModal(interaction) {
             return;
         }
 
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        // Utiliser le validateur d'interactions pour une déférence rapide
+            const validator = interaction.client.interactionValidator;
+            const deferred = await validator.quickDefer(interaction, { flags: MessageFlags.Ephemeral });
+            
+            if (!deferred) {
+                return; // Interaction expirée ou déjà traitée
+            }
 
         const iaData = interaction.client.embedIA?.get(interaction.user.id);
         if (!iaData) {

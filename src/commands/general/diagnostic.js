@@ -10,7 +10,13 @@ export default {
 
     async execute(interaction) {
         try {
-            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            // Utiliser le validateur d'interactions pour une déférence rapide
+            const validator = interaction.client.interactionValidator;
+            const deferred = await validator.quickDefer(interaction, { flags: MessageFlags.Ephemeral });
+            
+            if (!deferred) {
+                return; // Interaction expirée ou déjà traitée
+            }
 
             const client = interaction.client;
             const uptime = client.uptime;

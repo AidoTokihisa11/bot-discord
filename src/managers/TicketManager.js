@@ -413,7 +413,13 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
             const description = interaction.fields.getTextInputValue('ticket_description');
             const priority = interaction.fields.getTextInputValue('ticket_priority') || '3';
 
-            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            // Utiliser le validateur d'interactions pour une déférence rapide
+            const validator = interaction.client.interactionValidator;
+            const deferred = await validator.quickDefer(interaction, { flags: MessageFlags.Ephemeral });
+            
+            if (!deferred) {
+                return; // Interaction expirée ou déjà traitée
+            }
 
             // Vérifier si l'utilisateur a déjà un ticket ouvert APRÈS le modal
             const existingTickets = guild.channels.cache.filter(
@@ -861,7 +867,13 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
 
     async createTranscript(interaction) {
         try {
-            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            // Utiliser le validateur d'interactions pour une déférence rapide
+            const validator = interaction.client.interactionValidator;
+            const deferred = await validator.quickDefer(interaction, { flags: MessageFlags.Ephemeral });
+            
+            if (!deferred) {
+                return; // Interaction expirée ou déjà traitée
+            }
 
             const channel = interaction.channel;
             const messages = await channel.messages.fetch({ limit: 100 });
@@ -1127,7 +1139,13 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
 
             // Acquittement immédiat avec gestion d'erreur renforcée
             try {
-                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+                // Utiliser le validateur d'interactions pour une déférence rapide
+            const validator = interaction.client.interactionValidator;
+            const deferred = await validator.quickDefer(interaction, { flags: MessageFlags.Ephemeral });
+            
+            if (!deferred) {
+                return; // Interaction expirée ou déjà traitée
+            }
             } catch (error) {
                 if (error.code === 10062) {
                     this.logger.warn('⏰ Interaction suggestion modal expirée lors du deferReply');
@@ -1297,7 +1315,13 @@ ${suggestionDescription}
             const message = interaction.fields.getTextInputValue('feedback_message');
             const improvement = interaction.fields.getTextInputValue('feedback_improvement') || '';
 
-            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            // Utiliser le validateur d'interactions pour une déférence rapide
+            const validator = interaction.client.interactionValidator;
+            const deferred = await validator.quickDefer(interaction, { flags: MessageFlags.Ephemeral });
+            
+            if (!deferred) {
+                return; // Interaction expirée ou déjà traitée
+            }
 
             const channel = interaction.channel;
             const statusColors = {
@@ -1376,7 +1400,13 @@ ${improvement ? `**💡 Suggestions d'amélioration :**\n${improvement}` : ''}
                 return;
             }
 
-            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            // Utiliser le validateur d'interactions pour une déférence rapide
+            const validator = interaction.client.interactionValidator;
+            const deferred = await validator.quickDefer(interaction, { flags: MessageFlags.Ephemeral });
+            
+            if (!deferred) {
+                return; // Interaction expirée ou déjà traitée
+            }
 
             const selectedType = interaction.values[0];
             

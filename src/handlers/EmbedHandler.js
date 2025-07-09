@@ -69,7 +69,13 @@ export async function handleEditTemplate(interaction, template) {
 
 export async function handleSendTemplate(interaction, template) {
     try {
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        // Utiliser le validateur d'interactions pour une déférence rapide
+            const validator = interaction.client.interactionValidator;
+            const deferred = await validator.quickDefer(interaction, { flags: MessageFlags.Ephemeral });
+            
+            if (!deferred) {
+                return; // Interaction expirée ou déjà traitée
+            }
 
         const templateData = interaction.client.embedTemplates?.get(interaction.user.id);
         
@@ -336,7 +342,13 @@ async function showBuilderPreview(interaction) {
 
 async function sendBuilderEmbed(interaction) {
     try {
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        // Utiliser le validateur d'interactions pour une déférence rapide
+            const validator = interaction.client.interactionValidator;
+            const deferred = await validator.quickDefer(interaction, { flags: MessageFlags.Ephemeral });
+            
+            if (!deferred) {
+                return; // Interaction expirée ou déjà traitée
+            }
 
         const builderData = interaction.client.embedBuilder.get(interaction.user.id);
         
