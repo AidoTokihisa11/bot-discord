@@ -480,7 +480,7 @@ async function handleEnable(interaction, streamManager) {
                 .setDescription('Le système de notifications de stream est déjà **activé** sur ce serveur.')
                 .addFields(
                     { name: '📊 Statut', value: '✅ Actif', inline: true },
-                    { name: '🎮 Streamers surveillés', value: `${streamManager.streamers.size || 0}`, inline: true }
+                    { name: '🎮 Streamers surveillés', value: `${Object.keys(guildData.streamers || {}).length}`, inline: true }
                 )
                 .setTimestamp();
             
@@ -492,7 +492,9 @@ async function handleEnable(interaction, streamManager) {
         guildData.streamSettings.enabledAt = Date.now();
         guildData.streamSettings.enabledBy = interaction.user.id;
         
-        await streamManager.db.saveGuildData(guildId, guildData);
+        // Sauvegarder les modifications
+        streamManager.db.setGuildData(guildId, guildData);
+        await streamManager.db.save();
         
         // Redémarrer la surveillance si nécessaire
         if (!streamManager.checkInterval) {
@@ -507,7 +509,7 @@ async function handleEnable(interaction, streamManager) {
                 { name: '📊 Statut', value: '✅ Actif', inline: true },
                 { name: '👤 Activé par', value: `${interaction.user}`, inline: true },
                 { name: '🔄 Vérification', value: 'Toutes les 2 minutes', inline: true },
-                { name: '🎮 Streamers surveillés', value: `${streamManager.streamers.size || 0}`, inline: true }
+                { name: '🎮 Streamers surveillés', value: `${streamersCount}`, inline: true }
             )
             .setFooter({ text: 'Utilisez /stream-notifications add pour ajouter des streamers à surveiller' })
             .setTimestamp();
@@ -540,7 +542,7 @@ async function handleDisable(interaction, streamManager) {
                 .setDescription('Le système de notifications de stream est déjà **désactivé** sur ce serveur.')
                 .addFields(
                     { name: '📊 Statut', value: '❌ Inactif', inline: true },
-                    { name: '🎮 Streamers configurés', value: `${streamManager.streamers.size || 0}`, inline: true }
+                    { name: '🎮 Streamers configurés', value: `${Object.keys(guildData.streamers || {}).length}`, inline: true }
                 )
                 .setFooter({ text: 'Utilisez /stream-notifications enable pour le réactiver' })
                 .setTimestamp();
@@ -553,9 +555,11 @@ async function handleDisable(interaction, streamManager) {
         guildData.streamSettings.disabledAt = Date.now();
         guildData.streamSettings.disabledBy = interaction.user.id;
         
-        await streamManager.db.saveGuildData(guildId, guildData);
+        // Sauvegarder les modifications
+        streamManager.db.setGuildData(guildId, guildData);
+        await streamManager.db.save();
         
-        const streamersCount = streamManager.streamers.size || 0;
+        const streamersCount = Object.keys(guildData.streamers || {}).length;
         
         const embed = new EmbedBuilder()
             .setColor('#ff4444')
