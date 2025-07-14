@@ -16,12 +16,19 @@ export default {
                 return; // Interaction expirée ou déjà traitée
             }
 
-            const channelId = '1368972767013376040'; // Remplacez par l'ID du canal femmes
-            const channel = interaction.guild.channels.cache.get(channelId);
+            const channelIds = ['1368972767013376040', '1391778610972463137']; // IDs des canaux femmes
+            const channels = [];
+            
+            for (const channelId of channelIds) {
+                const channel = interaction.guild.channels.cache.get(channelId);
+                if (channel) {
+                    channels.push(channel);
+                }
+            }
 
-            if (!channel) {
+            if (channels.length === 0) {
                 return await interaction.editReply({
-                    content: '❌ Canal introuvable.'
+                    content: '❌ Aucun canal trouvé.'
                 });
             }
 
@@ -35,7 +42,7 @@ export default {
 • Discuter en toute bienveillance
 • Partager tes passions
 • Poser tes questions
-• Simplement papoter entre nous
+• Simplement papoter entre vous
 
 **✨ Cet espace est pensé pour que chacune se sente libre, écoutée et respectée.**
 
@@ -61,13 +68,28 @@ export default {
                 })
                 .setTimestamp();
 
-            await channel.send({
-                embeds: [womenEmbed]
-            });
+            // Envoyer le message dans tous les canaux trouvés
+            const sentChannels = [];
+            for (const channel of channels) {
+                try {
+                    await channel.send({
+                        embeds: [womenEmbed]
+                    });
+                    sentChannels.push(channel.toString());
+                } catch (error) {
+                    console.error(`Erreur lors de l'envoi dans ${channel.name}:`, error);
+                }
+            }
 
-            await interaction.editReply({
-                content: `✅ Message de l'espace femmes envoyé avec succès dans ${channel}`
-            });
+            if (sentChannels.length > 0) {
+                await interaction.editReply({
+                    content: `✅ Message de l'espace femmes envoyé avec succès dans ${sentChannels.join(', ')}`
+                });
+            } else {
+                await interaction.editReply({
+                    content: '❌ Impossible d\'envoyer le message dans les canaux.'
+                });
+            }
 
         } catch (error) {
             console.error('Erreur lors de l\'envoi du message espace femmes:', error);
