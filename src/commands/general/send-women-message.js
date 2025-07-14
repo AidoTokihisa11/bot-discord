@@ -48,7 +48,9 @@ export default {
 
 **🔒 Cet endroit vous est strictement réservé. Profitez-en pleinement !**
 
-**🌺 Bienvenue à toutes !**`)
+**🌺 Bienvenue à toutes !**
+
+<@&1387540586084569179>`)
                 .addFields(
                     {
                         name: '💎 **Valeurs de cet espace**',
