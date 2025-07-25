@@ -33,27 +33,19 @@ export default {
                 });
             }
 
-            // Récupérer le canal de tickets configuré - essayer plusieurs canaux possibles
-            let ticketChannel = guild.channels.cache.get('1398336201844457485'); // Canal principal
+            // Récupérer le canal de tickets configuré - FORCER le bon canal
+            const targetChannelId = '1398336201844457485';
+            let ticketChannel = guild.channels.cache.get(targetChannelId);
             
-            // Si le canal principal n'existe pas, chercher un canal de tickets alternatif
             if (!ticketChannel) {
-                // Chercher un canal avec "ticket" dans le nom
-                ticketChannel = guild.channels.cache.find(channel => 
-                    channel.type === ChannelType.GuildText && 
-                    (channel.name.includes('ticket') || channel.name.includes('support'))
-                );
-            }
-            
-            // Si toujours aucun canal trouvé, utiliser le canal actuel
-            if (!ticketChannel) {
-                ticketChannel = interaction.channel;
-                logger.info(`🎫 Aucun canal de tickets configuré trouvé, utilisation du canal actuel: ${ticketChannel.name}`);
-            }
-            
-            if (!ticketChannel || ticketChannel.type !== ChannelType.GuildText) {
                 return await interaction.editReply({
-                    content: '❌ Impossible de déterminer le canal de tickets ! Utilisez cette commande dans un canal textuel valide.'
+                    content: `❌ Canal de tickets cible introuvable ! Vérifiez que le canal <#${targetChannelId}> existe et est accessible.`
+                });
+            }
+            
+            if (ticketChannel.type !== ChannelType.GuildText) {
+                return await interaction.editReply({
+                    content: '❌ Le canal de tickets doit être un canal textuel valide.'
                 });
             }
 

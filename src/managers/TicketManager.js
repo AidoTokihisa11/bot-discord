@@ -246,20 +246,45 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                 return;
             }
 
-            // Protection anti-doublon ultra-rapide
-            const interactionKey = `${interaction.id}_${type}`;
+            // Protection anti-doublon ULTRA RENFORCÉE
+            const interactionKey = `${interaction.user.id}_${type}_${interaction.id}`;
             if (!this.processingInteractions) {
                 this.processingInteractions = new Set();
             }
             
             if (this.processingInteractions.has(interactionKey)) {
+                this.logger.warn(`🚫 Interaction doublon détectée pour ${interaction.user.username} - ${type}`);
                 return;
             }
             
             this.processingInteractions.add(interactionKey);
+            
+            // Nettoyer après 10 secondes au lieu de 3
             setTimeout(() => {
                 this.processingInteractions.delete(interactionKey);
-            }, 3000);
+            }, 10000);
+
+            // Protection supplémentaire : vérifier si l'utilisateur a déjà un ticket ouvert
+            const guild = interaction.guild;
+            const user = interaction.user;
+            
+            const existingTickets = guild.channels.cache.filter(
+                channel => (channel.name.includes(user.username) || channel.name.includes(user.id)) && 
+                          (channel.name.includes('ticket') || channel.name.includes(type))
+            );
+
+            if (existingTickets.size > 0) {
+                try {
+                    await interaction.reply({
+                        content: `❌ Vous avez déjà un ticket ouvert : ${existingTickets.first()}\n\n💡 Veuillez fermer votre ticket existant avant d'en créer un nouveau.`,
+                        flags: MessageFlags.Ephemeral
+                    });
+                } catch (error) {
+                    // Ignorer les erreurs d'interaction expirée
+                }
+                this.processingInteractions.delete(interactionKey);
+                return;
+            }
 
             // TRAITEMENT SPÉCIAL POUR SUGGESTIONS - MODAL IMMÉDIAT
             if (type === 'suggestion') {
@@ -434,6 +459,22 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                     return;
                 }
             }
+
+            // Protection anti-doublon pour les modals AUSSI
+            const modalKey = `${interaction.user.id}_modal_${interaction.customId}`;
+            if (!this.processingModals) {
+                this.processingModals = new Set();
+            }
+            
+            if (this.processingModals.has(modalKey)) {
+                this.logger.warn(`🚫 Modal doublon détecté pour ${interaction.user.username} - ${interaction.customId}`);
+                return;
+            }
+            
+            this.processingModals.add(modalKey);
+            setTimeout(() => {
+                this.processingModals.delete(modalKey);
+            }, 15000);
 
             const [, , type] = interaction.customId.split('_');
             
@@ -1801,6 +1842,22 @@ ${status === 'closed' ? '**🔒 Cette suggestion a été fermée sans traitement
 
     async handleRecruitmentModalSubmit(interaction) {
         try {
+            // Protection anti-doublon pour le recrutement
+            const recruitmentKey = `${interaction.user.id}_recruitment_submit`;
+            if (!this.processingRecruitment) {
+                this.processingRecruitment = new Set();
+            }
+            
+            if (this.processingRecruitment.has(recruitmentKey)) {
+                this.logger.warn(`🚫 Candidature de recrutement en cours pour ${interaction.user.username}`);
+                return;
+            }
+            
+            this.processingRecruitment.add(recruitmentKey);
+            setTimeout(() => {
+                this.processingRecruitment.delete(recruitmentKey);
+            }, 20000);
+
             const guild = interaction.guild;
             const user = interaction.user;
 
@@ -1941,8 +1998,18 @@ ${availability}
 
             this.logger.info(`Candidature recrutement #${ticketNumber} créée: ${ticketChannel.name} par ${user.tag} pour le poste: ${position}`);
 
+            // Nettoyer la protection après succès
+            this.processingRecruitment.delete(recruitmentKey);
+
         } catch (error) {
             this.logger.error('Erreur lors du traitement de la candidature de recrutement:', error);
+            
+            // Nettoyer la protection même en cas d'erreur
+            if (this.processingRecruitment) {
+                const recruitmentKey = `${interaction.user.id}_recruitment_submit`;
+                this.processingRecruitment.delete(recruitmentKey);
+            }
+            
             await interaction.editReply({
                 content: '❌ Une erreur est survenue lors de la soumission de votre candidature.'
             });
