@@ -34,7 +34,7 @@ export default {
             }
 
             // Récupérer le canal de tickets configuré - essayer plusieurs canaux possibles
-            let ticketChannel = guild.channels.cache.get('1368921898867621908'); // Canal principal
+            let ticketChannel = guild.channels.cache.get('1398336201844457485'); // Canal principal
             
             // Si le canal principal n'existe pas, chercher un canal de tickets alternatif
             if (!ticketChannel) {

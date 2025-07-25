@@ -8,7 +8,7 @@ class TicketManager {
         this.db = new Database();
         this.logger = new Logger();
         this.staffRoleId = '1386784012269387946';
-        this.ticketChannelId = '1368921898867621908';
+        this.ticketChannelId = '1398336201844457485';
         this.ticketCategoryId = null; // Sera défini dynamiquement
         
         this.ticketTypes = {
