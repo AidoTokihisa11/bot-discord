@@ -246,23 +246,32 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                 return;
             }
 
-            // Protection anti-doublon ULTRA RENFORCÉE
-            const interactionKey = `${interaction.user.id}_${type}_${interaction.id}`;
+            // Protection anti-doublon ULTRA RENFORCÉE avec ID unique
+            const interactionKey = `${interaction.user.id}_${type}_${Date.now()}_${interaction.id.slice(-6)}`;
             if (!this.processingInteractions) {
                 this.processingInteractions = new Set();
             }
             
-            if (this.processingInteractions.has(interactionKey)) {
-                this.logger.warn(`🚫 Interaction doublon détectée pour ${interaction.user.username} - ${type}`);
+            // Vérifier toutes les clés existantes pour cet utilisateur et ce type
+            const userTypePattern = `${interaction.user.id}_${type}_`;
+            const existingKeys = Array.from(this.processingInteractions).filter(key => key.startsWith(userTypePattern));
+            
+            if (existingKeys.length > 0) {
+                this.logger.warn(`🚫 Interaction en cours pour ${interaction.user.username} - ${type} (${existingKeys.length} en cours)`);
                 return;
             }
             
             this.processingInteractions.add(interactionKey);
             
-            // Nettoyer après 10 secondes au lieu de 3
-            setTimeout(() => {
+            // Nettoyer après 30 secondes pour éviter les conflits
+            const cleanup = () => {
                 this.processingInteractions.delete(interactionKey);
-            }, 10000);
+                // Nettoyer aussi toutes les anciennes clés de cet utilisateur
+                const oldKeys = Array.from(this.processingInteractions).filter(key => key.startsWith(userTypePattern));
+                oldKeys.forEach(key => this.processingInteractions.delete(key));
+            };
+            
+            setTimeout(cleanup, 30000);
 
             // Protection supplémentaire : vérifier si l'utilisateur a déjà un ticket ouvert
             const guild = interaction.guild;
@@ -460,21 +469,31 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                 }
             }
 
-            // Protection anti-doublon pour les modals AUSSI
-            const modalKey = `${interaction.user.id}_modal_${interaction.customId}`;
+            // Protection anti-doublon pour les modals AVEC ID unique
+            const modalKey = `${interaction.user.id}_modal_${interaction.customId}_${Date.now()}`;
             if (!this.processingModals) {
                 this.processingModals = new Set();
             }
             
-            if (this.processingModals.has(modalKey)) {
-                this.logger.warn(`🚫 Modal doublon détecté pour ${interaction.user.username} - ${interaction.customId}`);
+            // Vérifier toutes les clés existantes pour cet utilisateur et ce modal
+            const userModalPattern = `${interaction.user.id}_modal_${interaction.customId}_`;
+            const existingModalKeys = Array.from(this.processingModals).filter(key => key.startsWith(userModalPattern));
+            
+            if (existingModalKeys.length > 0) {
+                this.logger.warn(`🚫 Modal en cours pour ${interaction.user.username} - ${interaction.customId} (${existingModalKeys.length} en cours)`);
                 return;
             }
             
             this.processingModals.add(modalKey);
-            setTimeout(() => {
+            
+            const cleanupModal = () => {
                 this.processingModals.delete(modalKey);
-            }, 15000);
+                // Nettoyer aussi toutes les anciennes clés de ce modal
+                const oldModalKeys = Array.from(this.processingModals).filter(key => key.startsWith(userModalPattern));
+                oldModalKeys.forEach(key => this.processingModals.delete(key));
+            };
+            
+            setTimeout(cleanupModal, 30000);
 
             const [, , type] = interaction.customId.split('_');
             
@@ -619,8 +638,24 @@ ${description}
 
             this.logger.info(`Ticket #${ticketNumber} créé: ${ticketChannel.name} par ${user.tag} (${type})`);
 
+            // Nettoyer la protection après succès
+            const cleanupModalSuccess = () => {
+                const userModalPattern = `${interaction.user.id}_modal_${interaction.customId}_`;
+                const oldModalKeys = Array.from(this.processingModals).filter(key => key.startsWith(userModalPattern));
+                oldModalKeys.forEach(key => this.processingModals.delete(key));
+            };
+            cleanupModalSuccess();
+
         } catch (error) {
             this.logger.error('Erreur lors du traitement du modal:', error);
+            
+            // Nettoyer la protection même en cas d'erreur
+            if (this.processingModals) {
+                const userModalPattern = `${interaction.user.id}_modal_${interaction.customId}_`;
+                const oldModalKeys = Array.from(this.processingModals).filter(key => key.startsWith(userModalPattern));
+                oldModalKeys.forEach(key => this.processingModals.delete(key));
+            }
+            
             await interaction.editReply({
                 content: '❌ Une erreur est survenue lors de la création du ticket.'
             });
@@ -631,6 +666,24 @@ ${description}
         try {
             const staffRole = guild.roles.cache.get(this.staffRoleId);
             if (!staffRole) return;
+
+            // Protection contre les notifications multiples
+            const notificationKey = `notify_${ticketChannel.id}`;
+            if (!this.sentNotifications) {
+                this.sentNotifications = new Set();
+            }
+            
+            if (this.sentNotifications.has(notificationKey)) {
+                this.logger.warn(`⚠️ Notification déjà envoyée pour le ticket ${ticketChannel.name}`);
+                return;
+            }
+            
+            this.sentNotifications.add(notificationKey);
+            
+            // Nettoyer après 5 minutes
+            setTimeout(() => {
+                this.sentNotifications.delete(notificationKey);
+            }, 300000);
 
             const staffMembers = staffRole.members;
             
@@ -655,14 +708,18 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
                 .setFooter({ text: 'Cliquez sur "Prendre en Charge" dans le ticket pour le traiter' })
                 .setTimestamp();
 
-            // Envoyer en MP à chaque membre du staff
+            // Envoyer UN SEUL message en MP à chaque membre du staff
+            let sentCount = 0;
             for (const [id, member] of staffMembers) {
                 try {
                     await member.send({ embeds: [notificationEmbed] });
+                    sentCount++;
                 } catch (error) {
                     // Ignorer si on ne peut pas envoyer de MP
                 }
             }
+            
+            this.logger.info(`📧 Notification envoyée à ${sentCount} membres du staff pour le ticket ${ticketChannel.name}`);
 
         } catch (error) {
             this.logger.error('Erreur lors de la notification du staff:', error);
@@ -1842,21 +1899,31 @@ ${status === 'closed' ? '**🔒 Cette suggestion a été fermée sans traitement
 
     async handleRecruitmentModalSubmit(interaction) {
         try {
-            // Protection anti-doublon pour le recrutement
-            const recruitmentKey = `${interaction.user.id}_recruitment_submit`;
+            // Protection anti-doublon pour le recrutement AVEC ID unique
+            const recruitmentKey = `${interaction.user.id}_recruitment_submit_${Date.now()}`;
             if (!this.processingRecruitment) {
                 this.processingRecruitment = new Set();
             }
             
-            if (this.processingRecruitment.has(recruitmentKey)) {
-                this.logger.warn(`🚫 Candidature de recrutement en cours pour ${interaction.user.username}`);
+            // Vérifier toutes les clés existantes pour cet utilisateur
+            const userRecruitmentPattern = `${interaction.user.id}_recruitment_submit_`;
+            const existingRecruitmentKeys = Array.from(this.processingRecruitment).filter(key => key.startsWith(userRecruitmentPattern));
+            
+            if (existingRecruitmentKeys.length > 0) {
+                this.logger.warn(`🚫 Candidature de recrutement en cours pour ${interaction.user.username} (${existingRecruitmentKeys.length} en cours)`);
                 return;
             }
             
             this.processingRecruitment.add(recruitmentKey);
-            setTimeout(() => {
+            
+            const cleanupRecruitment = () => {
                 this.processingRecruitment.delete(recruitmentKey);
-            }, 20000);
+                // Nettoyer aussi toutes les anciennes clés de cet utilisateur
+                const oldRecruitmentKeys = Array.from(this.processingRecruitment).filter(key => key.startsWith(userRecruitmentPattern));
+                oldRecruitmentKeys.forEach(key => this.processingRecruitment.delete(key));
+            };
+            
+            setTimeout(cleanupRecruitment, 30000);
 
             const guild = interaction.guild;
             const user = interaction.user;
@@ -1999,15 +2066,21 @@ ${availability}
             this.logger.info(`Candidature recrutement #${ticketNumber} créée: ${ticketChannel.name} par ${user.tag} pour le poste: ${position}`);
 
             // Nettoyer la protection après succès
-            this.processingRecruitment.delete(recruitmentKey);
+            const cleanupRecruitmentSuccess = () => {
+                const userRecruitmentPattern = `${interaction.user.id}_recruitment_submit_`;
+                const oldRecruitmentKeys = Array.from(this.processingRecruitment).filter(key => key.startsWith(userRecruitmentPattern));
+                oldRecruitmentKeys.forEach(key => this.processingRecruitment.delete(key));
+            };
+            cleanupRecruitmentSuccess();
 
         } catch (error) {
             this.logger.error('Erreur lors du traitement de la candidature de recrutement:', error);
             
             // Nettoyer la protection même en cas d'erreur
             if (this.processingRecruitment) {
-                const recruitmentKey = `${interaction.user.id}_recruitment_submit`;
-                this.processingRecruitment.delete(recruitmentKey);
+                const userRecruitmentPattern = `${interaction.user.id}_recruitment_submit_`;
+                const oldRecruitmentKeys = Array.from(this.processingRecruitment).filter(key => key.startsWith(userRecruitmentPattern));
+                oldRecruitmentKeys.forEach(key => this.processingRecruitment.delete(key));
             }
             
             await interaction.editReply({
@@ -2020,6 +2093,24 @@ ${availability}
         try {
             const staffRole = guild.roles.cache.get(this.staffRoleId);
             if (!staffRole) return;
+
+            // Protection contre les notifications multiples pour le recrutement
+            const recruitmentNotificationKey = `notify_recruitment_${ticketChannel.id}`;
+            if (!this.sentNotifications) {
+                this.sentNotifications = new Set();
+            }
+            
+            if (this.sentNotifications.has(recruitmentNotificationKey)) {
+                this.logger.warn(`⚠️ Notification de recrutement déjà envoyée pour le ticket ${ticketChannel.name}`);
+                return;
+            }
+            
+            this.sentNotifications.add(recruitmentNotificationKey);
+            
+            // Nettoyer après 5 minutes
+            setTimeout(() => {
+                this.sentNotifications.delete(recruitmentNotificationKey);
+            }, 300000);
 
             const staffMembers = staffRole.members;
             
@@ -2047,14 +2138,18 @@ ${availability.substring(0, 300)}${availability.length > 300 ? '...' : ''}
                 .setFooter({ text: 'Cliquez sur "Prendre en Charge" dans le ticket pour le traiter' })
                 .setTimestamp();
 
-            // Envoyer en MP à chaque membre du staff
+            // Envoyer UN SEUL message en MP à chaque membre du staff
+            let sentCount = 0;
             for (const [id, member] of staffMembers) {
                 try {
                     await member.send({ embeds: [notificationEmbed] });
+                    sentCount++;
                 } catch (error) {
                     // Ignorer si on ne peut pas envoyer de MP
                 }
             }
+            
+            this.logger.info(`📧 Notification de recrutement envoyée à ${sentCount} membres du staff pour le ticket ${ticketChannel.name}`);
 
         } catch (error) {
             this.logger.error('Erreur lors de la notification du staff pour recrutement:', error);
