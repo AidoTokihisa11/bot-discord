@@ -1060,7 +1060,7 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
             // Détecter le type de ticket à partir du nom du canal
             const channelName = channel.name.toLowerCase();
             const isReportTicket = channelName.includes('report') || channelName.includes('signalement');
-            const isFeedbackTicket = channelName.includes('suggestion') || channelName.includes('feedback') || channelName.includes('avis');
+            const isFeedbackTicket = channelName.includes('suggestion') || channelName.includes('feedback') || channelName.includes('avis') || channelName.includes('💡');
             
             // Choisir le canal de destination selon le type de ticket
             let feedbackChannelId;
