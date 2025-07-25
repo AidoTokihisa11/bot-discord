@@ -45,10 +45,10 @@ class TicketManager {
                 priority: 'low'
             },
             suggestion: {
-                name: 'Suggestion',
+                name: 'Avis / Feedback',
                 emoji: '💡',
                 color: '#f39c12',
-                description: 'Idées d\'amélioration',
+                description: 'Partagez vos avis et retours',
                 responseTime: '6-12 heures',
                 priority: 'medium'
             },
@@ -154,7 +154,7 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                         .setEmoji('🤝'),
                     new ButtonBuilder()
                         .setCustomId('ticket_suggestion')
-                        .setLabel('Suggestion')
+                        .setLabel('Avis / Feedback')
                         .setStyle(ButtonStyle.Secondary)
                         .setEmoji('💡'),
                     new ButtonBuilder()
@@ -1060,11 +1060,17 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
             // Détecter le type de ticket à partir du nom du canal
             const channelName = channel.name.toLowerCase();
             const isReportTicket = channelName.includes('report') || channelName.includes('signalement');
+            const isFeedbackTicket = channelName.includes('suggestion') || channelName.includes('feedback') || channelName.includes('avis');
             
             // Choisir le canal de destination selon le type de ticket
             let feedbackChannelId;
+            let mentions = '';
+            
             if (isReportTicket) {
                 feedbackChannelId = '1395049881470505132'; // Canal spécifique pour les signalements
+            } else if (isFeedbackTicket) {
+                feedbackChannelId = '1393143271617855548'; // Canal spécifique pour les feedbacks
+                mentions = '<@656139870158454795> <@421245210220298240>'; // Mentionner les responsables des feedbacks
             } else {
                 feedbackChannelId = '1393143271617855548'; // Canal général pour les autres tickets
             }
@@ -1083,9 +1089,18 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
                 return `**[${timestamp}] ${msg.author.tag}:** ${msg.content || '*[Embed ou fichier joint]*'}`;
             }).join('\n');
 
-            // Créer l'embed de feedback avec style différent pour les signalements
-            const embedColor = isReportTicket ? '#e74c3c' : '#2c3e50'; // Rouge pour signalements, gris pour autres
-            const embedTitle = isReportTicket ? '🚨 **SIGNALEMENT FERMÉ - FEEDBACK COMPLET**' : '🎫 **TICKET FERMÉ - FEEDBACK COMPLET**';
+            // Créer l'embed de feedback avec style différent selon le type
+            let embedColor, embedTitle;
+            if (isReportTicket) {
+                embedColor = '#e74c3c';
+                embedTitle = '🚨 **SIGNALEMENT FERMÉ - FEEDBACK COMPLET**';
+            } else if (isFeedbackTicket) {
+                embedColor = '#f39c12';
+                embedTitle = '💡 **AVIS / FEEDBACK FERMÉ - RAPPORT COMPLET**';
+            } else {
+                embedColor = '#2c3e50';
+                embedTitle = '🎫 **TICKET FERMÉ - FEEDBACK COMPLET**';
+            }
             
             const feedbackEmbed = new EmbedBuilder()
                 .setColor(embedColor)
@@ -1093,7 +1108,7 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
                 .setDescription(`
 **📋 INFORMATIONS DU TICKET :**
 • **Canal :** ${channel.name}
-• **Type :** ${isReportTicket ? '🚨 Signalement' : '🎫 Ticket Standard'}
+• **Type :** ${isReportTicket ? '🚨 Signalement' : isFeedbackTicket ? '💡 Avis / Feedback' : '🎫 Ticket Standard'}
 • **Créé le :** <t:${Math.floor(channel.createdTimestamp / 1000)}:F>
 • **Fermé le :** <t:${Math.floor(Date.now() / 1000)}:F>
 • **Fermé par :** ${closedBy}
@@ -1105,7 +1120,7 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
 • **Serveur :** ${guild.name}`)
                 .setThumbnail(guild.iconURL({ dynamic: true }))
                 .setFooter({ 
-                    text: `${isReportTicket ? 'Signalement' : 'Ticket'} ID: ${channel.id} • Système de Support`,
+                    text: `${isReportTicket ? 'Signalement' : isFeedbackTicket ? 'Avis/Feedback' : 'Ticket'} ID: ${channel.id} • Système de Support`,
                     iconURL: guild.iconURL({ dynamic: true })
                 })
                 .setTimestamp();
@@ -1123,20 +1138,30 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
                 });
             }
 
-            // Ajouter un champ spécial pour les signalements
+            // Ajouter un champ spécial selon le type
             if (isReportTicket) {
                 feedbackEmbed.addFields({
                     name: '⚠️ **STATUT DU SIGNALEMENT**',
                     value: '🔍 **Traité** - Ce signalement a été examiné et fermé par l\'équipe de modération.',
                     inline: false
                 });
+            } else if (isFeedbackTicket) {
+                feedbackEmbed.addFields({
+                    name: '💡 **STATUT DU FEEDBACK**',
+                    value: '✅ **Traité** - Cet avis/feedback a été examiné et fermé par l\'équipe responsable.',
+                    inline: false
+                });
             }
 
+            // Envoyer le message avec mentions si nécessaire
+            const messageContent = mentions ? `${mentions}\n\n` : '';
+            
             await feedbackChannel.send({
+                content: messageContent || undefined,
                 embeds: [feedbackEmbed]
             });
 
-            const ticketType = isReportTicket ? 'signalement' : 'ticket';
+            const ticketType = isReportTicket ? 'signalement' : isFeedbackTicket ? 'avis/feedback' : 'ticket';
             this.logger.success(`Feedback du ${ticketType} ${channel.name} envoyé dans le canal de logs approprié`);
 
         } catch (error) {
