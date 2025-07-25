@@ -1981,6 +1981,17 @@ ${status === 'closed' ? '**🔒 Cette suggestion a été fermée sans traitement
                 ultimateLock.activeChannels.delete(lockKey);
             }, 30000);
 
+            // DÉFÉRENCE IMMÉDIATE ET SILENCIEUSE pour éviter InteractionNotReplied
+            if (!interaction.deferred && !interaction.replied) {
+                try {
+                    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+                } catch (error) {
+                    // Si la déférence échoue, l'interaction est probablement expirée
+                    ultimateLock.activeChannels.delete(lockKey);
+                    return;
+                }
+            }
+
             const guild = interaction.guild;
             const user = interaction.user;
 
