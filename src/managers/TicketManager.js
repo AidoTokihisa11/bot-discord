@@ -1059,8 +1059,12 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
         try {
             // Détecter le type de ticket à partir du nom du canal
             const channelName = channel.name.toLowerCase();
+            this.logger.info(`🔍 Détection du type de ticket pour: ${channelName}`);
+            
             const isReportTicket = channelName.includes('report') || channelName.includes('signalement');
             const isFeedbackTicket = channelName.includes('suggestion') || channelName.includes('feedback') || channelName.includes('avis') || channelName.includes('💡');
+            
+            this.logger.info(`📋 Type détecté - Report: ${isReportTicket}, Feedback: ${isFeedbackTicket}`);
             
             // Choisir le canal de destination selon le type de ticket
             let feedbackChannelId;
@@ -1068,19 +1072,26 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
             
             if (isReportTicket) {
                 feedbackChannelId = '1395049881470505132'; // Canal spécifique pour les signalements
+                this.logger.info('🚨 Ticket de signalement détecté - envoi vers canal spécifique');
             } else if (isFeedbackTicket) {
                 feedbackChannelId = '1393143271617855548'; // Canal spécifique pour les feedbacks
                 mentions = '<@656139870158454795> <@421245210220298240>'; // Mentionner les responsables des feedbacks
+                this.logger.info('💡 Ticket de feedback/suggestion détecté - envoi avec mentions');
             } else {
                 feedbackChannelId = '1393143271617855548'; // Canal général pour les autres tickets
+                this.logger.info('🎫 Ticket standard détecté - envoi vers canal général');
             }
+            
+            this.logger.info(`📍 Canal de destination: ${feedbackChannelId}`);
             
             const feedbackChannel = guild.channels.cache.get(feedbackChannelId);
             
             if (!feedbackChannel) {
-                this.logger.error(`Canal de feedback introuvable: ${feedbackChannelId}`);
+                this.logger.error(`❌ Canal de feedback introuvable: ${feedbackChannelId}`);
                 return;
             }
+
+            this.logger.info(`✅ Canal trouvé: ${feedbackChannel.name}`);
 
             // Récupérer les messages du canal pour créer un historique
             const messages = await channel.messages.fetch({ limit: 100 });
@@ -1156,16 +1167,18 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
             // Envoyer le message avec mentions si nécessaire
             const messageContent = mentions ? `${mentions}\n\n` : '';
             
+            this.logger.info(`📤 Envoi du feedback - Mentions: "${mentions}", Canal: ${feedbackChannel.name}`);
+            
             await feedbackChannel.send({
                 content: messageContent || undefined,
                 embeds: [feedbackEmbed]
             });
 
             const ticketType = isReportTicket ? 'signalement' : isFeedbackTicket ? 'avis/feedback' : 'ticket';
-            this.logger.success(`Feedback du ${ticketType} ${channel.name} envoyé dans le canal de logs approprié`);
+            this.logger.success(`✅ Feedback du ${ticketType} ${channel.name} envoyé dans le canal ${feedbackChannel.name} avec succès`);
 
         } catch (error) {
-            this.logger.error('Erreur lors de l\'envoi du feedback:', error);
+            this.logger.error('❌ Erreur lors de l\'envoi du feedback:', error);
         }
     }
 
