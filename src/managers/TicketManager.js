@@ -1599,35 +1599,34 @@ ${status === 'closed' ? '**🔒 Cette suggestion a été fermée.**' : ''}
 
             await channel.send({ embeds: [closingEmbed] });
 
-            // Notification rapide pour les suggestions approuvées ou rejetées
-            if (status === 'approved' || status === 'rejected') {
-                try {
-                    const notificationChannel = guild.channels.cache.get(notificationChannelId);
-                    if (notificationChannel) {
-                        const notificationEmbed = new EmbedBuilder()
-                            .setColor(config.color)
-                            .setTitle(`${config.emoji} Suggestion ${config.text}`)
-                            .setDescription(`
+            // Notification pour TOUTES les actions de suggestion (approved, rejected, considered, closed)
+            try {
+                const notificationChannel = guild.channels.cache.get(notificationChannelId);
+                if (notificationChannel) {
+                    const notificationEmbed = new EmbedBuilder()
+                        .setColor(config.color)
+                        .setTitle(`${config.emoji} Suggestion ${config.text}`)
+                        .setDescription(`
 **📝 Suggestion :** ${suggestionInfo.title || 'Titre non trouvé'}
 **👤 Auteur :** ${suggestionInfo.author || 'Auteur non trouvé'}
 **👨‍💼 Traité par :** ${interaction.user}
 **📅 Date :** <t:${Math.floor(Date.now() / 1000)}:F>
 
-${status === 'approved' ? 
-    '**🎉 Cette suggestion a été approuvée et sera prise en compte dans nos développements futurs !**' : 
-    '**❌ Cette suggestion a été rejetée après étude.**'}`)
-                            .setFooter({ text: `Système de suggestions • ${guild.name}` })
-                            .setTimestamp();
+${status === 'approved' ? '**🎉 Cette suggestion a été approuvée et sera prise en compte dans nos développements futurs !**' : ''}
+${status === 'considered' ? '**🤔 Cette suggestion est intéressante et sera étudiée plus en détail.**' : ''}
+${status === 'rejected' ? '**❌ Cette suggestion a été rejetée après étude.**' : ''}
+${status === 'closed' ? '**🔒 Cette suggestion a été fermée sans traitement particulier.**' : ''}`)
+                        .setFooter({ text: `Système de suggestions • ${guild.name}` })
+                        .setTimestamp();
 
-                        await notificationChannel.send({ 
-                            content: '<@656139870158454795> <@421245210220298240>',
-                            embeds: [notificationEmbed] 
-                        });
-                        this.logger.info(`📢 Notification envoyée dans le salon ${notificationChannelId} pour suggestion ${status}`);
-                    }
-                } catch (notificationError) {
-                    this.logger.error('Erreur lors de l\'envoi de la notification:', notificationError);
+                    await notificationChannel.send({ 
+                        content: '<@656139870158454795> <@421245210220298240>',
+                        embeds: [notificationEmbed] 
+                    });
+                    this.logger.info(`📢 Notification envoyée dans le salon ${notificationChannelId} pour suggestion ${status}`);
                 }
+            } catch (notificationError) {
+                this.logger.error('Erreur lors de l\'envoi de la notification:', notificationError);
             }
 
             // Fermer le canal après 10 secondes
