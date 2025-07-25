@@ -227,49 +227,29 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
     }
 
     async handleTicketCreation(interaction, type) {
-        const startTime = Date.now();
-        const maxProcessingTime = 2000; // Réduire à 2 secondes pour éviter les timeouts
-        
         try {
-            // Vérification ULTRA-RAPIDE d'état avec logs détaillés
-            if (interaction.replied) {
-                this.logger.warn(`⚠️ Interaction ${type} déjà répondue (replied=true) - abandon immédiat`);
-                return;
-            }
-            
-            if (interaction.deferred) {
-                this.logger.warn(`⚠️ Interaction ${type} déjà différée (deferred=true) - abandon immédiat`);
+            // Vérification immédiate d'état - pas de logs verbeux
+            if (interaction.replied || interaction.deferred) {
                 return;
             }
 
-            // Protection contre les doublons avec timeout plus court
+            // Protection anti-doublon ultra-rapide
             const interactionKey = `${interaction.id}_${type}`;
             if (!this.processingInteractions) {
                 this.processingInteractions = new Set();
             }
             
             if (this.processingInteractions.has(interactionKey)) {
-                this.logger.warn(`🔄 Traitement dupliqué détecté pour ${type}: ${interaction.id}`);
                 return;
             }
             
             this.processingInteractions.add(interactionKey);
-            
-            // Nettoyer après 5 secondes (plus court)
             setTimeout(() => {
                 this.processingInteractions.delete(interactionKey);
-            }, 5000);
+            }, 3000);
 
             // TRAITEMENT SPÉCIAL POUR SUGGESTIONS - MODAL IMMÉDIAT
             if (type === 'suggestion') {
-                // Vérification de timing
-                const elapsed = Date.now() - startTime;
-                if (elapsed > maxProcessingTime) {
-                    this.logger.warn(`⏰ Traitement ${type} trop lent (${elapsed}ms), abandon`);
-                    return;
-                }
-                
-                // Modal IMMÉDIAT - aucun autre traitement avant
                 const suggestionModal = new ModalBuilder()
                     .setCustomId('suggestion_modal_general')
                     .setTitle('💡 Nouvelle Suggestion');
@@ -295,64 +275,35 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                     new ActionRowBuilder().addComponents(descriptionInput)
                 );
 
-                // VÉRIFICATION FINALE avant showModal
-                if (interaction.replied || interaction.deferred) {
-                    this.logger.warn(`⚠️ Interaction ${type} acquittée juste avant showModal - abandon`);
-                    return;
-                }
-
-                // AFFICHAGE IMMÉDIAT avec gestion d'erreur renforcée
+                // Affichage immédiat du modal sans vérifications supplémentaires
                 try {
                     await interaction.showModal(suggestionModal);
-                    const totalTime = Date.now() - startTime;
-                    this.logger.info(`✅ Modal suggestion affiché en ${totalTime}ms pour ${interaction.user.username}`);
+                    this.logger.info(`✅ Modal suggestion affiché pour ${interaction.user.username}`);
                 } catch (error) {
-                    if (error.code === 10062) {
-                        this.logger.warn('⏰ Interaction suggestion expirée lors de showModal');
-                        return;
-                    }
-                    if (error.code === 40060) {
-                        this.logger.warn('⚠️ Interaction suggestion déjà acquittée lors de showModal');
-                        return;
-                    }
-                    if (error.code === 'InteractionAlreadyReplied') {
-                        this.logger.warn('⚠️ Interaction suggestion déjà répondue lors de showModal');
+                    // Gestion silencieuse des erreurs communes
+                    if (error.code === 10062 || error.code === 40060 || error.code === 'InteractionAlreadyReplied') {
                         return;
                     }
                     this.logger.error(`❌ Erreur showModal suggestion:`, error);
-                    return;
                 }
                 return;
             }
 
-            // Pour les autres types : Vérification de timing
-            const elapsed = Date.now() - startTime;
-            if (elapsed > maxProcessingTime) {
-                this.logger.warn(`⏰ Traitement ${type} trop lent (${elapsed}ms), abandon`);
-                return;
-            }
-
-            // Configuration du modal IMMÉDIATEMENT
+            // Pour les autres types : Traitement immédiat
             const config = this.ticketTypes[type];
             if (!config) {
-                // Vérification d'état avant réponse d'erreur
-                if (interaction.replied || interaction.deferred) {
-                    this.logger.warn(`⚠️ Interaction ${type} acquittée avant erreur type invalide`);
-                    return;
-                }
-                
                 try {
                     await interaction.reply({
                         content: '❌ Type de ticket invalide.',
                         flags: MessageFlags.Ephemeral
                     });
                 } catch (error) {
-                    this.logger.warn(`⚠️ Erreur reply type invalide: ${error.code}`);
+                    // Ignorer les erreurs d'interaction expirée
                 }
                 return;
             }
 
-            // Modal IMMÉDIAT pour tous les autres types
+            // Modal immédiat pour tous les autres types
             const modal = new ModalBuilder()
                 .setCustomId(`ticket_modal_${type}`)
                 .setTitle(`${config.emoji} ${config.name}`);
@@ -386,36 +337,19 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                 new ActionRowBuilder().addComponents(descriptionInput),
                 new ActionRowBuilder().addComponents(priorityInput)
             );
-
-            // VÉRIFICATION FINALE juste avant showModal
-            if (interaction.replied || interaction.deferred) {
-                this.logger.warn(`⚠️ Interaction ${type} acquittée juste avant showModal`);
-                return;
-            }
             
             try {
                 await interaction.showModal(modal);
-                const totalTime = Date.now() - startTime;
-                this.logger.info(`✅ Modal ${type} affiché en ${totalTime}ms pour ${interaction.user.username}`);
+                this.logger.info(`✅ Modal ${type} affiché pour ${interaction.user.username}`);
             } catch (error) {
-                if (error.code === 10062) {
-                    this.logger.warn(`⏰ Interaction ${type} expirée lors de showModal`);
-                    return;
-                }
-                if (error.code === 40060) {
-                    this.logger.warn(`⚠️ Interaction ${type} déjà acquittée lors de showModal`);
-                    return;
-                }
-                if (error.code === 'InteractionAlreadyReplied') {
-                    this.logger.warn(`⚠️ Interaction ${type} déjà répondue lors de showModal`);
+                // Gestion silencieuse des erreurs communes
+                if (error.code === 10062 || error.code === 40060 || error.code === 'InteractionAlreadyReplied') {
                     return;
                 }
                 this.logger.error(`❌ Erreur showModal ${type}:`, error);
-                return;
             }
 
         } catch (error) {
-            // Gestion d'erreur simplifiée
             this.logger.error(`❌ Erreur générale lors de la création du ticket ${type}:`, error);
         }
     }
@@ -428,6 +362,16 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
 
     async handleModalSubmit(interaction) {
         try {
+            // Déférence immédiate et silencieuse
+            if (!interaction.deferred && !interaction.replied) {
+                try {
+                    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+                } catch (error) {
+                    // Si la déférence échoue, l'interaction est probablement expirée
+                    return;
+                }
+            }
+
             const [, , type] = interaction.customId.split('_');
             const config = this.ticketTypes[type];
             const guild = interaction.guild;
@@ -436,14 +380,6 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
             const subject = interaction.fields.getTextInputValue('ticket_subject');
             const description = interaction.fields.getTextInputValue('ticket_description');
             const priority = interaction.fields.getTextInputValue('ticket_priority') || '3';
-
-            // Utiliser le validateur d'interactions pour une déférence rapide
-            const validator = interaction.client.interactionValidator;
-            const deferred = await validator.quickDefer(interaction, { flags: MessageFlags.Ephemeral });
-            
-            if (!deferred) {
-                return; // Interaction expirée ou déjà traitée
-            }
 
             // Vérifier si l'utilisateur a déjà un ticket ouvert APRÈS le modal
             const existingTickets = guild.channels.cache.filter(
@@ -1632,65 +1568,45 @@ ${improvement ? `**💡 Suggestions d'amélioration :**\n${improvement}` : ''}
             // Récupérer les informations de la suggestion depuis le nom du canal
             const suggestionInfo = this.extractSuggestionInfo(channel);
             
-            const statusColors = {
-                approved: '#2ecc71',
-                rejected: '#e74c3c',
-                considered: '#3498db',
-                closed: '#95a5a6'
+            const statusConfig = {
+                approved: { color: '#2ecc71', emoji: '✅', text: 'APPROUVÉE' },
+                rejected: { color: '#e74c3c', emoji: '❌', text: 'REJETÉE' },
+                considered: { color: '#3498db', emoji: '🤔', text: 'À CONSIDÉRER' },
+                closed: { color: '#95a5a6', emoji: '🔒', text: 'FERMÉE' }
             };
 
-            const statusEmojis = {
-                approved: '✅',
-                rejected: '❌',
-                considered: '🤔',
-                closed: '🔒'
-            };
-
-            const statusTexts = {
-                approved: 'APPROUVÉE',
-                rejected: 'REJETÉE', 
-                considered: 'À CONSIDÉRER',
-                closed: 'FERMÉE'
-            };
+            const config = statusConfig[status];
 
             // Embed pour le canal de suggestion
             const closingEmbed = new EmbedBuilder()
-                .setColor(statusColors[status])
-                .setTitle(`${statusEmojis[status]} **SUGGESTION ${statusTexts[status]}**`)
+                .setColor(config.color)
+                .setTitle(`${config.emoji} **SUGGESTION ${config.text}**`)
                 .setDescription(`
-**Cette suggestion a été ${statusTexts[status].toLowerCase()} par ${interaction.user}**
+**Cette suggestion a été ${config.text.toLowerCase()} par ${interaction.user}**
 
 **📅 Date :** <t:${Math.floor(Date.now() / 1000)}:F>
 **👤 Traité par :** ${interaction.user}
-**🎯 Statut final :** ${statusTexts[status]}
+**🎯 Statut final :** ${config.text}
 
-${status === 'approved' ? 
-    '**🎉 Cette suggestion sera prise en compte dans nos développements futurs !**' : 
-    ''}
-${status === 'considered' ? 
-    '**🤔 Cette suggestion est intéressante et sera étudiée plus en détail.**' : 
-    ''}
-${status === 'rejected' ? 
-    '**❌ Cette suggestion ne peut pas être implementée pour le moment.**' : 
-    ''}
-${status === 'closed' ? 
-    '**🔒 Cette suggestion a été fermée.**' : 
-    ''}
+${status === 'approved' ? '**🎉 Cette suggestion sera prise en compte dans nos développements futurs !**' : ''}
+${status === 'considered' ? '**🤔 Cette suggestion est intéressante et sera étudiée plus en détail.**' : ''}
+${status === 'rejected' ? '**❌ Cette suggestion ne peut pas être implementée pour le moment.**' : ''}
+${status === 'closed' ? '**🔒 Cette suggestion a été fermée.**' : ''}
 
 **💾 Ce canal sera fermé dans 10 secondes...**`)
-                .setFooter({ text: `Suggestion ${statusTexts[status].toLowerCase()}` })
+                .setFooter({ text: `Suggestion ${config.text.toLowerCase()}` })
                 .setTimestamp();
 
             await channel.send({ embeds: [closingEmbed] });
 
-            // Notification dans le salon spécifié pour les suggestions approuvées ou rejetées
+            // Notification rapide pour les suggestions approuvées ou rejetées
             if (status === 'approved' || status === 'rejected') {
                 try {
                     const notificationChannel = guild.channels.cache.get(notificationChannelId);
                     if (notificationChannel) {
                         const notificationEmbed = new EmbedBuilder()
-                            .setColor(statusColors[status])
-                            .setTitle(`${statusEmojis[status]} Suggestion ${statusTexts[status]}`)
+                            .setColor(config.color)
+                            .setTitle(`${config.emoji} Suggestion ${config.text}`)
                             .setDescription(`
 **📝 Suggestion :** ${suggestionInfo.title || 'Titre non trouvé'}
 **👤 Auteur :** ${suggestionInfo.author || 'Auteur non trouvé'}
@@ -1699,8 +1615,7 @@ ${status === 'closed' ?
 
 ${status === 'approved' ? 
     '**🎉 Cette suggestion a été approuvée et sera prise en compte dans nos développements futurs !**' : 
-    '**❌ Cette suggestion a été rejetée après étude.**'}
-                            `)
+    '**❌ Cette suggestion a été rejetée après étude.**'}`)
                             .setFooter({ text: `Système de suggestions • ${guild.name}` })
                             .setTimestamp();
 
@@ -1709,8 +1624,6 @@ ${status === 'approved' ?
                             embeds: [notificationEmbed] 
                         });
                         this.logger.info(`📢 Notification envoyée dans le salon ${notificationChannelId} pour suggestion ${status}`);
-                    } else {
-                        this.logger.warn(`⚠️ Canal de notification ${notificationChannelId} non trouvé`);
                     }
                 } catch (notificationError) {
                     this.logger.error('Erreur lors de l\'envoi de la notification:', notificationError);

@@ -252,11 +252,17 @@ class ButtonHandler {
     // Méthode sécurisée pour traiter les actions de suggestion
     async processSuggestionAction(interaction, ticketManager, status) {
         try {
-            await interaction.editReply({
-                content: `⏳ Traitement de la suggestion (${status})...`
-            });
+            // Déférence immédiate si pas déjà fait
+            if (!interaction.deferred && !interaction.replied) {
+                try {
+                    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+                } catch (error) {
+                    // Si la déférence échoue, l'interaction est expirée
+                    return;
+                }
+            }
 
-            // Traitement direct de la suggestion avec le nouveau système
+            // Traitement direct et rapide
             await ticketManager.handleSuggestionAction(interaction, status);
 
             const statusTexts = {
@@ -266,17 +272,23 @@ class ButtonHandler {
                 closed: 'fermée'
             };
 
-            await interaction.editReply({
-                content: `✅ Suggestion ${statusTexts[status]} avec succès.`
-            });
+            try {
+                await interaction.editReply({
+                    content: `✅ Suggestion ${statusTexts[status]} avec succès.`
+                });
+            } catch (error) {
+                // Ignorer les erreurs d'interaction expirée
+            }
 
         } catch (error) {
             this.logger.error(`Erreur lors du traitement de l'action ${status}:`, error);
             
             try {
-                await interaction.editReply({
-                    content: `❌ Erreur lors du traitement de la suggestion (${status}).`
-                });
+                if (interaction.deferred || interaction.replied) {
+                    await interaction.editReply({
+                        content: `❌ Erreur lors du traitement de la suggestion (${status}).`
+                    });
+                }
             } catch (editError) {
                 this.logger.warn('⏰ Impossible de modifier la réponse (interaction expirée)');
             }
