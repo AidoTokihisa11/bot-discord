@@ -1061,8 +1061,9 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
             const channelName = channel.name.toLowerCase();
             this.logger.info(`🔍 Détection du type de ticket pour: ${channelName}`);
             
+            // Détection plus précise des types de tickets
             const isReportTicket = channelName.includes('report') || channelName.includes('signalement');
-            const isFeedbackTicket = channelName.includes('suggestion') || channelName.includes('feedback') || channelName.includes('avis') || channelName.includes('💡');
+            const isFeedbackTicket = channelName.includes('suggestion') || channelName.includes('feedback') || channelName.includes('avis');
             
             this.logger.info(`📋 Type détecté - Report: ${isReportTicket}, Feedback: ${isFeedbackTicket}`);
             
@@ -1078,11 +1079,18 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
                 mentions = '<@656139870158454795> <@421245210220298240>'; // Mentionner les responsables des feedbacks
                 this.logger.info('💡 Ticket de feedback/suggestion détecté - envoi avec mentions');
             } else {
-                feedbackChannelId = '1393143271617855548'; // Canal général pour les autres tickets
-                this.logger.info('🎫 Ticket standard détecté - envoi vers canal général');
+                // Pour tous les autres tickets, on vérifie aussi s'ils sont de type suggestion via l'emoji
+                if (channelName.includes('💡')) {
+                    feedbackChannelId = '1393143271617855548'; // Canal pour les suggestions
+                    mentions = '<@656139870158454795> <@421245210220298240>';
+                    this.logger.info('💡 Ticket avec emoji suggestion détecté - envoi avec mentions');
+                } else {
+                    feedbackChannelId = '1393143271617855548'; // Canal général pour les autres tickets
+                    this.logger.info('🎫 Ticket standard détecté - envoi vers canal général');
+                }
             }
             
-            this.logger.info(`📍 Canal de destination: ${feedbackChannelId}`);
+            this.logger.info(`📍 Canal de destination: ${feedbackChannelId}, Mentions: "${mentions}"`);
             
             const feedbackChannel = guild.channels.cache.get(feedbackChannelId);
             
@@ -1101,16 +1109,21 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
             }).join('\n');
 
             // Créer l'embed de feedback avec style différent selon le type
-            let embedColor, embedTitle;
+            let embedColor, embedTitle, ticketTypeLabel;
+            const isSuggestionChannel = isFeedbackTicket || channelName.includes('💡');
+            
             if (isReportTicket) {
                 embedColor = '#e74c3c';
                 embedTitle = '🚨 **SIGNALEMENT FERMÉ - FEEDBACK COMPLET**';
-            } else if (isFeedbackTicket) {
+                ticketTypeLabel = '🚨 Signalement';
+            } else if (isSuggestionChannel) {
                 embedColor = '#f39c12';
                 embedTitle = '💡 **AVIS / FEEDBACK FERMÉ - RAPPORT COMPLET**';
+                ticketTypeLabel = '💡 Avis / Feedback';
             } else {
                 embedColor = '#2c3e50';
                 embedTitle = '🎫 **TICKET FERMÉ - FEEDBACK COMPLET**';
+                ticketTypeLabel = '🎫 Ticket Standard';
             }
             
             const feedbackEmbed = new EmbedBuilder()
@@ -1119,7 +1132,7 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
                 .setDescription(`
 **📋 INFORMATIONS DU TICKET :**
 • **Canal :** ${channel.name}
-• **Type :** ${isReportTicket ? '🚨 Signalement' : isFeedbackTicket ? '💡 Avis / Feedback' : '🎫 Ticket Standard'}
+• **Type :** ${ticketTypeLabel}
 • **Créé le :** <t:${Math.floor(channel.createdTimestamp / 1000)}:F>
 • **Fermé le :** <t:${Math.floor(Date.now() / 1000)}:F>
 • **Fermé par :** ${closedBy}
@@ -1131,7 +1144,7 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
 • **Serveur :** ${guild.name}`)
                 .setThumbnail(guild.iconURL({ dynamic: true }))
                 .setFooter({ 
-                    text: `${isReportTicket ? 'Signalement' : isFeedbackTicket ? 'Avis/Feedback' : 'Ticket'} ID: ${channel.id} • Système de Support`,
+                    text: `${isReportTicket ? 'Signalement' : isSuggestionChannel ? 'Avis/Feedback' : 'Ticket'} ID: ${channel.id} • Système de Support`,
                     iconURL: guild.iconURL({ dynamic: true })
                 })
                 .setTimestamp();
@@ -1156,7 +1169,7 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
                     value: '🔍 **Traité** - Ce signalement a été examiné et fermé par l\'équipe de modération.',
                     inline: false
                 });
-            } else if (isFeedbackTicket) {
+            } else if (isSuggestionChannel) {
                 feedbackEmbed.addFields({
                     name: '💡 **STATUT DU FEEDBACK**',
                     value: '✅ **Traité** - Cet avis/feedback a été examiné et fermé par l\'équipe responsable.',
@@ -1174,8 +1187,8 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
                 embeds: [feedbackEmbed]
             });
 
-            const ticketType = isReportTicket ? 'signalement' : isFeedbackTicket ? 'avis/feedback' : 'ticket';
-            this.logger.success(`✅ Feedback du ${ticketType} ${channel.name} envoyé dans le canal ${feedbackChannel.name} avec succès`);
+            const ticketTypeName = isReportTicket ? 'signalement' : isSuggestionChannel ? 'avis/feedback' : 'ticket';
+            this.logger.success(`✅ Feedback du ${ticketTypeName} ${channel.name} envoyé dans le canal ${feedbackChannel.name} avec succès`);
 
         } catch (error) {
             this.logger.error('❌ Erreur lors de l\'envoi du feedback:', error);
