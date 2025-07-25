@@ -11,14 +11,41 @@ class TicketManager {
         this.ticketChannelId = '1398336201844457485';
         this.ticketCategoryId = null; // Sera défini dynamiquement
         
-        // PROTECTION GLOBALE CONTRE LES DUPLICATIONS - PARTAGÉE ENTRE TOUTES LES INSTANCES
-        if (!global.ticketProtections) {
-            global.ticketProtections = {
-                processingInteractions: new Set(),
-                processingModals: new Set(),
-                processingRecruitment: new Set(),
-                sentNotifications: new Set()
+        // PROTECTION ULTRA GLOBALE - UNE SEULE INSTANCE PARTAGÉE
+        if (!global.ULTIMATE_TICKET_LOCK) {
+            global.ULTIMATE_TICKET_LOCK = {
+                activeUsers: new Map(), // user.id -> timestamp
+                activeChannels: new Set(), // channel IDs en cours de création
+                sentNotifications: new Set(), // notifications déjà envoyées
+                lastCleanup: Date.now()
             };
+            
+            // Nettoyage automatique toutes les 2 minutes
+            setInterval(() => {
+                const now = Date.now();
+                const lock = global.ULTIMATE_TICKET_LOCK;
+                
+                // Nettoyer les utilisateurs actifs après 1 minute
+                for (const [userId, timestamp] of lock.activeUsers.entries()) {
+                    if (now - timestamp > 60000) {
+                        lock.activeUsers.delete(userId);
+                    }
+                }
+                
+                // Nettoyer les notifications après 5 minutes
+                const oldNotifications = Array.from(lock.sentNotifications).filter(key => {
+                    const parts = key.split('_');
+                    const timestamp = parseInt(parts[parts.length - 1]);
+                    return now - timestamp > 300000;
+                });
+                oldNotifications.forEach(key => lock.sentNotifications.delete(key));
+                
+                // Nettoyer les canaux après 2 minutes
+                if (now - lock.lastCleanup > 120000) {
+                    lock.activeChannels.clear();
+                    lock.lastCleanup = now;
+                }
+            }, 120000);
         }
         
         this.ticketTypes = {
@@ -251,35 +278,27 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
 
     async handleTicketCreation(interaction, type) {
         try {
-            // Vérification immédiate d'état - pas de logs verbeux
+            // PROTECTION ULTRA RADICALE - UN SEUL TICKET PAR UTILISATEUR À LA FOIS
+            const ultimateLock = global.ULTIMATE_TICKET_LOCK;
+            const userId = interaction.user.id;
+            const now = Date.now();
+            
+            // Vérifier si l'utilisateur a déjà une action en cours
+            if (ultimateLock.activeUsers.has(userId)) {
+                const lastAction = ultimateLock.activeUsers.get(userId);
+                if (now - lastAction < 5000) { // 5 secondes de protection
+                    this.logger.warn(`🚫 BLOCAGE RADICAL: ${interaction.user.username} a déjà une action en cours`);
+                    return;
+                }
+            }
+            
+            // Verrouiller cet utilisateur IMMÉDIATEMENT
+            ultimateLock.activeUsers.set(userId, now);
+            
+            // Vérification immédiate d'état
             if (interaction.replied || interaction.deferred) {
                 return;
             }
-
-            // Protection anti-doublon ULTRA RENFORCÉE avec ID unique
-            const interactionKey = `${interaction.user.id}_${type}_${Date.now()}_${interaction.id.slice(-6)}`;
-            const protections = global.ticketProtections;
-            
-            // Vérifier toutes les clés existantes pour cet utilisateur et ce type
-            const userTypePattern = `${interaction.user.id}_${type}_`;
-            const existingKeys = Array.from(protections.processingInteractions).filter(key => key.startsWith(userTypePattern));
-            
-            if (existingKeys.length > 0) {
-                this.logger.warn(`🚫 Interaction en cours pour ${interaction.user.username} - ${type} (${existingKeys.length} en cours)`);
-                return;
-            }
-            
-            protections.processingInteractions.add(interactionKey);
-            
-            // Nettoyer après 30 secondes pour éviter les conflits
-            const cleanup = () => {
-                protections.processingInteractions.delete(interactionKey);
-                // Nettoyer aussi toutes les anciennes clés de cet utilisateur
-                const oldKeys = Array.from(protections.processingInteractions).filter(key => key.startsWith(userTypePattern));
-                oldKeys.forEach(key => protections.processingInteractions.delete(key));
-            };
-            
-            setTimeout(cleanup, 30000);
 
             // Protection supplémentaire : vérifier si l'utilisateur a déjà un ticket ouvert
             const guild = interaction.guild;
@@ -299,7 +318,8 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                 } catch (error) {
                     // Ignorer les erreurs d'interaction expirée
                 }
-                protections.processingInteractions.delete(interactionKey);
+                // Libérer le verrou après 2 secondes
+                setTimeout(() => ultimateLock.activeUsers.delete(userId), 2000);
                 return;
             }
 
@@ -384,12 +404,16 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                 try {
                     await interaction.showModal(recruitmentModal);
                     this.logger.info(`✅ Modal recrutement affiché pour ${interaction.user.username}`);
+                    // Libérer le verrou après affichage du modal
+                    setTimeout(() => ultimateLock.activeUsers.delete(userId), 1000);
                 } catch (error) {
                     // Gestion silencieuse des erreurs communes
                     if (error.code === 10062 || error.code === 40060 || error.code === 'InteractionAlreadyReplied') {
+                        ultimateLock.activeUsers.delete(userId);
                         return;
                     }
                     this.logger.error(`❌ Erreur showModal recrutement:`, error);
+                    ultimateLock.activeUsers.delete(userId);
                 }
                 return;
             }
@@ -405,6 +429,7 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                 } catch (error) {
                     // Ignorer les erreurs d'interaction expirée
                 }
+                ultimateLock.activeUsers.delete(userId);
                 return;
             }
 
@@ -446,16 +471,23 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
             try {
                 await interaction.showModal(modal);
                 this.logger.info(`✅ Modal ${type} affiché pour ${interaction.user.username}`);
+                // Libérer le verrou après affichage du modal
+                setTimeout(() => ultimateLock.activeUsers.delete(userId), 1000);
             } catch (error) {
                 // Gestion silencieuse des erreurs communes
                 if (error.code === 10062 || error.code === 40060 || error.code === 'InteractionAlreadyReplied') {
+                    ultimateLock.activeUsers.delete(userId);
                     return;
                 }
                 this.logger.error(`❌ Erreur showModal ${type}:`, error);
+                ultimateLock.activeUsers.delete(userId);
             }
 
         } catch (error) {
             this.logger.error(`❌ Erreur générale lors de la création du ticket ${type}:`, error);
+            // Toujours libérer le verrou en cas d'erreur
+            const ultimateLock = global.ULTIMATE_TICKET_LOCK;
+            ultimateLock.activeUsers.delete(interaction.user.id);
         }
     }
 
@@ -467,45 +499,44 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
 
     async handleModalSubmit(interaction) {
         try {
+            // PROTECTION ULTRA RADICALE POUR LES MODALS
+            const ultimateLock = global.ULTIMATE_TICKET_LOCK;
+            const userId = interaction.user.id;
+            const modalId = interaction.customId;
+            const lockKey = `${userId}_${modalId}`;
+            
+            // Vérifier si ce modal est déjà en cours de traitement
+            if (ultimateLock.activeChannels.has(lockKey)) {
+                this.logger.warn(`🚫 BLOCAGE MODAL: ${interaction.user.username} - ${modalId} déjà en cours`);
+                return;
+            }
+            
+            // Verrouiller ce modal IMMÉDIATEMENT
+            ultimateLock.activeChannels.add(lockKey);
+            
+            // Libérer automatiquement après 30 secondes
+            setTimeout(() => {
+                ultimateLock.activeChannels.delete(lockKey);
+            }, 30000);
+
             // Déférence immédiate et silencieuse
             if (!interaction.deferred && !interaction.replied) {
                 try {
                     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
                 } catch (error) {
                     // Si la déférence échoue, l'interaction est probablement expirée
+                    ultimateLock.activeChannels.delete(lockKey);
                     return;
                 }
             }
-
-            // Protection anti-doublon pour les modals AVEC ID unique
-            const modalKey = `${interaction.user.id}_modal_${interaction.customId}_${Date.now()}`;
-            const protections = global.ticketProtections;
-            
-            // Vérifier toutes les clés existantes pour cet utilisateur et ce modal
-            const userModalPattern = `${interaction.user.id}_modal_${interaction.customId}_`;
-            const existingModalKeys = Array.from(protections.processingModals).filter(key => key.startsWith(userModalPattern));
-            
-            if (existingModalKeys.length > 0) {
-                this.logger.warn(`🚫 Modal en cours pour ${interaction.user.username} - ${interaction.customId} (${existingModalKeys.length} en cours)`);
-                return;
-            }
-            
-            protections.processingModals.add(modalKey);
-            
-            const cleanupModal = () => {
-                protections.processingModals.delete(modalKey);
-                // Nettoyer aussi toutes les anciennes clés de ce modal
-                const oldModalKeys = Array.from(protections.processingModals).filter(key => key.startsWith(userModalPattern));
-                oldModalKeys.forEach(key => protections.processingModals.delete(key));
-            };
-            
-            setTimeout(cleanupModal, 30000);
 
             const [, , type] = interaction.customId.split('_');
             
             // Gestion spéciale pour le modal de recrutement
             if (interaction.customId === 'recruitment_modal_general') {
-                return await this.handleRecruitmentModalSubmit(interaction);
+                const result = await this.handleRecruitmentModalSubmit(interaction);
+                ultimateLock.activeChannels.delete(lockKey);
+                return result;
             }
             
             const config = this.ticketTypes[type];
@@ -522,49 +553,69 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
             );
 
             if (existingTickets.size > 0) {
-                return await interaction.editReply({
+                await interaction.editReply({
                     content: `❌ Vous avez déjà un ticket ouvert : ${existingTickets.first()}\n\n💡 Veuillez fermer votre ticket existant avant d'en créer un nouveau.`
                 });
+                ultimateLock.activeChannels.delete(lockKey);
+                return;
             }
 
-            // Créer ou récupérer la catégorie de tickets
-            const ticketCategory = await this.ensureTicketCategory(guild);
+            // PROTECTION CONTRE LA CRÉATION DE CANAUX MULTIPLES
+            const channelCreationKey = `creating_${userId}_${type}`;
+            if (ultimateLock.activeChannels.has(channelCreationKey)) {
+                this.logger.warn(`🚫 CRÉATION DE CANAL DÉJÀ EN COURS pour ${interaction.user.username}`);
+                await interaction.editReply({
+                    content: '❌ Un ticket est déjà en cours de création. Veuillez patienter.'
+                });
+                ultimateLock.activeChannels.delete(lockKey);
+                return;
+            }
+            
+            // Verrouiller la création de canal
+            ultimateLock.activeChannels.add(channelCreationKey);
+            
+            try {
+                // Créer ou récupérer la catégorie de tickets
+                const ticketCategory = await this.ensureTicketCategory(guild);
 
-            // Créer le canal de ticket
-            const ticketNumber = Date.now().toString().slice(-6);
-            const ticketChannel = await guild.channels.create({
-                name: `${config.emoji}・${type}-${user.username}-${ticketNumber}`,
-                type: ChannelType.GuildText,
-                parent: ticketCategory.id,
-                topic: `Ticket ${config.name} • ${subject} • Créé par ${user.tag}`,
-                permissionOverwrites: [
-                    {
-                        id: guild.id,
-                        deny: [PermissionFlagsBits.ViewChannel]
-                    },
-                    {
-                        id: user.id,
-                        allow: [
-                            PermissionFlagsBits.ViewChannel,
-                            PermissionFlagsBits.SendMessages,
-                            PermissionFlagsBits.ReadMessageHistory,
-                            PermissionFlagsBits.AttachFiles,
-                            PermissionFlagsBits.EmbedLinks
-                        ]
-                    },
-                    {
-                        id: this.staffRoleId,
-                        allow: [
-                            PermissionFlagsBits.ViewChannel,
-                            PermissionFlagsBits.SendMessages,
-                            PermissionFlagsBits.ReadMessageHistory,
-                            PermissionFlagsBits.ManageMessages,
-                            PermissionFlagsBits.AttachFiles,
-                            PermissionFlagsBits.EmbedLinks
-                        ]
-                    }
-                ]
-            });
+                // Créer le canal de ticket
+                const ticketNumber = Date.now().toString().slice(-6);
+                const ticketChannel = await guild.channels.create({
+                    name: `${config.emoji}・${type}-${user.username}-${ticketNumber}`,
+                    type: ChannelType.GuildText,
+                    parent: ticketCategory.id,
+                    topic: `Ticket ${config.name} • ${subject} • Créé par ${user.tag}`,
+                    permissionOverwrites: [
+                        {
+                            id: guild.id,
+                            deny: [PermissionFlagsBits.ViewChannel]
+                        },
+                        {
+                            id: user.id,
+                            allow: [
+                                PermissionFlagsBits.ViewChannel,
+                                PermissionFlagsBits.SendMessages,
+                                PermissionFlagsBits.ReadMessageHistory,
+                                PermissionFlagsBits.AttachFiles,
+                                PermissionFlagsBits.EmbedLinks
+                            ]
+                        },
+                        {
+                            id: this.staffRoleId,
+                            allow: [
+                                PermissionFlagsBits.ViewChannel,
+                                PermissionFlagsBits.SendMessages,
+                                PermissionFlagsBits.ReadMessageHistory,
+                                PermissionFlagsBits.ManageMessages,
+                                PermissionFlagsBits.AttachFiles,
+                                PermissionFlagsBits.EmbedLinks
+                            ]
+                        }
+                    ]
+                });
+                
+                // Libérer immédiatement le verrou de création
+                ultimateLock.activeChannels.delete(channelCreationKey);
 
             // Embed de bienvenue dans le ticket
             const welcomeEmbed = new EmbedBuilder()
@@ -638,35 +689,37 @@ ${description}
             // Notification privée au staff
             await this.notifyStaff(guild, user, ticketChannel, config, subject, description, priority);
 
-            await interaction.editReply({
-                content: `✅ **Ticket créé avec succès !** ${ticketChannel}\n🎯 Notre équipe a été notifiée et vous répondra dans **${config.responseTime}**.`
-            });
+                await interaction.editReply({
+                    content: `✅ **Ticket créé avec succès !** ${ticketChannel}\n🎯 Notre équipe a été notifiée et vous répondra dans **${config.responseTime}**.`
+                });
 
-            this.logger.info(`Ticket #${ticketNumber} créé: ${ticketChannel.name} par ${user.tag} (${type})`);
-
-            // Nettoyer la protection après succès
-            const cleanupModalSuccess = () => {
-                const protections = global.ticketProtections;
-                const userModalPattern = `${interaction.user.id}_modal_${interaction.customId}_`;
-                const oldModalKeys = Array.from(protections.processingModals).filter(key => key.startsWith(userModalPattern));
-                oldModalKeys.forEach(key => protections.processingModals.delete(key));
-            };
-            cleanupModalSuccess();
+                this.logger.info(`Ticket #${ticketNumber} créé: ${ticketChannel.name} par ${user.tag} (${type})`);
+                
+            } catch (channelError) {
+                this.logger.error('Erreur lors de la création du canal:', channelError);
+                ultimateLock.activeChannels.delete(channelCreationKey);
+                await interaction.editReply({
+                    content: '❌ Une erreur est survenue lors de la création du ticket.'
+                });
+            }
+            
+            // Libérer les verrous
+            ultimateLock.activeChannels.delete(lockKey);
 
         } catch (error) {
             this.logger.error('Erreur lors du traitement du modal:', error);
             
-            // Nettoyer la protection même en cas d'erreur
-            const protections = global.ticketProtections;
-            if (protections && protections.processingModals) {
-                const userModalPattern = `${interaction.user.id}_modal_${interaction.customId}_`;
-                const oldModalKeys = Array.from(protections.processingModals).filter(key => key.startsWith(userModalPattern));
-                oldModalKeys.forEach(key => protections.processingModals.delete(key));
-            }
+            // Nettoyer tous les verrous en cas d'erreur
+            const ultimateLock = global.ULTIMATE_TICKET_LOCK;
+            ultimateLock.activeChannels.delete(lockKey);
             
-            await interaction.editReply({
-                content: '❌ Une erreur est survenue lors de la création du ticket.'
-            });
+            try {
+                await interaction.editReply({
+                    content: '❌ Une erreur est survenue lors de la création du ticket.'
+                });
+            } catch (replyError) {
+                // Ignorer les erreurs de réponse
+            }
         }
     }
 
@@ -675,21 +728,21 @@ ${description}
             const staffRole = guild.roles.cache.get(this.staffRoleId);
             if (!staffRole) return;
 
-            // Protection GLOBALE contre les notifications multiples
-            const notificationKey = `notify_${ticketChannel.id}_${user.id}`;
-            const protections = global.ticketProtections;
+            // PROTECTION ULTRA RADICALE contre les notifications multiples
+            const ultimateLock = global.ULTIMATE_TICKET_LOCK;
+            const notificationKey = `notify_${ticketChannel.id}_${user.id}_${Date.now()}`;
             
-            if (protections.sentNotifications.has(notificationKey)) {
-                this.logger.warn(`⚠️ Notification déjà envoyée pour le ticket ${ticketChannel.name} (utilisateur: ${user.username})`);
+            // Vérifier si une notification pour ce ticket/utilisateur existe déjà
+            const existingNotifications = Array.from(ultimateLock.sentNotifications).filter(key => 
+                key.startsWith(`notify_${ticketChannel.id}_${user.id}_`)
+            );
+            
+            if (existingNotifications.length > 0) {
+                this.logger.warn(`🚫 BLOCAGE NOTIFICATION: Déjà envoyée pour ${ticketChannel.name} (utilisateur: ${user.username})`);
                 return;
             }
             
-            protections.sentNotifications.add(notificationKey);
-            
-            // Nettoyer après 10 minutes au lieu de 5
-            setTimeout(() => {
-                protections.sentNotifications.delete(notificationKey);
-            }, 600000);
+            ultimateLock.sentNotifications.add(notificationKey);
 
             const staffMembers = staffRole.members;
             
@@ -714,20 +767,22 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
                 .setFooter({ text: 'Cliquez sur "Prendre en Charge" dans le ticket pour le traiter' })
                 .setTimestamp();
 
-            // Protection supplémentaire : délai entre chaque envoi
+            // Envoyer UN SEUL message avec délai réduit entre chaque envoi
             let sentCount = 0;
             for (const [id, member] of staffMembers) {
                 try {
-                    // Délai de 100ms entre chaque envoi pour éviter le spam
-                    await new Promise(resolve => setTimeout(resolve, 100 * sentCount));
                     await member.send({ embeds: [notificationEmbed] });
                     sentCount++;
+                    // Petit délai pour éviter le rate limiting
+                    if (sentCount < staffMembers.size) {
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                    }
                 } catch (error) {
                     // Ignorer si on ne peut pas envoyer de MP
                 }
             }
             
-            this.logger.info(`📧 UNE SEULE notification envoyée à ${sentCount} membres du staff pour le ticket ${ticketChannel.name}`);
+            this.logger.info(`📧 NOTIFICATION UNIQUE envoyée à ${sentCount} membres du staff pour le ticket ${ticketChannel.name}`);
 
         } catch (error) {
             this.logger.error('Erreur lors de la notification du staff:', error);
@@ -1907,29 +1962,24 @@ ${status === 'closed' ? '**🔒 Cette suggestion a été fermée sans traitement
 
     async handleRecruitmentModalSubmit(interaction) {
         try {
-            // Protection anti-doublon pour le recrutement AVEC ID unique
-            const recruitmentKey = `${interaction.user.id}_recruitment_submit_${Date.now()}`;
-            const protections = global.ticketProtections;
+            // PROTECTION ULTRA RADICALE POUR LE RECRUTEMENT
+            const ultimateLock = global.ULTIMATE_TICKET_LOCK;
+            const userId = interaction.user.id;
+            const lockKey = `recruitment_${userId}`;
             
-            // Vérifier toutes les clés existantes pour cet utilisateur
-            const userRecruitmentPattern = `${interaction.user.id}_recruitment_submit_`;
-            const existingRecruitmentKeys = Array.from(protections.processingRecruitment).filter(key => key.startsWith(userRecruitmentPattern));
-            
-            if (existingRecruitmentKeys.length > 0) {
-                this.logger.warn(`🚫 Candidature de recrutement en cours pour ${interaction.user.username} (${existingRecruitmentKeys.length} en cours)`);
+            // Vérifier si une candidature est déjà en cours
+            if (ultimateLock.activeChannels.has(lockKey)) {
+                this.logger.warn(`🚫 BLOCAGE RECRUTEMENT: ${interaction.user.username} candidature déjà en cours`);
                 return;
             }
             
-            protections.processingRecruitment.add(recruitmentKey);
+            // Verrouiller cette candidature
+            ultimateLock.activeChannels.add(lockKey);
             
-            const cleanupRecruitment = () => {
-                protections.processingRecruitment.delete(recruitmentKey);
-                // Nettoyer aussi toutes les anciennes clés de cet utilisateur
-                const oldRecruitmentKeys = Array.from(protections.processingRecruitment).filter(key => key.startsWith(userRecruitmentPattern));
-                oldRecruitmentKeys.forEach(key => protections.processingRecruitment.delete(key));
-            };
-            
-            setTimeout(cleanupRecruitment, 30000);
+            // Libérer automatiquement après 30 secondes
+            setTimeout(() => {
+                ultimateLock.activeChannels.delete(lockKey);
+            }, 30000);
 
             const guild = interaction.guild;
             const user = interaction.user;
@@ -1944,50 +1994,70 @@ ${status === 'closed' ? '**🔒 Cette suggestion a été fermée sans traitement
             );
 
             if (existingTickets.size > 0) {
-                return await interaction.editReply({
+                await interaction.editReply({
                     content: `❌ Vous avez déjà un ticket ouvert : ${existingTickets.first()}\n\n💡 Veuillez fermer votre ticket existant avant d'en créer un nouveau.`
                 });
+                ultimateLock.activeChannels.delete(lockKey);
+                return;
             }
 
-            // Créer ou récupérer la catégorie de tickets
-            const ticketCategory = await this.ensureTicketCategory(guild);
-            const config = this.ticketTypes['recruitment'];
+            // PROTECTION CONTRE LA CRÉATION DE CANAUX MULTIPLES POUR LE RECRUTEMENT
+            const channelCreationKey = `creating_recruitment_${userId}`;
+            if (ultimateLock.activeChannels.has(channelCreationKey)) {
+                this.logger.warn(`🚫 CRÉATION DE CANAL RECRUTEMENT DÉJÀ EN COURS pour ${interaction.user.username}`);
+                await interaction.editReply({
+                    content: '❌ Une candidature est déjà en cours de création. Veuillez patienter.'
+                });
+                ultimateLock.activeChannels.delete(lockKey);
+                return;
+            }
+            
+            // Verrouiller la création de canal de recrutement
+            ultimateLock.activeChannels.add(channelCreationKey);
+            
+            try {
+                // Créer ou récupérer la catégorie de tickets
+                const ticketCategory = await this.ensureTicketCategory(guild);
+                const config = this.ticketTypes['recruitment'];
 
-            // Créer le canal de ticket de recrutement
-            const ticketNumber = Date.now().toString().slice(-6);
-            const ticketChannel = await guild.channels.create({
-                name: `👥・recruitment-${user.username}-${ticketNumber}`,
-                type: ChannelType.GuildText,
-                parent: ticketCategory.id,
-                topic: `Candidature Recrutement • ${position} • Créée par ${user.tag}`,
-                permissionOverwrites: [
-                    {
-                        id: guild.id,
-                        deny: [PermissionFlagsBits.ViewChannel]
-                    },
-                    {
-                        id: user.id,
-                        allow: [
-                            PermissionFlagsBits.ViewChannel,
-                            PermissionFlagsBits.SendMessages,
-                            PermissionFlagsBits.ReadMessageHistory,
-                            PermissionFlagsBits.AttachFiles,
-                            PermissionFlagsBits.EmbedLinks
-                        ]
-                    },
-                    {
-                        id: this.staffRoleId,
-                        allow: [
-                            PermissionFlagsBits.ViewChannel,
-                            PermissionFlagsBits.SendMessages,
-                            PermissionFlagsBits.ReadMessageHistory,
-                            PermissionFlagsBits.ManageMessages,
-                            PermissionFlagsBits.AttachFiles,
-                            PermissionFlagsBits.EmbedLinks
-                        ]
-                    }
-                ]
-            });
+                // Créer le canal de ticket de recrutement
+                const ticketNumber = Date.now().toString().slice(-6);
+                const ticketChannel = await guild.channels.create({
+                    name: `👥・recruitment-${user.username}-${ticketNumber}`,
+                    type: ChannelType.GuildText,
+                    parent: ticketCategory.id,
+                    topic: `Candidature Recrutement • ${position} • Créée par ${user.tag}`,
+                    permissionOverwrites: [
+                        {
+                            id: guild.id,
+                            deny: [PermissionFlagsBits.ViewChannel]
+                        },
+                        {
+                            id: user.id,
+                            allow: [
+                                PermissionFlagsBits.ViewChannel,
+                                PermissionFlagsBits.SendMessages,
+                                PermissionFlagsBits.ReadMessageHistory,
+                                PermissionFlagsBits.AttachFiles,
+                                PermissionFlagsBits.EmbedLinks
+                            ]
+                        },
+                        {
+                            id: this.staffRoleId,
+                            allow: [
+                                PermissionFlagsBits.ViewChannel,
+                                PermissionFlagsBits.SendMessages,
+                                PermissionFlagsBits.ReadMessageHistory,
+                                PermissionFlagsBits.ManageMessages,
+                                PermissionFlagsBits.AttachFiles,
+                                PermissionFlagsBits.EmbedLinks
+                            ]
+                        }
+                    ]
+                });
+                
+                // Libérer immédiatement le verrou de création
+                ultimateLock.activeChannels.delete(channelCreationKey);
 
             // Embed de candidature dans le ticket
             const recruitmentEmbed = new EmbedBuilder()
@@ -2065,35 +2135,37 @@ ${availability}
             // Notification spéciale pour le recrutement
             await this.notifyRecruitmentStaff(guild, user, ticketChannel, position, experience, availability);
 
-            await interaction.editReply({
-                content: `✅ **Candidature de recrutement soumise avec succès !** ${ticketChannel}\n🎯 L'équipe RH a été notifiée et vous répondra dans **${config.responseTime}**.`
-            });
+                await interaction.editReply({
+                    content: `✅ **Candidature de recrutement soumise avec succès !** ${ticketChannel}\n🎯 L'équipe RH a été notifiée et vous répondra dans **${config.responseTime}**.`
+                });
 
-            this.logger.info(`Candidature recrutement #${ticketNumber} créée: ${ticketChannel.name} par ${user.tag} pour le poste: ${position}`);
-
-            // Nettoyer la protection après succès
-            const cleanupRecruitmentSuccess = () => {
-                const protections = global.ticketProtections;
-                const userRecruitmentPattern = `${interaction.user.id}_recruitment_submit_`;
-                const oldRecruitmentKeys = Array.from(protections.processingRecruitment).filter(key => key.startsWith(userRecruitmentPattern));
-                oldRecruitmentKeys.forEach(key => protections.processingRecruitment.delete(key));
-            };
-            cleanupRecruitmentSuccess();
+                this.logger.info(`Candidature recrutement #${ticketNumber} créée: ${ticketChannel.name} par ${user.tag} pour le poste: ${position}`);
+                
+            } catch (channelError) {
+                this.logger.error('Erreur lors de la création du canal de recrutement:', channelError);
+                ultimateLock.activeChannels.delete(channelCreationKey);
+                await interaction.editReply({
+                    content: '❌ Une erreur est survenue lors de la soumission de votre candidature.'
+                });
+            }
+            
+            // Libérer les verrous
+            ultimateLock.activeChannels.delete(lockKey);
 
         } catch (error) {
             this.logger.error('Erreur lors du traitement de la candidature de recrutement:', error);
             
-            // Nettoyer la protection même en cas d'erreur
-            const protections = global.ticketProtections;
-            if (protections && protections.processingRecruitment) {
-                const userRecruitmentPattern = `${interaction.user.id}_recruitment_submit_`;
-                const oldRecruitmentKeys = Array.from(protections.processingRecruitment).filter(key => key.startsWith(userRecruitmentPattern));
-                oldRecruitmentKeys.forEach(key => protections.processingRecruitment.delete(key));
-            }
+            // Nettoyer tous les verrous en cas d'erreur
+            const ultimateLock = global.ULTIMATE_TICKET_LOCK;
+            ultimateLock.activeChannels.delete(`recruitment_${interaction.user.id}`);
             
-            await interaction.editReply({
-                content: '❌ Une erreur est survenue lors de la soumission de votre candidature.'
-            });
+            try {
+                await interaction.editReply({
+                    content: '❌ Une erreur est survenue lors de la soumission de votre candidature.'
+                });
+            } catch (replyError) {
+                // Ignorer les erreurs de réponse
+            }
         }
     }
 
@@ -2102,21 +2174,21 @@ ${availability}
             const staffRole = guild.roles.cache.get(this.staffRoleId);
             if (!staffRole) return;
 
-            // Protection GLOBALE contre les notifications multiples pour le recrutement
-            const recruitmentNotificationKey = `notify_recruitment_${ticketChannel.id}_${user.id}`;
-            const protections = global.ticketProtections;
+            // PROTECTION ULTRA RADICALE contre les notifications multiples pour le recrutement
+            const ultimateLock = global.ULTIMATE_TICKET_LOCK;
+            const recruitmentNotificationKey = `notify_recruitment_${ticketChannel.id}_${user.id}_${Date.now()}`;
             
-            if (protections.sentNotifications.has(recruitmentNotificationKey)) {
-                this.logger.warn(`⚠️ Notification de recrutement déjà envoyée pour le ticket ${ticketChannel.name} (utilisateur: ${user.username})`);
+            // Vérifier si une notification pour ce ticket/utilisateur existe déjà
+            const existingNotifications = Array.from(ultimateLock.sentNotifications).filter(key => 
+                key.startsWith(`notify_recruitment_${ticketChannel.id}_${user.id}_`)
+            );
+            
+            if (existingNotifications.length > 0) {
+                this.logger.warn(`🚫 BLOCAGE NOTIFICATION RECRUTEMENT: Déjà envoyée pour ${ticketChannel.name} (utilisateur: ${user.username})`);
                 return;
             }
             
-            protections.sentNotifications.add(recruitmentNotificationKey);
-            
-            // Nettoyer après 10 minutes
-            setTimeout(() => {
-                protections.sentNotifications.delete(recruitmentNotificationKey);
-            }, 600000);
+            ultimateLock.sentNotifications.add(recruitmentNotificationKey);
 
             const staffMembers = staffRole.members;
             
@@ -2144,20 +2216,22 @@ ${availability.substring(0, 300)}${availability.length > 300 ? '...' : ''}
                 .setFooter({ text: 'Cliquez sur "Prendre en Charge" dans le ticket pour le traiter' })
                 .setTimestamp();
 
-            // Protection supplémentaire : délai entre chaque envoi
+            // Envoyer UN SEUL message avec délai réduit
             let sentCount = 0;
             for (const [id, member] of staffMembers) {
                 try {
-                    // Délai de 100ms entre chaque envoi pour éviter le spam
-                    await new Promise(resolve => setTimeout(resolve, 100 * sentCount));
                     await member.send({ embeds: [notificationEmbed] });
                     sentCount++;
+                    // Petit délai pour éviter le rate limiting
+                    if (sentCount < staffMembers.size) {
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                    }
                 } catch (error) {
                     // Ignorer si on ne peut pas envoyer de MP
                 }
             }
             
-            this.logger.info(`📧 UNE SEULE notification de recrutement envoyée à ${sentCount} membres du staff pour le ticket ${ticketChannel.name}`);
+            this.logger.info(`📧 NOTIFICATION RECRUTEMENT UNIQUE envoyée à ${sentCount} membres du staff pour le ticket ${ticketChannel.name}`);
 
         } catch (error) {
             this.logger.error('Erreur lors de la notification du staff pour recrutement:', error);
