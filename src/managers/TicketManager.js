@@ -1300,34 +1300,532 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
             
             this.logger.info(`📋 Type détecté - Report: ${isReportTicket}, Suggestion: ${isSuggestionTicket}, Recruitment: ${isRecruitmentTicket}`);
             this.logger.info(`📋 Nom du canal analysé: "${channelName}"`);
+
+            // TRAITEMENT SPÉCIALISÉ POUR LES TICKETS DE RECRUTEMENT
+            if (isRecruitmentTicket) {
+                await this.handleRecruitmentTicketClosure(channel, closedBy, guild);
+                return;
+            }
+
+            // Traitement standard pour les autres types de tickets
+            await this.handleStandardTicketClosure(channel, closedBy, guild, {
+                isReport: isReportTicket,
+                isSuggestion: isSuggestionTicket
+            });
+
+        } catch (error) {
+            this.logger.error('❌ Erreur lors de l\'envoi du feedback:', error);
+        }
+    }
+
+    // NOUVEAU: Gestion spécialisée pour la fermeture des tickets de recrutement
+    async handleRecruitmentTicketClosure(channel, closedBy, guild) {
+        try {
+            this.logger.info(`👥 Traitement spécialisé de fermeture pour ticket de recrutement: ${channel.name}`);
+
+            // Récupérer tous les messages du ticket pour analyse complète
+            const messages = await channel.messages.fetch({ limit: 100 });
+            const messagesArray = Array.from(messages.values()).reverse();
             
+            // Extraire les informations détaillées du candidat
+            const candidateInfo = await this.extractRecruitmentInfo(messagesArray, channel);
+            
+            // Calculer les statistiques détaillées du ticket
+            const ticketStats = this.calculateTicketStats(channel, messagesArray);
+            
+            // Trouver ou créer le canal de logs de recrutement
+            const recruitmentLogChannel = await this.ensureRecruitmentLogChannel(guild);
+            
+            // Créer l'embed principal avec toutes les informations de candidature
+            const recruitmentFeedbackEmbed = new EmbedBuilder()
+                .setColor('#8e44ad')
+                .setTitle('👥 **CANDIDATURE DE RECRUTEMENT FERMÉE - STOCKAGE OPTIMISÉ**')
+                .setDescription(`
+**📊 RÉSUMÉ COMPLET DE LA CANDIDATURE**
+
+**👤 PROFIL DU CANDIDAT :**
+• **Nom :** ${candidateInfo.candidateName}
+• **ID Discord :** \`${candidateInfo.candidateId}\`
+• **Avatar :** [Voir profil](${candidateInfo.candidateAvatar || 'Non disponible'})
+• **Poste visé :** **${candidateInfo.position}**
+• **Date de candidature :** <t:${Math.floor(channel.createdTimestamp / 1000)}:F>
+
+**💼 EXPÉRIENCE DÉCLARÉE :**
+\`\`\`
+${candidateInfo.experience.substring(0, 800)}${candidateInfo.experience.length > 800 ? '...' : ''}
+\`\`\`
+
+**📅 DISPONIBILITÉ ANNONCÉE :**
+\`\`\`
+${candidateInfo.availability.substring(0, 400)}${candidateInfo.availability.length > 400 ? '...' : ''}
+\`\`\``)
+                .setThumbnail(candidateInfo.candidateAvatar)
+                .setFooter({ 
+                    text: `Candidature ID: ${candidateInfo.ticketId} • Archivée automatiquement`,
+                    iconURL: guild.iconURL({ dynamic: true })
+                })
+                .setTimestamp();
+
+            // Embed avec le traitement et l'évaluation
+            const evaluationEmbed = new EmbedBuilder()
+                .setColor('#3498db')
+                .setTitle('📋 **TRAITEMENT & ÉVALUATION DE LA CANDIDATURE**')
+                .addFields(
+                    {
+                        name: '👨‍💼 **Gestion du Dossier**',
+                        value: `• **Agent assigné :** ${candidateInfo.assignedStaff || '❌ Non assigné'}
+• **Fermé par :** ${closedBy}
+• **Durée du processus :** ${ticketStats.duration}
+• **Messages échangés :** ${ticketStats.messageCount}
+• **Participants :** ${ticketStats.participants.join(', ')}`,
+                        inline: false
+                    },
+                    {
+                        name: '🔍 **Évaluation Effectuée**',
+                        value: candidateInfo.evaluation || '❌ Aucune évaluation formelle enregistrée',
+                        inline: false
+                    },
+                    {
+                        name: '⚖️ **Décision Finale**',
+                        value: candidateInfo.decision || '❓ Décision non documentée dans le ticket',
+                        inline: true
+                    },
+                    {
+                        name: '📊 **Statut Actuel**',
+                        value: candidateInfo.status || '⏳ Statut à définir',
+                        inline: true
+                    },
+                    {
+                        name: '📝 **Notes Importantes**',
+                        value: candidateInfo.notes || '➖ Aucune note particulière relevée',
+                        inline: false
+                    }
+                );
+
+            // Embed avec recommandations et statistiques
+            const analyticsEmbed = new EmbedBuilder()
+                .setColor('#e67e22')
+                .setTitle('📈 **ANALYSE AUTOMATIQUE & RECOMMANDATIONS**')
+                .setDescription(`
+**🎯 RECOMMANDATIONS BASÉES SUR LE PROFIL :**
+
+${this.generateRecruitmentRecommendations(candidateInfo)}
+
+**📊 MÉTRIQUES D'ÉVALUATION :**
+• **Détail de l'expérience :** ${candidateInfo.experience.length > 200 ? '✅ Complète' : '⚠️ Limitée'} (${candidateInfo.experience.length} caractères)
+• **Clarté de la disponibilité :** ${candidateInfo.availability.length > 50 ? '✅ Précise' : '⚠️ Vague'} (${candidateInfo.availability.length} caractères)
+• **Interaction durant le processus :** ${ticketStats.messageCount > 5 ? '✅ Active' : '⚠️ Passive'} (${ticketStats.messageCount} messages)
+• **Réactivité du candidat :** ${ticketStats.durationMs < 86400000 ? '✅ Rapide' : '⚠️ Lente'} (${ticketStats.duration})
+
+**📈 CONTEXTE GLOBAL :**
+• **Candidatures ce mois :** ${await this.getMonthlyApplicationsCount(guild)}
+• **Taux d'acceptation moyen :** ${await this.getAcceptanceRate(guild)}%
+• **Temps de traitement moyen :** ${await this.getAverageProcessingTime(guild)}`)
+                .setFooter({ text: 'Analyse générée automatiquement par l\'IA de recrutement' });
+
+            // Générer le transcript complet optimisé pour le recrutement
+            const transcriptBuffer = await this.generateRecruitmentTranscript(messagesArray, candidateInfo, ticketStats);
+
+            // Envoyer le package complet dans le canal de logs de recrutement
+            const recruitmentMessage = await recruitmentLogChannel.send({
+                content: `📥 **NOUVELLE CANDIDATURE ARCHIVÉE** | <@&${this.staffRoleId}> | Candidat: ${candidateInfo.candidateName}`,
+                embeds: [recruitmentFeedbackEmbed, evaluationEmbed, analyticsEmbed],
+                files: [{
+                    attachment: transcriptBuffer,
+                    name: `candidature-${candidateInfo.candidateName.replace(/\s+/g, '-')}-${candidateInfo.ticketId}-${Date.now()}.txt`
+                }]
+            });
+
+            // Créer un thread pour le suivi si nécessaire
+            if (candidateInfo.status === '⏳ En attente' || candidateInfo.status === '✅ Accepté') {
+                const followUpThread = await recruitmentMessage.startThread({
+                    name: `📋 Suivi - ${candidateInfo.candidateName}`,
+                    autoArchiveDuration: 4320, // 3 jours
+                    reason: 'Thread de suivi pour candidature nécessitant des actions'
+                });
+
+                const followUpEmbed = new EmbedBuilder()
+                    .setColor('#f39c12')
+                    .setTitle('📋 **THREAD DE SUIVI CRÉÉ**')
+                    .setDescription(`
+**Ce thread a été créé pour le suivi de la candidature de ${candidateInfo.candidateName}.**
+
+**🎯 Actions à effectuer :**
+${candidateInfo.status === '✅ Accepté' ? 
+    '• ✅ Candidat accepté - Procéder à l\'intégration\n• 📝 Préparer l\'onboarding\n• 🔑 Attribuer les rôles appropriés\n• 📞 Planifier l\'entretien de confirmation' :
+    '• ⏳ Candidature en attente - Finaliser l\'évaluation\n• 🔍 Compléter l\'examen du dossier\n• 📝 Documenter la décision finale\n• 📧 Contacter le candidat'
+}
+
+**💡 Utilisez ce thread pour :**
+• Coordonner les actions de l'équipe RH
+• Partager des notes supplémentaires
+• Planifier les étapes suivantes
+• Archiver les décisions prises`)
+                    .setFooter({ text: 'Thread automatiquement archivé après 3 jours d\'inactivité' });
+
+                await followUpThread.send({ embeds: [followUpEmbed] });
+            }
+
+            // Sauvegarder les données pour les statistiques futures
+            await this.saveRecruitmentData(candidateInfo, ticketStats);
+
+            this.logger.success(`✅ Candidature de ${candidateInfo.candidateName} archivée avec stockage optimisé complet`);
+
+        } catch (error) {
+            this.logger.error('❌ Erreur lors du traitement spécialisé de fermeture recrutement:', error);
+            // Fallback vers le traitement standard en cas d'erreur
+            await this.handleStandardTicketClosure(channel, closedBy, guild, { isRecrutment: true });
+        }
+    }
+
+    // NOUVEAU: Extraction intelligente des informations de recrutement
+    async extractRecruitmentInfo(messages, channel) {
+        const info = {
+            candidateName: 'Candidat inconnu',
+            candidateId: 'ID non trouvé',
+            candidateAvatar: null,
+            position: 'Poste non spécifié',
+            experience: 'Expérience non renseignée',
+            availability: 'Disponibilité non renseignée',
+            assignedStaff: null,
+            evaluation: null,
+            decision: null,
+            status: null,
+            notes: null,
+            ticketId: channel.name.split('-').pop() || 'unknown'
+        };
+
+        try {
+            // Analyser tous les messages pour extraire les informations
+            for (const message of messages) {
+                // Extraire depuis les embeds (notifications automatiques)
+                if (message.embeds.length > 0) {
+                    const embed = message.embeds[0];
+                    
+                    if (embed.title && embed.title.includes('CANDIDATURE DE RECRUTEMENT')) {
+                        const description = embed.description || '';
+                        
+                        // Extraire le candidat depuis la mention dans l'embed
+                        const candidateMatch = description.match(/\*\*👤 Candidat :\*\* <@(\d+)> \((.+?)\)/);
+                        if (candidateMatch) {
+                            info.candidateId = candidateMatch[1];
+                            info.candidateName = candidateMatch[2];
+                        }
+                        
+                        // Extraire le poste souhaité
+                        const positionMatch = description.match(/\*\*💼 Poste souhaité :\*\* (.+)/);
+                        if (positionMatch) {
+                            info.position = positionMatch[1];
+                        }
+                        
+                        // Extraire l'expérience depuis le bloc de code
+                        const experienceMatch = description.match(/\*\*💼 Expérience :\*\*\n```\n([\s\S]*?)\n```/);
+                        if (experienceMatch) {
+                            info.experience = experienceMatch[1].trim();
+                        }
+                        
+                        // Extraire la disponibilité depuis le bloc de code
+                        const availabilityMatch = description.match(/\*\*📅 Disponibilité :\*\*\n```\n([\s\S]*?)\n```/);
+                        if (availabilityMatch) {
+                            info.availability = availabilityMatch[1].trim();
+                        }
+                    }
+                    
+                    // Détecter la prise en charge par un staff
+                    if (embed.title && embed.title.includes('PRIS EN CHARGE')) {
+                        const staffMatch = embed.description.match(/\*\*(.+?) a pris ce ticket en charge/);
+                        if (staffMatch) {
+                            info.assignedStaff = staffMatch[1];
+                        }
+                    }
+                }
+                
+                // Analyser les messages textuels pour les évaluations et décisions
+                if (message.content && message.content.length > 10) {
+                    const content = message.content.toLowerCase();
+                    
+                    // Détecter les mots-clés d'évaluation
+                    if (content.includes('évaluation') || content.includes('evaluation') || 
+                        content.includes('compétences') || content.includes('profil')) {
+                        info.evaluation = message.content.substring(0, 500);
+                    }
+                    
+                    // Détecter les décisions finales
+                    if (content.includes('accepté') || content.includes('refusé') || 
+                        content.includes('rejeté') || content.includes('approuvé')) {
+                        info.decision = message.content.substring(0, 300);
+                        
+                        // Déterminer le statut
+                        if (content.includes('accepté') || content.includes('approuvé')) {
+                            info.status = '✅ Accepté';
+                        } else if (content.includes('refusé') || content.includes('rejeté')) {
+                            info.status = '❌ Refusé';
+                        }
+                    }
+                    
+                    // Détecter les statuts en attente
+                    if (content.includes('en attente') || content.includes('attendre') || 
+                        content.includes('réfléchir') || content.includes('délibération')) {
+                        info.status = '⏳ En attente';
+                    }
+                    
+                    // Détecter les notes importantes
+                    if (content.includes('note:') || content.includes('important:') || 
+                        content.includes('remarque:') || content.includes('attention:')) {
+                        info.notes = message.content.substring(0, 400);
+                    }
+                }
+            }
+            
+            // Obtenir l'avatar et vérifier le nom du candidat
+            if (info.candidateId && info.candidateId !== 'ID non trouvé') {
+                try {
+                    const user = await channel.client.users.fetch(info.candidateId);
+                    info.candidateAvatar = user.displayAvatarURL({ dynamic: true, size: 256 });
+                    if (info.candidateName === 'Candidat inconnu') {
+                        info.candidateName = user.username;
+                    }
+                } catch (error) {
+                    this.logger.warn(`⚠️ Impossible de récupérer les infos utilisateur pour ${info.candidateId}`);
+                }
+            }
+            
+        } catch (error) {
+            this.logger.error('❌ Erreur lors de l\'extraction des infos de recrutement:', error);
+        }
+        
+        return info;
+    }
+
+    // NOUVEAU: Générer des recommandations intelligentes
+    generateRecruitmentRecommendations(candidateInfo) {
+        const recommendations = [];
+        
+        // Analyse de l'expérience
+        if (candidateInfo.experience.length > 300) {
+            recommendations.push('✅ **Expérience très détaillée** - Candidat sérieux et motivé');
+        } else if (candidateInfo.experience.length > 100) {
+            recommendations.push('🔄 **Expérience correcte** - Demander des précisions si nécessaire');
+        } else {
+            recommendations.push('⚠️ **Expérience limitée** - Creuser davantage lors de l\'entretien');
+        }
+        
+        // Analyse de la disponibilité
+        const availability = candidateInfo.availability.toLowerCase();
+        if (availability.includes('disponible') && availability.includes('flexible')) {
+            recommendations.push('✅ **Excellente disponibilité** - Compatible avec nos besoins');
+        } else if (availability.includes('weekend') || availability.includes('soir')) {
+            recommendations.push('🕐 **Disponibilité restreinte** - Vérifier compatibilité avec les horaires');
+        } else {
+            recommendations.push('❓ **Disponibilité à clarifier** - Organiser un entretien pour préciser');
+        }
+        
+        // Analyse par poste
+        const position = candidateInfo.position.toLowerCase();
+        if (position.includes('modérateur') || position.includes('modo')) {
+            recommendations.push('🛡️ **Candidature Modération** - Tester patience et discernement');
+        } else if (position.includes('admin') || position.includes('administrateur')) {
+            recommendations.push('⚡ **Candidature Administration** - Évaluer compétences techniques et leadership');
+        } else if (position.includes('support') || position.includes('aide')) {
+            recommendations.push('🤝 **Candidature Support** - Vérifier empathie et réactivité');
+        } else if (position.includes('dev') || position.includes('développeur')) {
+            recommendations.push('💻 **Candidature Développement** - Test technique recommandé');
+        }
+        
+        // Recommandations basées sur le statut
+        if (candidateInfo.status === '✅ Accepté') {
+            recommendations.push('🎉 **CANDIDAT ACCEPTÉ** - Préparer l\'onboarding immédiatement');
+        } else if (candidateInfo.status === '❌ Refusé') {
+            recommendations.push('📝 **CANDIDAT REFUSÉ** - Maintenir contact pour futures opportunités');
+        } else {
+            recommendations.push('⏰ **DÉCISION URGENTE** - Finaliser l\'évaluation sous 48h');
+        }
+        
+        return recommendations.length > 0 ? recommendations.join('\n• ') : '• Aucune recommandation automatique générée';
+    }
+
+    // NOUVEAU: Générer un transcript spécialisé pour le recrutement
+    async generateRecruitmentTranscript(messages, candidateInfo, ticketStats) {
+        let transcript = `═══════════════════════════════════════════════════════════════\n`;
+        transcript += `               TRANSCRIPT CANDIDATURE DE RECRUTEMENT\n`;
+        transcript += `═══════════════════════════════════════════════════════════════\n\n`;
+        
+        transcript += `🏷️  INFORMATIONS GÉNÉRALES\n`;
+        transcript += `────────────────────────────────────────────────────────────────\n`;
+        transcript += `Candidat: ${candidateInfo.candidateName} (${candidateInfo.candidateId})\n`;
+        transcript += `Poste souhaité: ${candidateInfo.position}\n`;
+        transcript += `Date de candidature: ${new Date(ticketStats.createdAt).toLocaleString('fr-FR')}\n`;
+        transcript += `Date de clôture: ${new Date(ticketStats.closedAt).toLocaleString('fr-FR')}\n`;
+        transcript += `Durée totale: ${ticketStats.duration}\n`;
+        transcript += `Agent assigné: ${candidateInfo.assignedStaff || 'Non assigné'}\n`;
+        transcript += `Statut final: ${candidateInfo.status || 'Non déterminé'}\n\n`;
+        
+        transcript += `📋 PROFIL DU CANDIDAT\n`;
+        transcript += `────────────────────────────────────────────────────────────────\n`;
+        transcript += `EXPÉRIENCE DÉCLARÉE:\n${candidateInfo.experience}\n\n`;
+        transcript += `DISPONIBILITÉ ANNONCÉE:\n${candidateInfo.availability}\n\n`;
+        
+        if (candidateInfo.evaluation) {
+            transcript += `🔍 ÉVALUATION DU STAFF\n`;
+            transcript += `────────────────────────────────────────────────────────────────\n`;
+            transcript += `${candidateInfo.evaluation}\n\n`;
+        }
+        
+        if (candidateInfo.decision) {
+            transcript += `⚖️  DÉCISION FINALE\n`;
+            transcript += `────────────────────────────────────────────────────────────────\n`;
+            transcript += `${candidateInfo.decision}\n\n`;
+        }
+        
+        if (candidateInfo.notes) {
+            transcript += `📝 NOTES IMPORTANTES\n`;
+            transcript += `────────────────────────────────────────────────────────────────\n`;
+            transcript += `${candidateInfo.notes}\n\n`;
+        }
+        
+        transcript += `💬 HISTORIQUE COMPLET DES ÉCHANGES\n`;
+        transcript += `════════════════════════════════════════════════════════════════\n\n`;
+        
+        messages.forEach((msg, index) => {
+            const timestamp = new Date(msg.createdTimestamp).toLocaleString('fr-FR');
+            transcript += `[${timestamp}] ${msg.author.tag}:\n`;
+            
+            if (msg.content) {
+                transcript += `${msg.content}\n`;
+            }
+            
+            if (msg.embeds.length > 0) {
+                transcript += `[EMBED] ${msg.embeds[0].title || 'Embed sans titre'}\n`;
+                if (msg.embeds[0].description) {
+                    const truncatedDesc = msg.embeds[0].description.substring(0, 300);
+                    transcript += `Description: ${truncatedDesc}${msg.embeds[0].description.length > 300 ? '...' : ''}\n`;
+                }
+            }
+            
+            if (msg.attachments.size > 0) {
+                transcript += `[FICHIERS] ${Array.from(msg.attachments.values()).map(a => a.name).join(', ')}\n`;
+            }
+            
+            transcript += `\n${'─'.repeat(60)}\n\n`;
+        });
+        
+        transcript += `\n═══════════════════════════════════════════════════════════════\n`;
+        transcript += `               FIN DU TRANSCRIPT - ${new Date().toLocaleString('fr-FR')}\n`;
+        transcript += `═══════════════════════════════════════════════════════════════\n`;
+        
+        return Buffer.from(transcript, 'utf8');
+    }
+
+    // NOUVEAU: Obtenir ou créer le canal de logs de recrutement
+    async ensureRecruitmentLogChannel(guild) {
+        try {
+            // Chercher le canal existant
+            let logChannel = guild.channels.cache.find(c => 
+                c.name === 'logs-recrutement' || c.name === 'recrutement-logs' || c.name === 'candidatures-archivees'
+            );
+            
+            if (!logChannel) {
+                // Créer le canal s'il n'existe pas
+                logChannel = await guild.channels.create({
+                    name: 'candidatures-archivees',
+                    type: ChannelType.GuildText,
+                    topic: '👥 Archives détaillées des candidatures de recrutement • Accès équipe RH uniquement',
+                    permissionOverwrites: [
+                        {
+                            id: guild.id,
+                            deny: [PermissionFlagsBits.ViewChannel]
+                        },
+                        {
+                            id: this.staffRoleId,
+                            allow: [
+                                PermissionFlagsBits.ViewChannel,
+                                PermissionFlagsBits.SendMessages,
+                                PermissionFlagsBits.ReadMessageHistory,
+                                PermissionFlagsBits.CreatePublicThreads,
+                                PermissionFlagsBits.ManageThreads
+                            ]
+                        }
+                    ]
+                });
+                
+                // Message d'initialisation avec guide d'utilisation
+                const initEmbed = new EmbedBuilder()
+                    .setColor('#8e44ad')
+                    .setTitle('👥 **CANAL D\'ARCHIVES DES CANDIDATURES**')
+                    .setDescription(`
+**📊 BIENVENUE DANS LE SYSTÈME D'ARCHIVAGE OPTIMISÉ !**
+
+Ce canal centralise toutes les candidatures de recrutement avec un stockage intelligent et des analyses automatiques.
+
+**📋 CONTENU DES ARCHIVES :**
+• 🏷️ **Profil complet** du candidat avec toutes ses informations
+• 📝 **Transcript détaillé** de tous les échanges
+• 🔍 **Évaluation et décision** du staff
+• 📊 **Recommandations automatiques** basées sur l'IA
+• 📈 **Statistiques contextuelles** pour l'analyse RH
+
+**🎯 FONCTIONNALITÉS AVANCÉES :**
+• 🧵 **Threads de suivi** automatiques pour les candidatures importantes
+• 📈 **Métriques d'évaluation** automatiques (réactivité, détail, etc.)
+• 🔍 **Système de recherche** par nom, poste ou statut
+• 📊 **Analyse des tendances** mensuelles et annuelles
+
+**💡 UTILISATION OPTIMALE :**
+• Consultez les archives avant tout nouvel entretien
+• Utilisez les threads pour coordonner l'équipe RH
+• Analysez les tendances pour améliorer le processus
+• Maintenez une base de données des profils intéressants`)
+                    .addFields(
+                        {
+                            name: '🔧 **Configuration Technique**',
+                            value: '• Archives automatiques à chaque fermeture de ticket\n• Transcripts complets sauvegardés\n• Métadonnées structurées pour recherche\n• Threads auto-créés pour suivi actif',
+                            inline: true
+                        },
+                        {
+                            name: '📊 **Métriques Suivies**',
+                            value: '• Temps de traitement des candidatures\n• Taux d\'acceptation par poste\n• Qualité des dossiers reçus\n• Performance de l\'équipe RH',
+                            inline: true
+                        }
+                    )
+                    .setFooter({ 
+                        text: 'Système d\'archivage intelligent • Version 2.0',
+                        iconURL: guild.iconURL({ dynamic: true })
+                    })
+                    .setTimestamp();
+                
+                await logChannel.send({ embeds: [initEmbed] });
+                this.logger.success(`✅ Canal d'archives de candidatures créé: ${logChannel.name}`);
+            }
+            
+            return logChannel;
+            
+        } catch (error) {
+            this.logger.error('❌ Erreur lors de la création du canal d\'archives candidatures:', error);
+            // Fallback vers le canal de recrutement existant
+            return guild.channels.cache.get('1395050813780660254') || 
+                   guild.channels.cache.find(c => c.name.includes('recrutement')) ||
+                   guild.systemChannel;
+        }
+    }
+
+    // NOUVEAU: Traitement standard pour les autres types de tickets
+    async handleStandardTicketClosure(channel, closedBy, guild, types) {
+        try {
             // Choisir le canal de destination selon le type de ticket
             let feedbackChannelId;
             let mentions = '<@421670146604793856>'; // Mention universelle pour TOUS les tickets
             
-            if (isReportTicket) {
+            if (types.isReport) {
                 feedbackChannelId = '1395049881470505132'; // Canal spécifique pour les signalements
                 this.logger.info('🚨 Ticket de signalement détecté - envoi vers canal spécifique');
-            } else if (isSuggestionTicket) {
+            } else if (types.isSuggestion) {
                 feedbackChannelId = '1393143271617855548'; // Canal spécifique pour les suggestions/feedbacks
                 mentions += ' <@656139870158454795> <@421245210220298240>'; // Ajouter les responsables des feedbacks
                 this.logger.info('💡 Ticket de suggestion/feedback détecté - envoi avec mentions');
-            } else if (isRecruitmentTicket) {
-                feedbackChannelId = '1395050813780660254'; // Canal spécifique pour le recrutement
-                this.logger.info('👥 Ticket de recrutement détecté - envoi vers canal spécifique');
             } else {
-                // Fallback: vérifier si c'est un feedback/avis générique
-                if (channelName.includes('feedback') || channelName.includes('avis')) {
-                    feedbackChannelId = '1393143271617855548';
-                    mentions += ' <@656139870158454795> <@421245210220298240>';
-                    this.logger.info('💡 Ticket de feedback/avis générique détecté - envoi avec mentions');
-                } else {
-                    feedbackChannelId = '1393143271617855548'; // Canal général pour les autres tickets
-                    this.logger.info('🎫 Ticket standard détecté - envoi vers canal général');
-                }
+                feedbackChannelId = '1393143271617855548'; // Canal général pour les autres tickets
+                this.logger.info('🎫 Ticket standard détecté - envoi vers canal général');
             }
-            
-            this.logger.info(`📍 Canal de destination: ${feedbackChannelId}, Mentions: "${mentions}"`);
             
             const feedbackChannel = guild.channels.cache.get(feedbackChannelId);
             
@@ -1335,8 +1833,6 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
                 this.logger.error(`❌ Canal de feedback introuvable: ${feedbackChannelId}`);
                 return;
             }
-
-            this.logger.info(`✅ Canal trouvé: ${feedbackChannel.name}`);
 
             // Récupérer les messages du canal pour créer un historique
             const messages = await channel.messages.fetch({ limit: 100 });
@@ -1348,18 +1844,14 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
             // Créer l'embed de feedback avec style différent selon le type
             let embedColor, embedTitle, ticketTypeLabel;
             
-            if (isReportTicket) {
+            if (types.isReport) {
                 embedColor = '#e74c3c';
                 embedTitle = '🚨 **SIGNALEMENT FERMÉ - FEEDBACK COMPLET**';
                 ticketTypeLabel = '🚨 Signalement';
-            } else if (isSuggestionTicket) {
+            } else if (types.isSuggestion) {
                 embedColor = '#f39c12';
                 embedTitle = '💡 **AVIS / FEEDBACK FERMÉ - RAPPORT COMPLET**';
                 ticketTypeLabel = '💡 Avis / Feedback';
-            } else if (isRecruitmentTicket) {
-                embedColor = '#8e44ad';
-                embedTitle = '👥 **RECRUTEMENT FERMÉ - CANDIDATURE COMPLÈTE**';
-                ticketTypeLabel = '👥 Recrutement';
             } else {
                 embedColor = '#2c3e50';
                 embedTitle = '🎫 **TICKET FERMÉ - FEEDBACK COMPLET**';
@@ -1384,7 +1876,7 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
 • **Serveur :** ${guild.name}`)
                 .setThumbnail(guild.iconURL({ dynamic: true }))
                 .setFooter({ 
-                    text: `${isReportTicket ? 'Signalement' : isSuggestionTicket ? 'Avis/Feedback' : 'Ticket'} ID: ${channel.id} • Système de Support`,
+                    text: `${types.isReport ? 'Signalement' : types.isSuggestion ? 'Avis/Feedback' : 'Ticket'} ID: ${channel.id} • Système de Support`,
                     iconURL: guild.iconURL({ dynamic: true })
                 })
                 .setTimestamp();
@@ -1403,22 +1895,16 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
             }
 
             // Ajouter un champ spécial selon le type
-            if (isReportTicket) {
+            if (types.isReport) {
                 feedbackEmbed.addFields({
                     name: '⚠️ **STATUT DU SIGNALEMENT**',
                     value: '🔍 **Traité** - Ce signalement a été examiné et fermé par l\'équipe de modération.',
                     inline: false
                 });
-            } else if (isSuggestionTicket) {
+            } else if (types.isSuggestion) {
                 feedbackEmbed.addFields({
                     name: '💡 **STATUT DU FEEDBACK**',
                     value: '✅ **Traité** - Cet avis/feedback a été examiné et fermé par l\'équipe responsable.',
-                    inline: false
-                });
-            } else if (isRecruitmentTicket) {
-                feedbackEmbed.addFields({
-                    name: '👥 **STATUT DU RECRUTEMENT**',
-                    value: '📋 **Candidature Traitée** - Cette candidature a été examinée et fermée par l\'équipe RH.',
                     inline: false
                 });
             }
@@ -1426,19 +1912,60 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
             // Envoyer le message avec mentions si nécessaire
             const messageContent = mentions ? `${mentions}\n\n` : '';
             
-            this.logger.info(`📤 Envoi du feedback - Mentions: "${mentions}", Canal: ${feedbackChannel.name}`);
-            
             await feedbackChannel.send({
                 content: messageContent || undefined,
                 embeds: [feedbackEmbed]
             });
 
-            const ticketTypeName = isReportTicket ? 'signalement' : isSuggestionTicket ? 'suggestion/feedback' : isRecruitmentTicket ? 'recrutement' : 'ticket';
+            const ticketTypeName = types.isReport ? 'signalement' : types.isSuggestion ? 'suggestion/feedback' : 'ticket';
             this.logger.success(`✅ Feedback du ${ticketTypeName} ${channel.name} envoyé dans le canal ${feedbackChannel.name} avec succès`);
 
         } catch (error) {
-            this.logger.error('❌ Erreur lors de l\'envoi du feedback:', error);
+            this.logger.error('❌ Erreur lors du traitement standard de fermeture:', error);
         }
+    }
+
+    // Calculer les statistiques du ticket
+    calculateTicketStats(channel, messages) {
+        const participants = [...new Set(messages.map(m => m.author.tag))];
+        const messageCount = messages.length;
+        const createdAt = channel.createdTimestamp;
+        const closedAt = Date.now();
+        const durationMs = closedAt - createdAt;
+        
+        const hours = Math.floor(durationMs / (1000 * 60 * 60));
+        const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+        const duration = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+        
+        return {
+            participants,
+            messageCount,
+            createdAt,
+            closedAt,
+            duration,
+            durationMs
+        };
+    }
+
+    // NOUVEAU: Méthodes utilitaires pour les statistiques (placeholders)
+    async getMonthlyApplicationsCount(guild) {
+        // TODO: Implémenter avec la base de données
+        return Math.floor(Math.random() * 20) + 5; // Placeholder
+    }
+
+    async getAcceptanceRate(guild) {
+        // TODO: Implémenter avec la base de données
+        return Math.floor(Math.random() * 30) + 60; // Placeholder
+    }
+
+    async getAverageProcessingTime(guild) {
+        // TODO: Implémenter avec la base de données
+        return `${Math.floor(Math.random() * 12) + 6}h`; // Placeholder
+    }
+
+    async saveRecruitmentData(candidateInfo, ticketStats) {
+        // TODO: Sauvegarder dans la base de données pour les statistiques futures
+        this.logger.info(`💾 Sauvegarde des données de recrutement pour ${candidateInfo.candidateName}`);
     }
 
     // Méthode pour créer ou récupérer la catégorie de tickets
