@@ -725,20 +725,46 @@ ${description}
 
     async notifyStaff(guild, user, ticketChannel, config, subject, description, priority) {
         try {
-            const staffRole = guild.roles.cache.get(this.staffRoleId);
-            if (!staffRole) return;
+            // PROTECTION ATOMIQUE ULTRA RADICALE - Un seul thread à la fois
+            const globalLockKey = `ATOMIC_NOTIFY_${ticketChannel.id}`;
+            
+            // Vérification atomique avec une clé unique basée sur le canal
+            if (global[globalLockKey]) {
+                this.logger.warn(`🚫 VERROU ATOMIQUE: Notification déjà en cours pour ${ticketChannel.name}`);
+                return;
+            }
+            
+            // Verrouillage atomique immédiat
+            global[globalLockKey] = {
+                locked: true,
+                timestamp: Date.now(),
+                user: user.id,
+                channel: ticketChannel.id
+            };
+            
+            // Auto-nettoyage après 30 secondes
+            setTimeout(() => {
+                delete global[globalLockKey];
+            }, 30000);
 
-            // PROTECTION ULTRA RADICALE contre les notifications multiples
+            const staffRole = guild.roles.cache.get(this.staffRoleId);
+            if (!staffRole) {
+                delete global[globalLockKey];
+                return;
+            }
+
+            // Vérification supplémentaire avec le système existant
             const ultimateLock = global.ULTIMATE_TICKET_LOCK;
             const notificationKey = `notify_${ticketChannel.id}_${user.id}_${Date.now()}`;
             
-            // Vérifier si une notification pour ce ticket/utilisateur existe déjà
+            // Double vérification pour être absolument sûr
             const existingNotifications = Array.from(ultimateLock.sentNotifications).filter(key => 
-                key.startsWith(`notify_${ticketChannel.id}_${user.id}_`)
+                key.includes(`_${ticketChannel.id}_${user.id}_`)
             );
             
             if (existingNotifications.length > 0) {
-                this.logger.warn(`🚫 BLOCAGE NOTIFICATION: Déjà envoyée pour ${ticketChannel.name} (utilisateur: ${user.username})`);
+                this.logger.warn(`🚫 DOUBLE VÉRIFICATION: Notification déjà envoyée pour ${ticketChannel.name}`);
+                delete global[globalLockKey];
                 return;
             }
             
@@ -767,25 +793,41 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
                 .setFooter({ text: 'Cliquez sur "Prendre en Charge" dans le ticket pour le traiter' })
                 .setTimestamp();
 
-            // Envoyer UN SEUL message avec délai réduit entre chaque envoi
+            // Envoi séquentiel avec protection contre les doublons
             let sentCount = 0;
+            const sentTo = new Set(); // Protection contre l'envoi multiple au même membre
+            
             for (const [id, member] of staffMembers) {
+                // Vérifier qu'on n'a pas déjà envoyé à ce membre
+                if (sentTo.has(id)) {
+                    continue;
+                }
+                
                 try {
                     await member.send({ embeds: [notificationEmbed] });
+                    sentTo.add(id);
                     sentCount++;
-                    // Petit délai pour éviter le rate limiting
+                    this.logger.info(`📧 Notification envoyée à ${member.user.tag}`);
+                    
+                    // Délai entre chaque envoi pour éviter le rate limiting
                     if (sentCount < staffMembers.size) {
-                        await new Promise(resolve => setTimeout(resolve, 50));
+                        await new Promise(resolve => setTimeout(resolve, 200));
                     }
                 } catch (error) {
-                    // Ignorer si on ne peut pas envoyer de MP
+                    this.logger.warn(`⚠️ Impossible d'envoyer MP à ${member.user.tag}`);
                 }
             }
             
-            this.logger.info(`📧 NOTIFICATION UNIQUE envoyée à ${sentCount} membres du staff pour le ticket ${ticketChannel.name}`);
+            this.logger.success(`✅ NOTIFICATION ATOMIQUE UNIQUE envoyée à ${sentCount} membres du staff pour ${ticketChannel.name}`);
+            
+            // Libérer le verrou atomique après succès
+            delete global[globalLockKey];
 
         } catch (error) {
-            this.logger.error('Erreur lors de la notification du staff:', error);
+            this.logger.error('Erreur lors de la notification atomique du staff:', error);
+            // Toujours libérer le verrou en cas d'erreur
+            const globalLockKey = `ATOMIC_NOTIFY_${ticketChannel.id}`;
+            delete global[globalLockKey];
         }
     }
 
@@ -2182,20 +2224,46 @@ ${availability}
 
     async notifyRecruitmentStaff(guild, user, ticketChannel, position, experience, availability) {
         try {
-            const staffRole = guild.roles.cache.get(this.staffRoleId);
-            if (!staffRole) return;
+            // PROTECTION ATOMIQUE ULTRA RADICALE pour le recrutement
+            const globalLockKey = `ATOMIC_NOTIFY_RECRUITMENT_${ticketChannel.id}`;
+            
+            // Vérification atomique avec une clé unique basée sur le canal
+            if (global[globalLockKey]) {
+                this.logger.warn(`🚫 VERROU ATOMIQUE RECRUTEMENT: Notification déjà en cours pour ${ticketChannel.name}`);
+                return;
+            }
+            
+            // Verrouillage atomique immédiat
+            global[globalLockKey] = {
+                locked: true,
+                timestamp: Date.now(),
+                user: user.id,
+                channel: ticketChannel.id
+            };
+            
+            // Auto-nettoyage après 30 secondes
+            setTimeout(() => {
+                delete global[globalLockKey];
+            }, 30000);
 
-            // PROTECTION ULTRA RADICALE contre les notifications multiples pour le recrutement
+            const staffRole = guild.roles.cache.get(this.staffRoleId);
+            if (!staffRole) {
+                delete global[globalLockKey];
+                return;
+            }
+
+            // Vérification supplémentaire avec le système existant
             const ultimateLock = global.ULTIMATE_TICKET_LOCK;
             const recruitmentNotificationKey = `notify_recruitment_${ticketChannel.id}_${user.id}_${Date.now()}`;
             
-            // Vérifier si une notification pour ce ticket/utilisateur existe déjà
+            // Double vérification pour être absolument sûr
             const existingNotifications = Array.from(ultimateLock.sentNotifications).filter(key => 
-                key.startsWith(`notify_recruitment_${ticketChannel.id}_${user.id}_`)
+                key.includes(`_recruitment_${ticketChannel.id}_${user.id}_`)
             );
             
             if (existingNotifications.length > 0) {
-                this.logger.warn(`🚫 BLOCAGE NOTIFICATION RECRUTEMENT: Déjà envoyée pour ${ticketChannel.name} (utilisateur: ${user.username})`);
+                this.logger.warn(`🚫 DOUBLE VÉRIFICATION RECRUTEMENT: Notification déjà envoyée pour ${ticketChannel.name}`);
+                delete global[globalLockKey];
                 return;
             }
             
@@ -2227,25 +2295,41 @@ ${availability.substring(0, 300)}${availability.length > 300 ? '...' : ''}
                 .setFooter({ text: 'Cliquez sur "Prendre en Charge" dans le ticket pour le traiter' })
                 .setTimestamp();
 
-            // Envoyer UN SEUL message avec délai réduit
+            // Envoi séquentiel avec protection contre les doublons
             let sentCount = 0;
+            const sentTo = new Set(); // Protection contre l'envoi multiple au même membre
+            
             for (const [id, member] of staffMembers) {
+                // Vérifier qu'on n'a pas déjà envoyé à ce membre
+                if (sentTo.has(id)) {
+                    continue;
+                }
+                
                 try {
                     await member.send({ embeds: [notificationEmbed] });
+                    sentTo.add(id);
                     sentCount++;
-                    // Petit délai pour éviter le rate limiting
+                    this.logger.info(`📧 Notification recrutement envoyée à ${member.user.tag}`);
+                    
+                    // Délai entre chaque envoi pour éviter le rate limiting
                     if (sentCount < staffMembers.size) {
-                        await new Promise(resolve => setTimeout(resolve, 50));
+                        await new Promise(resolve => setTimeout(resolve, 200));
                     }
                 } catch (error) {
-                    // Ignorer si on ne peut pas envoyer de MP
+                    this.logger.warn(`⚠️ Impossible d'envoyer MP recrutement à ${member.user.tag}`);
                 }
             }
             
-            this.logger.info(`📧 NOTIFICATION RECRUTEMENT UNIQUE envoyée à ${sentCount} membres du staff pour le ticket ${ticketChannel.name}`);
+            this.logger.success(`✅ NOTIFICATION RECRUTEMENT ATOMIQUE UNIQUE envoyée à ${sentCount} membres du staff pour ${ticketChannel.name}`);
+            
+            // Libérer le verrou atomique après succès
+            delete global[globalLockKey];
 
         } catch (error) {
-            this.logger.error('Erreur lors de la notification du staff pour recrutement:', error);
+            this.logger.error('Erreur lors de la notification atomique du staff pour recrutement:', error);
+            // Toujours libérer le verrou en cas d'erreur
+            const globalLockKey = `ATOMIC_NOTIFY_RECRUITMENT_${ticketChannel.id}`;
+            delete global[globalLockKey];
         }
     }
 }
