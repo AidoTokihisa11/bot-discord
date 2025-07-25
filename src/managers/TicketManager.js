@@ -1627,7 +1627,7 @@ ${improvement ? `**💡 Suggestions d'amélioration :**\n${improvement}` : ''}
         try {
             const channel = interaction.channel;
             const guild = interaction.guild;
-            const notificationChannelId = '1368933588976013392';
+            const notificationChannelId = '1393143271617855548';
             
             // Récupérer les informations de la suggestion depuis le nom du canal
             const suggestionInfo = this.extractSuggestionInfo(channel);
@@ -1704,7 +1704,10 @@ ${status === 'approved' ?
                             .setFooter({ text: `Système de suggestions • ${guild.name}` })
                             .setTimestamp();
 
-                        await notificationChannel.send({ embeds: [notificationEmbed] });
+                        await notificationChannel.send({ 
+                            content: '<@656139870158454795> <@421245210220298240>',
+                            embeds: [notificationEmbed] 
+                        });
                         this.logger.info(`📢 Notification envoyée dans le salon ${notificationChannelId} pour suggestion ${status}`);
                     } else {
                         this.logger.warn(`⚠️ Canal de notification ${notificationChannelId} non trouvé`);
