@@ -119,6 +119,9 @@ class ButtonHandler {
                 case 'ticket_appeal':
                     await ticketManager.handleTicketCreation(interaction, 'appeal');
                     break;
+                case 'ticket_recruitment':
+                    await ticketManager.handleTicketCreation(interaction, 'recruitment');
+                    break;
                     
                 // Boutons d'actions rapides
                 case 'ticket_faq':

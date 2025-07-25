@@ -28,6 +28,13 @@ export async function handleModal(interaction) {
             }
             await interaction.client.ticketManager.handleSuggestionModalSubmit(interaction);
         }
+        // Modals de recrutement
+        else if (customId.startsWith('recruitment_modal_')) {
+            if (!interaction.client.ticketManager) {
+                interaction.client.ticketManager = new TicketManager(interaction.client);
+            }
+            await interaction.client.ticketManager.handleRecruitmentModalSubmit(interaction);
+        }
         // Modal d'ajout d'utilisateur
         else if (customId === 'add_user_modal') {
             if (!interaction.client.ticketManager) {
