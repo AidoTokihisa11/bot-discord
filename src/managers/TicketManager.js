@@ -126,18 +126,18 @@ class TicketManager {
             return true;
             
         } catch (error) {
-            if (error.code === 'InteractionAlreadyReplied') {
+            if (error.code === 'InteractionAlreadyReplied' || error.code === 'INTERACTION_ALREADY_REPLIED') {
                 this.logger.warn('⚠️ Interaction déjà répondue lors de safeInteractionReply');
                 return false;
             }
             
-            if (error.code === 10062) {
+            if (error.code === 10062 || error.code === 'UNKNOWN_INTERACTION') {
                 this.logger.warn('⏰ Interaction expirée lors de safeInteractionReply');
                 return false;
             }
             
             this.logger.error('Erreur lors de safeInteractionReply:', error);
-            throw error;
+            return false;
         }
     }
 
@@ -992,6 +992,12 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
 
     async closeTicket(interaction) {
         try {
+            // Vérification immédiate de l'état de l'interaction
+            if (interaction.replied || interaction.deferred) {
+                this.logger.warn('⚠️ Interaction déjà traitée dans closeTicket');
+                return;
+            }
+
             const channel = interaction.channel;
             
             const confirmEmbed = new EmbedBuilder()
@@ -1022,14 +1028,37 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
                         .setEmoji('❌')
                 );
 
-            await interaction.reply({
-                embeds: [confirmEmbed],
-                components: [confirmRow],
-                flags: MessageFlags.Ephemeral
-            });
+            // Tentative de réponse avec gestion d'erreur
+            try {
+                await interaction.reply({
+                    embeds: [confirmEmbed],
+                    components: [confirmRow],
+                    flags: MessageFlags.Ephemeral
+                });
+            } catch (replyError) {
+                if (replyError.code === 10062) {
+                    this.logger.warn('⏰ Interaction expirée lors de closeTicket - envoi message direct');
+                    // Fallback : envoyer un message normal dans le canal
+                    await channel.send({
+                        content: `${interaction.user} veut fermer ce ticket.`,
+                        embeds: [confirmEmbed],
+                        components: [confirmRow]
+                    });
+                } else {
+                    throw replyError;
+                }
+            }
 
         } catch (error) {
             this.logger.error('Erreur lors de la fermeture du ticket:', error);
+            // Tentative d'envoi d'un message d'erreur direct dans le canal
+            try {
+                await interaction.channel.send({
+                    content: `❌ ${interaction.user}, une erreur est survenue lors de la fermeture du ticket.`
+                });
+            } catch (fallbackError) {
+                this.logger.error('Impossible d\'envoyer le message de fallback:', fallbackError);
+            }
         }
     }
 
@@ -1073,10 +1102,28 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
                 .setFooter({ text: 'Ticket assigné avec succès' })
                 .setTimestamp();
 
-            await this.safeInteractionReply(interaction, { embeds: [claimEmbed] });
+            // Utiliser safeInteractionReply qui gère déjà les timeouts
+            const success = await this.safeInteractionReply(interaction, { embeds: [claimEmbed] });
+            
+            if (!success) {
+                // Si l'interaction a échoué, envoyer un message direct dans le canal
+                await channel.send({
+                    content: `✋ **${staff} a pris ce ticket en charge !**`,
+                    embeds: [claimEmbed]
+                });
+            }
 
         } catch (error) {
             this.logger.error('Erreur lors de la prise en charge:', error);
+            
+            // Fallback d'urgence : message dans le canal
+            try {
+                await interaction.channel.send({
+                    content: `✋ ${interaction.user} a pris ce ticket en charge.`
+                });
+            } catch (fallbackError) {
+                this.logger.error('Impossible d\'envoyer le message de fallback:', fallbackError);
+            }
         }
     }
 
@@ -1242,33 +1289,70 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
                 .setFooter({ text: 'Fermeture automatique dans 10 secondes' })
                 .setTimestamp();
 
-            await interaction.update({
-                embeds: [closingEmbed],
-                components: []
-            });
-
-            // Envoyer le feedback complet dans le canal de logs
-            await this.sendTicketFeedback(channel, interaction.user, guild);
-
-            // Supprimer le canal après 10 secondes
-            setTimeout(async () => {
-                try {
-                    await channel.delete('Ticket fermé');
-                } catch (error) {
-                    this.logger.error('Erreur lors de la suppression du canal:', error);
+            // Tentative de mise à jour avec gestion d'erreur d'expiration
+            let updateSuccess = false;
+            try {
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.update({
+                        embeds: [closingEmbed],
+                        components: []
+                    });
+                    updateSuccess = true;
+                } else {
+                    this.logger.warn('⚠️ Interaction déjà traitée dans handleConfirmClose');
                 }
-            }, 10000);
+            } catch (updateError) {
+                if (updateError.code === 10062) {
+                    this.logger.warn('⏰ Interaction expirée lors de handleConfirmClose - envoi message direct');
+                    // Fallback : envoyer un nouveau message dans le canal
+                    await channel.send({
+                        content: `🔒 **${interaction.user} a confirmé la fermeture du ticket**`,
+                        embeds: [closingEmbed]
+                    });
+                    updateSuccess = true;
+                } else {
+                    throw updateError;
+                }
+            }
+
+            if (updateSuccess) {
+                // Envoyer le feedback complet dans le canal de logs (de manière asynchrone)
+                this.sendTicketFeedback(channel, interaction.user, guild).catch(error => {
+                    this.logger.error('Erreur lors de l\'envoi du feedback:', error);
+                });
+
+                // Supprimer le canal après 10 secondes
+                setTimeout(async () => {
+                    try {
+                        this.logger.info(`🗑️ Suppression du ticket: ${channel.name}`);
+                        await channel.delete('Ticket fermé');
+                        this.logger.success(`✅ Ticket ${channel.name} supprimé avec succès`);
+                    } catch (deleteError) {
+                        this.logger.error(`❌ Erreur lors de la suppression du canal ${channel.name}:`, deleteError);
+                    }
+                }, 10000);
+            }
 
         } catch (error) {
             this.logger.error('Erreur lors de la fermeture confirmée:', error);
+            
+            // Fallback d'urgence : message dans le canal
+            try {
+                await interaction.channel.send({
+                    content: `❌ ${interaction.user}, une erreur est survenue lors de la fermeture. Le ticket reste ouvert.`
+                });
+            } catch (fallbackError) {
+                this.logger.error('Impossible d\'envoyer le message de fallback:', fallbackError);
+            }
         }
     }
 
     async handleCancelClose(interaction) {
-        const cancelEmbed = new EmbedBuilder()
-            .setColor('#2ecc71')
-            .setTitle('✅ **FERMETURE ANNULÉE**')
-            .setDescription(`
+        try {
+            const cancelEmbed = new EmbedBuilder()
+                .setColor('#2ecc71')
+                .setTitle('✅ **FERMETURE ANNULÉE**')
+                .setDescription(`
 **La fermeture du ticket a été annulée.**
 
 Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
@@ -1277,13 +1361,44 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
 • Continuer la conversation
 • Utiliser les boutons d'actions
 • Fermer plus tard si nécessaire`)
-            .setFooter({ text: 'Ticket toujours actif' })
-            .setTimestamp();
+                .setFooter({ text: 'Ticket toujours actif' })
+                .setTimestamp();
 
-        await interaction.update({
-            embeds: [cancelEmbed],
-            components: []
-        });
+            // Tentative de mise à jour avec gestion d'erreur d'expiration
+            try {
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.update({
+                        embeds: [cancelEmbed],
+                        components: []
+                    });
+                } else {
+                    this.logger.warn('⚠️ Interaction déjà traitée dans handleCancelClose');
+                }
+            } catch (updateError) {
+                if (updateError.code === 10062) {
+                    this.logger.warn('⏰ Interaction expirée lors de handleCancelClose - envoi message direct');
+                    // Fallback : envoyer un nouveau message dans le canal
+                    await interaction.channel.send({
+                        content: `✅ **${interaction.user} a annulé la fermeture du ticket**`,
+                        embeds: [cancelEmbed]
+                    });
+                } else {
+                    throw updateError;
+                }
+            }
+
+        } catch (error) {
+            this.logger.error('Erreur lors de l\'annulation de fermeture:', error);
+            
+            // Fallback d'urgence : message dans le canal
+            try {
+                await interaction.channel.send({
+                    content: `✅ ${interaction.user} a annulé la fermeture du ticket.`
+                });
+            } catch (fallbackError) {
+                this.logger.error('Impossible d\'envoyer le message de fallback:', fallbackError);
+            }
+        }
     }
 
     // Fonction pour envoyer le feedback complet du ticket
