@@ -991,6 +991,7 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
     async handleConfirmClose(interaction) {
         try {
             const channel = interaction.channel;
+            const guild = interaction.guild;
             
             const closingEmbed = new EmbedBuilder()
                 .setColor('#e74c3c')
@@ -1013,6 +1014,9 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
                 embeds: [closingEmbed],
                 components: []
             });
+
+            // Envoyer le feedback complet dans le canal de logs
+            await this.sendTicketFeedback(channel, interaction.user, guild);
 
             // Supprimer le canal après 10 secondes
             setTimeout(async () => {
@@ -1048,6 +1052,96 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
             embeds: [cancelEmbed],
             components: []
         });
+    }
+
+    // Fonction pour envoyer le feedback complet du ticket
+    async sendTicketFeedback(channel, closedBy, guild) {
+        try {
+            // Détecter le type de ticket à partir du nom du canal
+            const channelName = channel.name.toLowerCase();
+            const isReportTicket = channelName.includes('report') || channelName.includes('signalement');
+            
+            // Choisir le canal de destination selon le type de ticket
+            let feedbackChannelId;
+            if (isReportTicket) {
+                feedbackChannelId = '1395049881470505132'; // Canal spécifique pour les signalements
+            } else {
+                feedbackChannelId = '1393143271617855548'; // Canal général pour les autres tickets
+            }
+            
+            const feedbackChannel = guild.channels.cache.get(feedbackChannelId);
+            
+            if (!feedbackChannel) {
+                this.logger.error(`Canal de feedback introuvable: ${feedbackChannelId}`);
+                return;
+            }
+
+            // Récupérer les messages du canal pour créer un historique
+            const messages = await channel.messages.fetch({ limit: 100 });
+            const messageHistory = messages.reverse().map(msg => {
+                const timestamp = msg.createdAt.toLocaleString('fr-FR');
+                return `**[${timestamp}] ${msg.author.tag}:** ${msg.content || '*[Embed ou fichier joint]*'}`;
+            }).join('\n');
+
+            // Créer l'embed de feedback avec style différent pour les signalements
+            const embedColor = isReportTicket ? '#e74c3c' : '#2c3e50'; // Rouge pour signalements, gris pour autres
+            const embedTitle = isReportTicket ? '🚨 **SIGNALEMENT FERMÉ - FEEDBACK COMPLET**' : '🎫 **TICKET FERMÉ - FEEDBACK COMPLET**';
+            
+            const feedbackEmbed = new EmbedBuilder()
+                .setColor(embedColor)
+                .setTitle(embedTitle)
+                .setDescription(`
+**📋 INFORMATIONS DU TICKET :**
+• **Canal :** ${channel.name}
+• **Type :** ${isReportTicket ? '🚨 Signalement' : '🎫 Ticket Standard'}
+• **Créé le :** <t:${Math.floor(channel.createdTimestamp / 1000)}:F>
+• **Fermé le :** <t:${Math.floor(Date.now() / 1000)}:F>
+• **Fermé par :** ${closedBy}
+• **Durée totale :** <t:${Math.floor(channel.createdTimestamp / 1000)}:R>
+
+**📊 STATISTIQUES :**
+• **Nombre de messages :** ${messages.size}
+• **Participants :** ${new Set(messages.map(m => m.author.id)).size}
+• **Serveur :** ${guild.name}`)
+                .setThumbnail(guild.iconURL({ dynamic: true }))
+                .setFooter({ 
+                    text: `${isReportTicket ? 'Signalement' : 'Ticket'} ID: ${channel.id} • Système de Support`,
+                    iconURL: guild.iconURL({ dynamic: true })
+                })
+                .setTimestamp();
+
+            // Ajouter l'historique des messages (limité à 1024 caractères par champ)
+            if (messageHistory.length > 0) {
+                const truncatedHistory = messageHistory.length > 1000 
+                    ? messageHistory.substring(0, 1000) + '...\n*[Historique tronqué]*'
+                    : messageHistory;
+                
+                feedbackEmbed.addFields({
+                    name: '💬 **HISTORIQUE DES MESSAGES**',
+                    value: truncatedHistory || '*Aucun message trouvé*',
+                    inline: false
+                });
+            }
+
+            // Ajouter un champ spécial pour les signalements
+            if (isReportTicket) {
+                feedbackEmbed.addFields({
+                    name: '⚠️ **STATUT DU SIGNALEMENT**',
+                    value: '🔍 **Traité** - Ce signalement a été examiné et fermé par l\'équipe de modération.',
+                    inline: false
+                });
+            }
+
+            await feedbackChannel.send({
+                embeds: [feedbackEmbed]
+            });
+
+            const ticketType = isReportTicket ? 'signalement' : 'ticket';
+            this.logger.success(`Feedback du ${ticketType} ${channel.name} envoyé dans le canal de logs approprié`);
+
+        } catch (error) {
+            this.logger.error('Erreur lors de l\'envoi du feedback:', error);
+        }
     }
 
     // Méthode pour créer ou récupérer la catégorie de tickets
