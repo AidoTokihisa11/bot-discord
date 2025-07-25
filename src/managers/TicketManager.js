@@ -59,6 +59,14 @@ class TicketManager {
                 description: 'Contester une sanction',
                 responseTime: '2-6 heures',
                 priority: 'high'
+            },
+            recruitment: {
+                name: 'Recrutement',
+                emoji: '👥',
+                color: '#8e44ad',
+                description: 'Candidature et recrutement',
+                responseTime: '1-3 heures',
+                priority: 'high'
             }
         };
     }
@@ -161,7 +169,12 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                         .setCustomId('ticket_appeal')
                         .setLabel('Appel de Sanction')
                         .setStyle(ButtonStyle.Secondary)
-                        .setEmoji('⚖️')
+                        .setEmoji('⚖️'),
+                    new ButtonBuilder()
+                        .setCustomId('ticket_recruitment')
+                        .setLabel('Recrutement')
+                        .setStyle(ButtonStyle.Primary)
+                        .setEmoji('👥')
                 );
 
             // Boutons d'actions rapides
@@ -289,6 +302,56 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                 return;
             }
 
+            // TRAITEMENT SPÉCIAL POUR RECRUTEMENT - MODAL IMMÉDIAT
+            if (type === 'recruitment') {
+                const recruitmentModal = new ModalBuilder()
+                    .setCustomId('recruitment_modal_general')
+                    .setTitle('👥 Candidature de Recrutement');
+
+                const positionInput = new TextInputBuilder()
+                    .setCustomId('recruitment_position')
+                    .setLabel('Poste souhaité')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Ex: Modérateur, Administrateur, etc.')
+                    .setRequired(true)
+                    .setMaxLength(100);
+
+                const experienceInput = new TextInputBuilder()
+                    .setCustomId('recruitment_experience')
+                    .setLabel('Expérience et compétences')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder('Décrivez votre expérience, vos compétences et votre motivation...')
+                    .setRequired(true)
+                    .setMaxLength(1000);
+
+                const availabilityInput = new TextInputBuilder()
+                    .setCustomId('recruitment_availability')
+                    .setLabel('Disponibilité')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder('Quand êtes-vous disponible ? Combien d\'heures par semaine ?')
+                    .setRequired(true)
+                    .setMaxLength(500);
+
+                recruitmentModal.addComponents(
+                    new ActionRowBuilder().addComponents(positionInput),
+                    new ActionRowBuilder().addComponents(experienceInput),
+                    new ActionRowBuilder().addComponents(availabilityInput)
+                );
+
+                // Affichage immédiat du modal sans vérifications supplémentaires
+                try {
+                    await interaction.showModal(recruitmentModal);
+                    this.logger.info(`✅ Modal recrutement affiché pour ${interaction.user.username}`);
+                } catch (error) {
+                    // Gestion silencieuse des erreurs communes
+                    if (error.code === 10062 || error.code === 40060 || error.code === 'InteractionAlreadyReplied') {
+                        return;
+                    }
+                    this.logger.error(`❌ Erreur showModal recrutement:`, error);
+                }
+                return;
+            }
+
             // Pour les autres types : Traitement immédiat
             const config = this.ticketTypes[type];
             if (!config) {
@@ -373,6 +436,12 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
             }
 
             const [, , type] = interaction.customId.split('_');
+            
+            // Gestion spéciale pour le modal de recrutement
+            if (interaction.customId === 'recruitment_modal_general') {
+                return await this.handleRecruitmentModalSubmit(interaction);
+            }
+            
             const config = this.ticketTypes[type];
             const guild = interaction.guild;
             const user = interaction.user;
@@ -495,7 +564,7 @@ ${description}
                 );
 
             await ticketChannel.send({
-                content: `${user} | <@&${this.staffRoleId}>`,
+                content: `${user} | <@&${this.staffRoleId}> | <@421670146604793856>`,
                 embeds: [welcomeEmbed],
                 components: [ticketActionsRow]
             });
@@ -1024,26 +1093,30 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
             // Détection ULTRA précise des types de tickets
             const isReportTicket = channelName.includes('report') || channelName.includes('signalement') || channelName.includes('🚨');
             const isSuggestionTicket = channelName.includes('suggestion') || channelName.includes('💡・suggestion') || (channelName.includes('💡') && channelName.includes('suggestion'));
+            const isRecruitmentTicket = channelName.includes('recruitment') || channelName.includes('recrutement') || channelName.includes('👥');
             
-            this.logger.info(`📋 Type détecté - Report: ${isReportTicket}, Suggestion: ${isSuggestionTicket}`);
+            this.logger.info(`📋 Type détecté - Report: ${isReportTicket}, Suggestion: ${isSuggestionTicket}, Recruitment: ${isRecruitmentTicket}`);
             this.logger.info(`📋 Nom du canal analysé: "${channelName}"`);
             
             // Choisir le canal de destination selon le type de ticket
             let feedbackChannelId;
-            let mentions = '';
+            let mentions = '<@421670146604793856>'; // Mention universelle pour TOUS les tickets
             
             if (isReportTicket) {
                 feedbackChannelId = '1395049881470505132'; // Canal spécifique pour les signalements
                 this.logger.info('🚨 Ticket de signalement détecté - envoi vers canal spécifique');
             } else if (isSuggestionTicket) {
                 feedbackChannelId = '1393143271617855548'; // Canal spécifique pour les suggestions/feedbacks
-                mentions = '<@656139870158454795> <@421245210220298240>'; // Mentionner les responsables des feedbacks
+                mentions += ' <@656139870158454795> <@421245210220298240>'; // Ajouter les responsables des feedbacks
                 this.logger.info('💡 Ticket de suggestion/feedback détecté - envoi avec mentions');
+            } else if (isRecruitmentTicket) {
+                feedbackChannelId = '1395050813780660254'; // Canal spécifique pour le recrutement
+                this.logger.info('👥 Ticket de recrutement détecté - envoi vers canal spécifique');
             } else {
                 // Fallback: vérifier si c'est un feedback/avis générique
                 if (channelName.includes('feedback') || channelName.includes('avis')) {
                     feedbackChannelId = '1393143271617855548';
-                    mentions = '<@656139870158454795> <@421245210220298240>';
+                    mentions += ' <@656139870158454795> <@421245210220298240>';
                     this.logger.info('💡 Ticket de feedback/avis générique détecté - envoi avec mentions');
                 } else {
                     feedbackChannelId = '1393143271617855548'; // Canal général pour les autres tickets
@@ -1080,6 +1153,10 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
                 embedColor = '#f39c12';
                 embedTitle = '💡 **AVIS / FEEDBACK FERMÉ - RAPPORT COMPLET**';
                 ticketTypeLabel = '💡 Avis / Feedback';
+            } else if (isRecruitmentTicket) {
+                embedColor = '#8e44ad';
+                embedTitle = '👥 **RECRUTEMENT FERMÉ - CANDIDATURE COMPLÈTE**';
+                ticketTypeLabel = '👥 Recrutement';
             } else {
                 embedColor = '#2c3e50';
                 embedTitle = '🎫 **TICKET FERMÉ - FEEDBACK COMPLET**';
@@ -1135,6 +1212,12 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
                     value: '✅ **Traité** - Cet avis/feedback a été examiné et fermé par l\'équipe responsable.',
                     inline: false
                 });
+            } else if (isRecruitmentTicket) {
+                feedbackEmbed.addFields({
+                    name: '👥 **STATUT DU RECRUTEMENT**',
+                    value: '📋 **Candidature Traitée** - Cette candidature a été examinée et fermée par l\'équipe RH.',
+                    inline: false
+                });
             }
 
             // Envoyer le message avec mentions si nécessaire
@@ -1147,7 +1230,7 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
                 embeds: [feedbackEmbed]
             });
 
-            const ticketTypeName = isReportTicket ? 'signalement' : isSuggestionTicket ? 'suggestion/feedback' : 'ticket';
+            const ticketTypeName = isReportTicket ? 'signalement' : isSuggestionTicket ? 'suggestion/feedback' : isRecruitmentTicket ? 'recrutement' : 'ticket';
             this.logger.success(`✅ Feedback du ${ticketTypeName} ${channel.name} envoyé dans le canal ${feedbackChannel.name} avec succès`);
 
         } catch (error) {
@@ -1715,6 +1798,201 @@ ${status === 'closed' ? '**🔒 Cette suggestion a été fermée sans traitement
     }
 
     // Gestion de la sélection du type de suggestion
+
+    async handleRecruitmentModalSubmit(interaction) {
+        try {
+            const guild = interaction.guild;
+            const user = interaction.user;
+
+            const position = interaction.fields.getTextInputValue('recruitment_position');
+            const experience = interaction.fields.getTextInputValue('recruitment_experience');
+            const availability = interaction.fields.getTextInputValue('recruitment_availability');
+
+            // Vérifier si l'utilisateur a déjà un ticket ouvert
+            const existingTickets = guild.channels.cache.filter(
+                channel => channel.name.includes(user.id) && channel.name.includes('ticket')
+            );
+
+            if (existingTickets.size > 0) {
+                return await interaction.editReply({
+                    content: `❌ Vous avez déjà un ticket ouvert : ${existingTickets.first()}\n\n💡 Veuillez fermer votre ticket existant avant d'en créer un nouveau.`
+                });
+            }
+
+            // Créer ou récupérer la catégorie de tickets
+            const ticketCategory = await this.ensureTicketCategory(guild);
+            const config = this.ticketTypes['recruitment'];
+
+            // Créer le canal de ticket de recrutement
+            const ticketNumber = Date.now().toString().slice(-6);
+            const ticketChannel = await guild.channels.create({
+                name: `👥・recruitment-${user.username}-${ticketNumber}`,
+                type: ChannelType.GuildText,
+                parent: ticketCategory.id,
+                topic: `Candidature Recrutement • ${position} • Créée par ${user.tag}`,
+                permissionOverwrites: [
+                    {
+                        id: guild.id,
+                        deny: [PermissionFlagsBits.ViewChannel]
+                    },
+                    {
+                        id: user.id,
+                        allow: [
+                            PermissionFlagsBits.ViewChannel,
+                            PermissionFlagsBits.SendMessages,
+                            PermissionFlagsBits.ReadMessageHistory,
+                            PermissionFlagsBits.AttachFiles,
+                            PermissionFlagsBits.EmbedLinks
+                        ]
+                    },
+                    {
+                        id: this.staffRoleId,
+                        allow: [
+                            PermissionFlagsBits.ViewChannel,
+                            PermissionFlagsBits.SendMessages,
+                            PermissionFlagsBits.ReadMessageHistory,
+                            PermissionFlagsBits.ManageMessages,
+                            PermissionFlagsBits.AttachFiles,
+                            PermissionFlagsBits.EmbedLinks
+                        ]
+                    }
+                ]
+            });
+
+            // Embed de candidature dans le ticket
+            const recruitmentEmbed = new EmbedBuilder()
+                .setColor(config.color)
+                .setTitle(`👥 **CANDIDATURE DE RECRUTEMENT - Ticket #${ticketNumber}**`)
+                .setDescription(`
+╭─────────────────────────────────────╮
+│     **Nouvelle Candidature** 📋     │
+╰─────────────────────────────────────╯
+
+**📋 Informations de la Candidature :**
+• **Candidat :** ${user.displayName} (${user.tag})
+• **Poste souhaité :** ${position}
+• **Numéro :** \`#${ticketNumber}\`
+• **Créé le :** <t:${Math.floor(Date.now() / 1000)}:F>
+• **Temps de réponse estimé :** \`${config.responseTime}\`
+
+**💼 Expérience et Compétences :**
+\`\`\`
+${experience}
+\`\`\`
+
+**📅 Disponibilité :**
+\`\`\`
+${availability}
+\`\`\`
+
+**🎯 Prochaines Étapes :**
+1️⃣ L'équipe RH a été notifiée automatiquement
+2️⃣ Un responsable vous contactera rapidement
+3️⃣ Restez disponible pour d'éventuelles questions
+
+**💡 En attendant, vous pouvez :**
+• Ajouter des informations supplémentaires
+• Partager des références ou portfolio
+• Utiliser les boutons ci-dessous`)
+                .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+                .setFooter({ 
+                    text: `Candidature ID: ${ticketNumber} • Équipe RH notifiée`,
+                    iconURL: guild.iconURL({ dynamic: true })
+                })
+                .setTimestamp();
+
+            // Boutons d'actions pour le ticket de recrutement
+            const ticketActionsRow = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('ticket_close')
+                        .setLabel('Fermer le Ticket')
+                        .setStyle(ButtonStyle.Danger)
+                        .setEmoji('🔒'),
+                    new ButtonBuilder()
+                        .setCustomId('ticket_claim')
+                        .setLabel('Prendre en Charge')
+                        .setStyle(ButtonStyle.Success)
+                        .setEmoji('✋'),
+                    new ButtonBuilder()
+                        .setCustomId('ticket_add_user')
+                        .setLabel('Ajouter Utilisateur')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('👥'),
+                    new ButtonBuilder()
+                        .setCustomId('ticket_transcript')
+                        .setLabel('Transcript')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('📄')
+                );
+
+            await ticketChannel.send({
+                content: `${user} | <@&${this.staffRoleId}> | <@421670146604793856>`,
+                embeds: [recruitmentEmbed],
+                components: [ticketActionsRow]
+            });
+
+            // Notification spéciale pour le recrutement
+            await this.notifyRecruitmentStaff(guild, user, ticketChannel, position, experience, availability);
+
+            await interaction.editReply({
+                content: `✅ **Candidature de recrutement soumise avec succès !** ${ticketChannel}\n🎯 L'équipe RH a été notifiée et vous répondra dans **${config.responseTime}**.`
+            });
+
+            this.logger.info(`Candidature recrutement #${ticketNumber} créée: ${ticketChannel.name} par ${user.tag} pour le poste: ${position}`);
+
+        } catch (error) {
+            this.logger.error('Erreur lors du traitement de la candidature de recrutement:', error);
+            await interaction.editReply({
+                content: '❌ Une erreur est survenue lors de la soumission de votre candidature.'
+            });
+        }
+    }
+
+    async notifyRecruitmentStaff(guild, user, ticketChannel, position, experience, availability) {
+        try {
+            const staffRole = guild.roles.cache.get(this.staffRoleId);
+            if (!staffRole) return;
+
+            const staffMembers = staffRole.members;
+            
+            const notificationEmbed = new EmbedBuilder()
+                .setColor('#8e44ad')
+                .setTitle('👥 **NOUVELLE CANDIDATURE DE RECRUTEMENT**')
+                .setDescription(`
+**Une nouvelle candidature nécessite votre attention !**
+
+**👤 Candidat :** ${user} (${user.tag})
+**💼 Poste souhaité :** ${position}
+**📍 Canal :** ${ticketChannel}
+**⏰ Temps de réponse attendu :** \`1-3 heures\`
+
+**💼 Expérience :**
+\`\`\`
+${experience.substring(0, 500)}${experience.length > 500 ? '...' : ''}
+\`\`\`
+
+**📅 Disponibilité :**
+\`\`\`
+${availability.substring(0, 300)}${availability.length > 300 ? '...' : ''}
+\`\`\``)
+                .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+                .setFooter({ text: 'Cliquez sur "Prendre en Charge" dans le ticket pour le traiter' })
+                .setTimestamp();
+
+            // Envoyer en MP à chaque membre du staff
+            for (const [id, member] of staffMembers) {
+                try {
+                    await member.send({ embeds: [notificationEmbed] });
+                } catch (error) {
+                    // Ignorer si on ne peut pas envoyer de MP
+                }
+            }
+
+        } catch (error) {
+            this.logger.error('Erreur lors de la notification du staff pour recrutement:', error);
+        }
+    }
 }
 
 export default TicketManager;
