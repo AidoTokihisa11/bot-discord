@@ -1408,7 +1408,7 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
             const channelName = channel.name.toLowerCase();
             this.logger.info(`🔍 Détection du type de ticket pour: ${channelName}`);
             
-            // Détection ULTRA précise des types de tickets
+            // Détection ULTRA précise des types de tickets avec logging détaillé
             const isReportTicket = channelName.includes('report') || channelName.includes('signalement') || channelName.includes('🚨');
             const isSuggestionTicket = channelName.includes('suggestion') || channelName.includes('💡・suggestion') || (channelName.includes('💡') && channelName.includes('suggestion'));
             const isRecruitmentTicket = channelName.includes('recruitment') || channelName.includes('recrutement') || channelName.includes('👥');
@@ -1416,13 +1416,17 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
             this.logger.info(`📋 Type détecté - Report: ${isReportTicket}, Suggestion: ${isSuggestionTicket}, Recruitment: ${isRecruitmentTicket}`);
             this.logger.info(`📋 Nom du canal analysé: "${channelName}"`);
 
-            // TRAITEMENT SPÉCIALISÉ POUR LES TICKETS DE RECRUTEMENT
+            // TRAITEMENT SPÉCIALISÉ POUR LES TICKETS DE RECRUTEMENT avec logging renforcé
             if (isRecruitmentTicket) {
+                this.logger.success(`🎯 ACTIVATION DU SYSTÈME DE STOCKAGE OPTIMISÉ POUR RECRUTEMENT !`);
+                this.logger.info(`📊 Début du traitement spécialisé pour: ${channel.name}`);
                 await this.handleRecruitmentTicketClosure(channel, closedBy, guild);
+                this.logger.success(`✅ Traitement spécialisé recrutement terminé pour: ${channel.name}`);
                 return;
             }
 
             // Traitement standard pour les autres types de tickets
+            this.logger.info(`📋 Traitement standard pour ticket: ${channel.name}`);
             await this.handleStandardTicketClosure(channel, closedBy, guild, {
                 isReport: isReportTicket,
                 isSuggestion: isSuggestionTicket
@@ -1436,22 +1440,32 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.
     // NOUVEAU: Gestion spécialisée pour la fermeture des tickets de recrutement
     async handleRecruitmentTicketClosure(channel, closedBy, guild) {
         try {
+            this.logger.success(`🚀 DÉBUT DU SYSTÈME DE STOCKAGE OPTIMISÉ POUR RECRUTEMENT`);
             this.logger.info(`👥 Traitement spécialisé de fermeture pour ticket de recrutement: ${channel.name}`);
 
             // Récupérer tous les messages du ticket pour analyse complète
+            this.logger.info(`📥 Récupération des messages du ticket...`);
             const messages = await channel.messages.fetch({ limit: 100 });
             const messagesArray = Array.from(messages.values()).reverse();
+            this.logger.success(`📊 ${messagesArray.length} messages récupérés pour analyse`);
             
             // Extraire les informations détaillées du candidat
+            this.logger.info(`🔍 Extraction des informations du candidat...`);
             const candidateInfo = await this.extractRecruitmentInfo(messagesArray, channel);
+            this.logger.success(`👤 Candidat: ${candidateInfo.candidateName} | Poste: ${candidateInfo.position}`);
             
             // Calculer les statistiques détaillées du ticket
+            this.logger.info(`📈 Calcul des statistiques du ticket...`);
             const ticketStats = this.calculateTicketStats(channel, messagesArray);
+            this.logger.success(`⏱️ Durée: ${ticketStats.duration} | Messages: ${ticketStats.messageCount}`);
             
             // Trouver ou créer le canal de logs de recrutement
+            this.logger.info(`📂 Recherche/création du canal d'archives...`);
             const recruitmentLogChannel = await this.ensureRecruitmentLogChannel(guild);
+            this.logger.success(`✅ Canal d'archives trouvé: ${recruitmentLogChannel.name}`);
             
             // Créer l'embed principal avec toutes les informations de candidature
+            this.logger.info(`🎨 Génération des embeds détaillés...`);
             const recruitmentFeedbackEmbed = new EmbedBuilder()
                 .setColor('#8e44ad')
                 .setTitle('👥 **CANDIDATURE DE RECRUTEMENT FERMÉE - STOCKAGE OPTIMISÉ**')
@@ -1518,6 +1532,7 @@ ${candidateInfo.availability.substring(0, 400)}${candidateInfo.availability.leng
                 );
 
             // Embed avec recommandations et statistiques
+            this.logger.info(`🤖 Génération des recommandations IA...`);
             const analyticsEmbed = new EmbedBuilder()
                 .setColor('#e67e22')
                 .setTitle('📈 **ANALYSE AUTOMATIQUE & RECOMMANDATIONS**')
@@ -1538,10 +1553,15 @@ ${this.generateRecruitmentRecommendations(candidateInfo)}
 • **Temps de traitement moyen :** ${await this.getAverageProcessingTime(guild)}`)
                 .setFooter({ text: 'Analyse générée automatiquement par l\'IA de recrutement' });
 
+            this.logger.success(`✅ 3 embeds détaillés générés avec succès`);
+
             // Générer le transcript complet optimisé pour le recrutement
+            this.logger.info(`📝 Génération du transcript optimisé RH...`);
             const transcriptBuffer = await this.generateRecruitmentTranscript(messagesArray, candidateInfo, ticketStats);
+            this.logger.success(`📄 Transcript de ${Math.round(transcriptBuffer.length / 1024)}KB généré`);
 
             // Envoyer le package complet dans le canal de logs de recrutement
+            this.logger.info(`📤 Envoi du package complet dans le canal d'archives...`);
             const recruitmentMessage = await recruitmentLogChannel.send({
                 content: `📥 **NOUVELLE CANDIDATURE ARCHIVÉE** | <@&${this.staffRoleId}> | Candidat: ${candidateInfo.candidateName}`,
                 embeds: [recruitmentFeedbackEmbed, evaluationEmbed, analyticsEmbed],
@@ -1550,9 +1570,11 @@ ${this.generateRecruitmentRecommendations(candidateInfo)}
                     name: `candidature-${candidateInfo.candidateName.replace(/\s+/g, '-')}-${candidateInfo.ticketId}-${Date.now()}.txt`
                 }]
             });
+            this.logger.success(`✅ Package complet envoyé dans ${recruitmentLogChannel.name}`);
 
             // Créer un thread pour le suivi si nécessaire
             if (candidateInfo.status === '⏳ En attente' || candidateInfo.status === '✅ Accepté') {
+                this.logger.info(`🧵 Création d'un thread de suivi pour candidature ${candidateInfo.status}...`);
                 const followUpThread = await recruitmentMessage.startThread({
                     name: `📋 Suivi - ${candidateInfo.candidateName}`,
                     autoArchiveDuration: 4320, // 3 jours
@@ -1579,16 +1601,23 @@ ${candidateInfo.status === '✅ Accepté' ?
                     .setFooter({ text: 'Thread automatiquement archivé après 3 jours d\'inactivité' });
 
                 await followUpThread.send({ embeds: [followUpEmbed] });
+                this.logger.success(`🧵 Thread de suivi créé: ${followUpThread.name}`);
+            } else {
+                this.logger.info(`ℹ️ Aucun thread de suivi nécessaire pour statut: ${candidateInfo.status || 'Non défini'}`);
             }
 
             // Sauvegarder les données pour les statistiques futures
+            this.logger.info(`💾 Sauvegarde des données dans la base...`);
             await this.saveRecruitmentData(candidateInfo, ticketStats);
+            this.logger.success(`✅ Données sauvegardées pour statistiques futures`);
 
-            this.logger.success(`✅ Candidature de ${candidateInfo.candidateName} archivée avec stockage optimisé complet`);
+            this.logger.success(`🎉 SYSTÈME DE STOCKAGE OPTIMISÉ TERMINÉ AVEC SUCCÈS !`);
+            this.logger.success(`📊 Candidature de ${candidateInfo.candidateName} archivée avec stockage optimisé complet`);
 
         } catch (error) {
             this.logger.error('❌ Erreur lors du traitement spécialisé de fermeture recrutement:', error);
             // Fallback vers le traitement standard en cas d'erreur
+            this.logger.warn('🔄 Basculement vers le traitement standard en cas d\'erreur');
             await this.handleStandardTicketClosure(channel, closedBy, guild, { isRecrutment: true });
         }
     }
@@ -1611,38 +1640,62 @@ ${candidateInfo.status === '✅ Accepté' ?
         };
 
         try {
+            this.logger.info(`🔍 Extraction des informations de recrutement depuis ${messages.length} messages`);
+            
             // Analyser tous les messages pour extraire les informations
             for (const message of messages) {
-                // Extraire depuis les embeds (notifications automatiques)
+                // Extraire le candidat depuis le nom du canal
+                if (channel.name.includes('recruitment-')) {
+                    const nameParts = channel.name.split('-');
+                    if (nameParts.length >= 3) {
+                        info.candidateName = nameParts[1]; // recruitment-USERNAME-NUMBER
+                        this.logger.info(`📝 Candidat extrait du nom du canal: ${info.candidateName}`);
+                    }
+                }
+                
+                // Extraire l'ID du candidat depuis le topic ou les permissions du canal
+                if (channel.topic) {
+                    const topicMatch = channel.topic.match(/Créée par (.+)/);
+                    if (topicMatch) {
+                        const userTag = topicMatch[1];
+                        // Chercher l'utilisateur dans le serveur
+                        const member = channel.guild.members.cache.find(m => m.user.tag === userTag);
+                        if (member) {
+                            info.candidateId = member.user.id;
+                            info.candidateName = member.displayName || member.user.username;
+                            info.candidateAvatar = member.user.displayAvatarURL({ dynamic: true });
+                            this.logger.success(`👤 Candidat trouvé: ${info.candidateName} (${info.candidateId})`);
+                        }
+                    }
+                }
+                
+                // Extraire depuis les embeds (candidature initiale)
                 if (message.embeds.length > 0) {
                     const embed = message.embeds[0];
                     
                     if (embed.title && embed.title.includes('CANDIDATURE DE RECRUTEMENT')) {
                         const description = embed.description || '';
-                        
-                        // Extraire le candidat depuis la mention dans l'embed
-                        const candidateMatch = description.match(/\*\*👤 Candidat :\*\* <@(\d+)> \((.+?)\)/);
-                        if (candidateMatch) {
-                            info.candidateId = candidateMatch[1];
-                            info.candidateName = candidateMatch[2];
-                        }
+                        this.logger.info(`📋 Embed de candidature trouvé, extraction des données...`);
                         
                         // Extraire le poste souhaité
-                        const positionMatch = description.match(/\*\*💼 Poste souhaité :\*\* (.+)/);
+                        const positionMatch = description.match(/\*\*Poste souhaité :\*\* (.+)/);
                         if (positionMatch) {
-                            info.position = positionMatch[1];
+                            info.position = positionMatch[1].trim();
+                            this.logger.success(`💼 Poste extrait: ${info.position}`);
                         }
                         
-                        // Extraire l'expérience depuis le bloc de code
-                        const experienceMatch = description.match(/\*\*💼 Expérience :\*\*\n```\n([\s\S]*?)\n```/);
+                        // Extraire l'expérience depuis les blocs de code
+                        const experienceMatch = description.match(/\*\*💼 Expérience et Compétences :\*\*\n```\n([\s\S]*?)\n```/);
                         if (experienceMatch) {
                             info.experience = experienceMatch[1].trim();
+                            this.logger.success(`📚 Expérience extraite: ${info.experience.substring(0, 100)}...`);
                         }
                         
-                        // Extraire la disponibilité depuis le bloc de code
+                        // Extraire la disponibilité depuis les blocs de code
                         const availabilityMatch = description.match(/\*\*📅 Disponibilité :\*\*\n```\n([\s\S]*?)\n```/);
                         if (availabilityMatch) {
                             info.availability = availabilityMatch[1].trim();
+                            this.logger.success(`📅 Disponibilité extraite: ${info.availability.substring(0, 100)}...`);
                         }
                     }
                     
@@ -1651,65 +1704,75 @@ ${candidateInfo.status === '✅ Accepté' ?
                         const staffMatch = embed.description.match(/\*\*(.+?) a pris ce ticket en charge/);
                         if (staffMatch) {
                             info.assignedStaff = staffMatch[1];
+                            this.logger.success(`👨‍💼 Staff assigné: ${info.assignedStaff}`);
                         }
                     }
                 }
                 
                 // Analyser les messages textuels pour les évaluations et décisions
-                if (message.content && message.content.length > 10) {
+                if (message.content && message.content.length > 10 && !message.author.bot) {
                     const content = message.content.toLowerCase();
                     
                     // Détecter les mots-clés d'évaluation
                     if (content.includes('évaluation') || content.includes('evaluation') || 
-                        content.includes('compétences') || content.includes('profil')) {
-                        info.evaluation = message.content.substring(0, 500);
+                        content.includes('compétences') || content.includes('profil') ||
+                        content.includes('expérience') || content.includes('qualifié')) {
+                        if (!info.evaluation || message.content.length > info.evaluation.length) {
+                            info.evaluation = message.content.substring(0, 500);
+                            this.logger.info(`🔍 Évaluation trouvée: ${info.evaluation.substring(0, 50)}...`);
+                        }
                     }
                     
                     // Détecter les décisions finales
                     if (content.includes('accepté') || content.includes('refusé') || 
-                        content.includes('rejeté') || content.includes('approuvé')) {
+                        content.includes('rejeté') || content.includes('approuvé') ||
+                        content.includes('retenu') || content.includes('sélectionné')) {
                         info.decision = message.content.substring(0, 300);
                         
-                        // Déterminer le statut
-                        if (content.includes('accepté') || content.includes('approuvé')) {
+                        // Déterminer le statut basé sur la décision
+                        if (content.includes('accepté') || content.includes('approuvé') || 
+                            content.includes('retenu') || content.includes('sélectionné')) {
                             info.status = '✅ Accepté';
                         } else if (content.includes('refusé') || content.includes('rejeté')) {
                             info.status = '❌ Refusé';
                         }
-                    }
-                    
-                    // Détecter les statuts en attente
-                    if (content.includes('en attente') || content.includes('attendre') || 
-                        content.includes('réfléchir') || content.includes('délibération')) {
-                        info.status = '⏳ En attente';
+                        
+                        this.logger.success(`⚖️ Décision trouvée: ${info.status} - ${info.decision.substring(0, 50)}...`);
                     }
                     
                     // Détecter les notes importantes
-                    if (content.includes('note:') || content.includes('important:') || 
-                        content.includes('remarque:') || content.includes('attention:')) {
-                        info.notes = message.content.substring(0, 400);
+                    if (content.includes('note') || content.includes('remarque') || 
+                        content.includes('attention') || content.includes('important')) {
+                        if (!info.notes || message.content.length > (info.notes?.length || 0)) {
+                            info.notes = message.content.substring(0, 400);
+                            this.logger.info(`📝 Note importante trouvée: ${info.notes.substring(0, 50)}...`);
+                        }
+                    }
+                    
+                    // Détecter les statuts en attente
+                    if (content.includes('en attente') || content.includes('à suivre') || 
+                        content.includes('à recontacter') || content.includes('deuxième tour')) {
+                        if (!info.status) {
+                            info.status = '⏳ En attente';
+                            this.logger.info(`⏳ Statut en attente détecté`);
+                        }
                     }
                 }
             }
             
-            // Obtenir l'avatar et vérifier le nom du candidat
-            if (info.candidateId && info.candidateId !== 'ID non trouvé') {
-                try {
-                    const user = await channel.client.users.fetch(info.candidateId);
-                    info.candidateAvatar = user.displayAvatarURL({ dynamic: true, size: 256 });
-                    if (info.candidateName === 'Candidat inconnu') {
-                        info.candidateName = user.username;
-                    }
-                } catch (error) {
-                    this.logger.warn(`⚠️ Impossible de récupérer les infos utilisateur pour ${info.candidateId}`);
-                }
+            // Si aucun statut n'a été déterminé, mettre un statut par défaut
+            if (!info.status) {
+                info.status = '📋 Candidature traitée';
+                this.logger.info(`📋 Statut par défaut appliqué`);
             }
+            
+            this.logger.success(`✅ Extraction terminée: ${info.candidateName} - ${info.position} - ${info.status}`);
+            return info;
             
         } catch (error) {
-            this.logger.error('❌ Erreur lors de l\'extraction des infos de recrutement:', error);
+            this.logger.error('❌ Erreur lors de l\'extraction des informations de recrutement:', error);
+            return info; // Retourner les informations par défaut
         }
-        
-        return info;
     }
 
     // NOUVEAU: Générer des recommandations intelligentes
@@ -1831,99 +1894,27 @@ ${candidateInfo.status === '✅ Accepté' ?
         return Buffer.from(transcript, 'utf8');
     }
 
-    // NOUVEAU: Obtenir ou créer le canal de logs de recrutement
+    // NOUVEAU: Obtenir le canal de recrutement existant
     async ensureRecruitmentLogChannel(guild) {
         try {
-            // Chercher le canal existant
-            let logChannel = guild.channels.cache.find(c => 
-                c.name === 'logs-recrutement' || c.name === 'recrutement-logs' || c.name === 'candidatures-archivees'
-            );
-            
-            if (!logChannel) {
-                // Créer le canal s'il n'existe pas
-                logChannel = await guild.channels.create({
-                    name: 'candidatures-archivees',
-                    type: ChannelType.GuildText,
-                    topic: '👥 Archives détaillées des candidatures de recrutement • Accès équipe RH uniquement',
-                    permissionOverwrites: [
-                        {
-                            id: guild.id,
-                            deny: [PermissionFlagsBits.ViewChannel]
-                        },
-                        {
-                            id: this.staffRoleId,
-                            allow: [
-                                PermissionFlagsBits.ViewChannel,
-                                PermissionFlagsBits.SendMessages,
-                                PermissionFlagsBits.ReadMessageHistory,
-                                PermissionFlagsBits.CreatePublicThreads,
-                                PermissionFlagsBits.ManageThreads
-                            ]
-                        }
-                    ]
-                });
-                
-                // Message d'initialisation avec guide d'utilisation
-                const initEmbed = new EmbedBuilder()
-                    .setColor('#8e44ad')
-                    .setTitle('👥 **CANAL D\'ARCHIVES DES CANDIDATURES**')
-                    .setDescription(`
-**📊 BIENVENUE DANS LE SYSTÈME D'ARCHIVAGE OPTIMISÉ !**
+            // Récupérer directement le canal de recrutement par son ID
+            const recruitmentChannelId = '1395050813780660254';
+            const recruitmentLogChannel = guild.channels.cache.get(recruitmentChannelId);
 
-Ce canal centralise toutes les candidatures de recrutement avec un stockage intelligent et des analyses automatiques.
-
-**📋 CONTENU DES ARCHIVES :**
-• 🏷️ **Profil complet** du candidat avec toutes ses informations
-• 📝 **Transcript détaillé** de tous les échanges
-• 🔍 **Évaluation et décision** du staff
-• 📊 **Recommandations automatiques** basées sur l'IA
-• 📈 **Statistiques contextuelles** pour l'analyse RH
-
-**🎯 FONCTIONNALITÉS AVANCÉES :**
-• 🧵 **Threads de suivi** automatiques pour les candidatures importantes
-• 📈 **Métriques d'évaluation** automatiques (réactivité, détail, etc.)
-• 🔍 **Système de recherche** par nom, poste ou statut
-• 📊 **Analyse des tendances** mensuelles et annuelles
-
-**💡 UTILISATION OPTIMALE :**
-• Consultez les archives avant tout nouvel entretien
-• Utilisez les threads pour coordonner l'équipe RH
-• Analysez les tendances pour améliorer le processus
-• Maintenez une base de données des profils intéressants`)
-                    .addFields(
-                        {
-                            name: '🔧 **Configuration Technique**',
-                            value: '• Archives automatiques à chaque fermeture de ticket\n• Transcripts complets sauvegardés\n• Métadonnées structurées pour recherche\n• Threads auto-créés pour suivi actif',
-                            inline: true
-                        },
-                        {
-                            name: '📊 **Métriques Suivies**',
-                            value: '• Temps de traitement des candidatures\n• Taux d\'acceptation par poste\n• Qualité des dossiers reçus\n• Performance de l\'équipe RH',
-                            inline: true
-                        }
-                    )
-                    .setFooter({ 
-                        text: 'Système d\'archivage intelligent • Version 2.0',
-                        iconURL: guild.iconURL({ dynamic: true })
-                    })
-                    .setTimestamp();
-                
-                await logChannel.send({ embeds: [initEmbed] });
-                this.logger.success(`✅ Canal d'archives de candidatures créé: ${logChannel.name}`);
+            if (!recruitmentLogChannel) {
+                this.logger.error(`❌ Canal de recrutement introuvable avec l'ID: ${recruitmentChannelId}`);
+                throw new Error(`Canal de recrutement non trouvé: ${recruitmentChannelId}`);
             }
-            
-            return logChannel;
-            
+
+            this.logger.info(`✅ Canal de recrutement trouvé: ${recruitmentLogChannel.name}`);
+            return recruitmentLogChannel;
         } catch (error) {
-            this.logger.error('❌ Erreur lors de la création du canal d\'archives candidatures:', error);
-            // Fallback vers le canal de recrutement existant
-            return guild.channels.cache.get('1395050813780660254') || 
-                   guild.channels.cache.find(c => c.name.includes('recrutement')) ||
-                   guild.systemChannel;
+            this.logger.error('Erreur lors de la récupération du canal de recrutement:', error);
+            throw error;
         }
     }
 
-    // NOUVEAU: Traitement standard pour les autres types de tickets
+    // NOUVEAU: Extraire les informations de recrutement depuis les messages
     async handleStandardTicketClosure(channel, closedBy, guild, types) {
         try {
             // Choisir le canal de destination selon le type de ticket
