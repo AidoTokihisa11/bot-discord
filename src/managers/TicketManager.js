@@ -228,16 +228,21 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
 
     async handleTicketCreation(interaction, type) {
         const startTime = Date.now();
-        const maxProcessingTime = 2500; // 2.5 secondes max avant expiration
+        const maxProcessingTime = 2000; // Réduire à 2 secondes pour éviter les timeouts
         
         try {
-            // Vérification ultra-rapide d'état pour TOUS les types
-            if (interaction.replied || interaction.deferred) {
-                this.logger.warn(`⚠️ Interaction ${type} déjà traitée`);
+            // Vérification ULTRA-RAPIDE d'état avec logs détaillés
+            if (interaction.replied) {
+                this.logger.warn(`⚠️ Interaction ${type} déjà répondue (replied=true) - abandon immédiat`);
+                return;
+            }
+            
+            if (interaction.deferred) {
+                this.logger.warn(`⚠️ Interaction ${type} déjà différée (deferred=true) - abandon immédiat`);
                 return;
             }
 
-            // Protection supplémentaire contre les doublons
+            // Protection contre les doublons avec timeout plus court
             const interactionKey = `${interaction.id}_${type}`;
             if (!this.processingInteractions) {
                 this.processingInteractions = new Set();
@@ -250,10 +255,10 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
             
             this.processingInteractions.add(interactionKey);
             
-            // Nettoyer après 10 secondes
+            // Nettoyer après 5 secondes (plus court)
             setTimeout(() => {
                 this.processingInteractions.delete(interactionKey);
-            }, 10000);
+            }, 5000);
 
             // TRAITEMENT SPÉCIAL POUR SUGGESTIONS - MODAL IMMÉDIAT
             if (type === 'suggestion') {
@@ -290,6 +295,12 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                     new ActionRowBuilder().addComponents(descriptionInput)
                 );
 
+                // VÉRIFICATION FINALE avant showModal
+                if (interaction.replied || interaction.deferred) {
+                    this.logger.warn(`⚠️ Interaction ${type} acquittée juste avant showModal - abandon`);
+                    return;
+                }
+
                 // AFFICHAGE IMMÉDIAT avec gestion d'erreur renforcée
                 try {
                     await interaction.showModal(suggestionModal);
@@ -300,7 +311,16 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                         this.logger.warn('⏰ Interaction suggestion expirée lors de showModal');
                         return;
                     }
-                    throw error;
+                    if (error.code === 40060) {
+                        this.logger.warn('⚠️ Interaction suggestion déjà acquittée lors de showModal');
+                        return;
+                    }
+                    if (error.code === 'InteractionAlreadyReplied') {
+                        this.logger.warn('⚠️ Interaction suggestion déjà répondue lors de showModal');
+                        return;
+                    }
+                    this.logger.error(`❌ Erreur showModal suggestion:`, error);
+                    return;
                 }
                 return;
             }
@@ -315,7 +335,12 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
             // Configuration du modal IMMÉDIATEMENT
             const config = this.ticketTypes[type];
             if (!config) {
-                // Réponse rapide pour erreur de type
+                // Vérification d'état avant réponse d'erreur
+                if (interaction.replied || interaction.deferred) {
+                    this.logger.warn(`⚠️ Interaction ${type} acquittée avant erreur type invalide`);
+                    return;
+                }
+                
                 try {
                     await interaction.reply({
                         content: '❌ Type de ticket invalide.',
@@ -327,7 +352,7 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                 return;
             }
 
-            // Modal IMMÉDIAT pour tous les autres types (pas de vérifications qui ralentissent)
+            // Modal IMMÉDIAT pour tous les autres types
             const modal = new ModalBuilder()
                 .setCustomId(`ticket_modal_${type}`)
                 .setTitle(`${config.emoji} ${config.name}`);
@@ -362,10 +387,9 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                 new ActionRowBuilder().addComponents(priorityInput)
             );
 
-            // AFFICHAGE IMMÉDIAT du modal (priorité absolue)
-            // Vérification finale juste avant showModal
+            // VÉRIFICATION FINALE juste avant showModal
             if (interaction.replied || interaction.deferred) {
-                this.logger.warn(`⚠️ Interaction ${type} déjà acquittée juste avant showModal`);
+                this.logger.warn(`⚠️ Interaction ${type} acquittée juste avant showModal`);
                 return;
             }
             
@@ -392,7 +416,7 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
 
         } catch (error) {
             // Gestion d'erreur simplifiée
-            this.logger.error(`Erreur lors de la création du ticket ${type}:`, error);
+            this.logger.error(`❌ Erreur générale lors de la création du ticket ${type}:`, error);
         }
     }
 
