@@ -1319,264 +1319,264 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
                 .setTitle('✋ **TICKET PRIS EN CHARGE**')
                 .setDescription(`
 **${staff} a pris ce ticket en charge !**
+        const guild = interaction.guild;
+        const userTickets = guild.channels.cache.filter(
+            channel => channel.name.includes(interaction.user.username) && channel.name.includes('ticket')
+        );
+        
+        const ticketsEmbed = new EmbedBuilder()
+            .setColor('#9b59b6')
+            .setTitle('📋 **VOS TICKETS**')
+            .setDescription(userTickets.size > 0 ? 
+                userTickets.map(ticket => 
+                    `• ${ticket} - Créé <t:${Math.floor(ticket.createdTimestamp / 1000)}:R>`
+                ).join('\n') : 
+                '**Vous n\'avez aucun ticket ouvert actuellement.**\n\n*Utilisez les boutons ci-dessus pour créer un nouveau ticket.*'
+            )
+            .setFooter({ text: `Total: ${userTickets.size} ticket(s)` })
+            .setTimestamp();
 
-**📋 Informations :**
-• **Agent assigné :** ${staff}
-• **Pris en charge le :** <t:${Math.floor(Date.now() / 1000)}:F>
-• **Statut :** 🟢 En cours de traitement
-
-**👤 ${channel.topic?.split('•')[2]?.trim() || 'Utilisateur'} :** Votre demande est maintenant entre de bonnes mains !`)
-                .setThumbnail(staff.displayAvatarURL({ dynamic: true }))
-                .setFooter({ text: 'Ticket assigné avec succès' })
-                .setTimestamp();
-
-            // Utiliser safeInteractionReply qui gère déjà les timeouts
-            const success = await this.safeInteractionReply(interaction, { embeds: [claimEmbed] });
-            
-            if (!success) {
-                // Si l'interaction a échoué, envoyer un message direct dans le canal
-                await channel.send({
-                    content: `✋ **${staff} a pris ce ticket en charge !**`,
-                    embeds: [claimEmbed]
-                });
-            }
-
-        } catch (error) {
-            this.logger.error('Erreur lors de la prise en charge:', error);
-            
-            // Fallback d'urgence : message dans le canal
-            try {
-                await interaction.channel.send({
-                    content: `✋ ${interaction.user} a pris ce ticket en charge.`
-                });
-            } catch (fallbackError) {
-                this.logger.error('Impossible d\'envoyer le message de fallback:', fallbackError);
-            }
-        }
+        await this.safeInteractionReply(interaction, { embeds: [ticketsEmbed], flags: MessageFlags.Ephemeral });
     }
 
-    async addUserToTicket(interaction) {
-        // Modal pour ajouter un utilisateur
-        const modal = new ModalBuilder()
-            .setCustomId('add_user_modal')
-            .setTitle('👥 Ajouter un Utilisateur');
+    async contactStaff(interaction) {
+        const contactEmbed = new EmbedBuilder()
+            .setColor('#e74c3c')
+            .setTitle('📞 **CONTACT DIRECT AVEC LE STAFF**')
+            .setDescription(`
+**Pour un contact direct avec notre équipe :**
 
-        const userInput = new TextInputBuilder()
-            .setCustomId('user_id')
-            .setLabel('ID ou mention de l\'utilisateur')
-            .setStyle(TextInputStyle.Short)
-            .setPlaceholder('123456789012345678 ou @utilisateur')
-            .setRequired(true);
+**💬 Discord :**
+• Mentionnez <@&${this.staffRoleId}> dans votre ticket
+• Utilisez les canaux publics pour les questions générales
 
-        modal.addComponents(new ActionRowBuilder().addComponents(userInput));
-        await interaction.showModal(modal);
+**⚡ Urgences :**
+• Créez un ticket de type "Signalement" 
+• Temps de réponse garanti : 30 minutes - 1 heure
+
+**📧 Autres moyens :**
+• Les tickets restent le moyen le plus efficace
+• Toutes les demandes sont traitées par ordre de priorité
+
+**🎯 Conseil :** Créez un ticket pour un suivi optimal de votre demande !`)
+            .setFooter({ text: 'Notre équipe est là pour vous aider !' })
+            .setTimestamp();
+
+        await this.safeInteractionReply(interaction, { embeds: [contactEmbed], flags: MessageFlags.Ephemeral });
     }
 
-    async createTranscript(interaction) {
+    async showSOSPanel(interaction) {
         try {
-            // Utiliser le validateur d'interactions pour une déférence rapide
-            const validator = interaction.client.interactionValidator;
-            const deferred = await validator.quickDefer(interaction, { flags: MessageFlags.Ephemeral });
+            this.logger.info(`🆘 Début de showSOSPanel pour ${interaction.user.username}`);
             
-            if (!deferred) {
-                return; // Interaction expirée ou déjà traitée
-            }
-
-            const channel = interaction.channel;
-            const messages = await channel.messages.fetch({ limit: 100 });
-            
-            let transcript = `TRANSCRIPT DU TICKET - ${channel.name}\n`;
-            transcript += `Généré le: ${new Date().toLocaleString('fr-FR')}\n`;
-            transcript += `Canal: ${channel.name}\n`;
-            transcript += `Créé le: ${new Date(channel.createdTimestamp).toLocaleString('fr-FR')}\n\n`;
-            transcript += '='.repeat(50) + '\n\n';
-
-            messages.reverse().forEach(msg => {
-                transcript += `[${new Date(msg.createdTimestamp).toLocaleString('fr-FR')}] ${msg.author.tag}: ${msg.content}\n`;
-                if (msg.embeds.length > 0) {
-                    transcript += `  [EMBED: ${msg.embeds[0].title || 'Sans titre'}]\n`;
-                }
-                if (msg.attachments.size > 0) {
-                    transcript += `  [FICHIERS: ${msg.attachments.map(a => a.name).join(', ')}]\n`;
-                }
-                transcript += '\n';
-            });
-
-            // Créer un embed avec le transcript
-            const transcriptEmbed = new EmbedBuilder()
-                .setColor('#3498db')
-                .setTitle('📄 **TRANSCRIPT GÉNÉRÉ**')
+            // Embed principal SOS avec design professionnel
+            const sosMainEmbed = new EmbedBuilder()
+                .setColor('#ff0000')
+                .setTitle('🆘 **AIDE D\'URGENCE - NUMÉROS OFFICIELS**')
                 .setDescription(`
-**Transcript du ticket généré avec succès !**
+╭─────────────────────────────────────╮
+│   **🚨 VOUS N'ÊTES PAS SEUL(E) 🚨**   │
+╰─────────────────────────────────────╯
 
-**📋 Informations :**
-• **Canal :** ${channel.name}
-• **Messages récupérés :** ${messages.size}
-• **Généré le :** <t:${Math.floor(Date.now() / 1000)}:F>
-• **Généré par :** ${interaction.user}
+**⚡ URGENCES PRINCIPALES :**
+• **SAMU :** \`15\` 🚑 (Urgences médicales)
+• **Police :** \`17\` � (Interventions urgentes)
+• **Pompiers :** \`18\` � (Incendies, accidents)
+• **Urgence européenne :** \`112\` 🌍 (Toute urgence UE)
 
-**📎 Le transcript complet a été envoyé en message privé.**`)
-                .setFooter({ text: 'Transcript sauvegardé' })
+**📞 SOUTIEN PSYCHOLOGIQUE IMMÉDIAT :**
+• **Détresse/Suicide :** \`31 14\` (24h/24, 7j/7)
+
+**🤝 Vous avez de la valeur et votre vie compte.**`)
+                .setThumbnail('https://cdn.discordapp.com/emojis/1234567890123456789.png') // Vous pouvez ajouter une icône
+                .setFooter({ 
+                    text: '💝 Il y a toujours de l\'espoir • Vous méritez d\'être aidé(e)',
+                    iconURL: interaction.client.user.displayAvatarURL()
+                })
                 .setTimestamp();
 
-            // Envoyer le transcript en MP
-            try {
-                await interaction.user.send({
-                    content: `**Transcript du ticket ${channel.name}**`,
-                    files: [{
-                        attachment: Buffer.from(transcript, 'utf8'),
-                        name: `transcript-${channel.name}-${Date.now()}.txt`
-                    }]
-                });
+            // Embed avec les numéros spécialisés
+            const preventionEmbed = new EmbedBuilder()
+                .setColor('#ff6b6b')
+                .setTitle('📞 **NUMÉROS SPÉCIALISÉS OFFICIELS**')
+                .addFields(
+                    {
+                        name: '🚨 **NUMÉROS SPÉCIALISÉS URGENTS**',
+                        value: `
+**📞 Soutien psychologique :** \`31 14\` (24h/24)
+**📞 Violences conjugales :** \`39 19\` (24h/24)
+**📞 Enfance en danger :** \`119\` (Maltraitance)
+**📞 Aide aux victimes :** \`116 006\` (Gratuit)
+**📞 Personnes sourdes/malentendantes :** \`114\`
+**📞 SAMU Social :** \`115\` (Sans-abri)`,
+                        inline: false
+                    },
+                    {
+                        name: '� **SECOURS SPÉCIALISÉS**',
+                        value: `
+**📞 Secours en mer :** \`196\` (CROSS)
+**📞 Sauvetage aéronautique :** \`191\`
+**📞 Alerte attentat/enlèvement :** \`197\`
+**📞 Urgence gaz :** \`0800 47 33 33\`
+**📞 Pharmacie de garde :** \`3237\``,
+                        inline: true
+                    },
+                    {
+                        name: '👥 **JEUNES & ADDICTIONS**',
+                        value: `
+**📞 Cyber-harcèlement :** \`30 18\` (Jeunes)
+**📞 Drogues Info Service :** \`0800 23 13 13\`
+**📞 Permanence de soins :** \`116 117\`
+**📞 Rappel urgences :** \`0800 112 112\``,
+                        inline: true
+                    }
+                )
+                .setFooter({ text: '📋 Numéros officiels français - Services gratuits' });
 
-                await interaction.editReply({ embeds: [transcriptEmbed] });
-            } catch (error) {
-                await interaction.editReply({
-                    content: '❌ Impossible d\'envoyer le transcript en MP. Vérifiez vos paramètres de confidentialité.'
-                });
-            }
+            // Embed avec resources en ligne et conseils
+            const resourcesEmbed = new EmbedBuilder()
+                .setColor('#4CAF50')
+                .setTitle('💻 **RESSOURCES EN LIGNE & CONSEILS**')
+                .addFields(
+                    {
+                        name: '🌐 **Sites Web d\'Aide**',
+                        value: `
+• **stopblues.fr** - Prévention de la dépression chez les jeunes
+• **psycom.org** - Information en santé mentale
+• **santementale.fr** - Ressources officielles
+• **tchat-suicide-ecoute.org** - Chat anonyme 24h/24`,
+                        inline: false
+                    },
+                    {
+                        name: '📱 **Applications Mobiles**',
+                        value: `
+• **Mon Sherpa** - Accompagnement psychologique
+• **Mood Tools** - Outils contre la dépression
+• **Sanvello** - Gestion de l'anxiété
+• **Headspace** - Méditation et bien-être`,
+                        inline: true
+                    },
+                    {
+                        name: '🏥 **Où Aller Physiquement**',
+                        value: `
+• **Urgences hospitalières** 🏥
+• **Centres Médico-Psychologiques (CMP)**
+• **Maisons des Adolescents (MDA)**
+• **Points d'Accueil Écoute Jeunes (PAEJ)**`,
+                        inline: true
+                    }
+                )
+                .setFooter({ text: 'N\'hésitez pas à vous faire accompagner par un proche' });
 
-        } catch (error) {
-            this.logger.error('Erreur lors de la création du transcript:', error);
-            await interaction.editReply({
-                content: '❌ Une erreur est survenue lors de la génération du transcript.'
-            });
-        }
-    }
+            // Embed avec signes d'alarme et conseils pour l'entourage
+            const supportEmbed = new EmbedBuilder()
+                .setColor('#9C27B0')
+                .setTitle('❤️ **POUR L\'ENTOURAGE & SIGNES D\'ALARME**')
+                .addFields(
+                    {
+                        name: '🚨 **Signes à Surveiller**',
+                        value: `
+• Changements soudains de comportement
+• Isolement social marqué
+• Perte d'intérêt pour les activités
+• Troubles du sommeil/appétit
+• Expressions de désespoir
+• Don d'objets personnels`,
+                        inline: true
+                    },
+                    {
+                        name: '🤝 **Comment Aider**',
+                        value: `
+• **Écoutez** sans juger
+• **Prenez** les menaces au sérieux
+• **Encouragez** à chercher de l'aide
+• **Accompagnez** si possible
+• **Restez** en contact régulier
+• **Prenez soin** de vous aussi`,
+                        inline: true
+                    },
+                    {
+                        name: '💡 **Phrases Aidantes**',
+                        value: `
+✅ "Je suis là pour toi"
+✅ "Tu comptes pour moi"
+✅ "Veux-tu qu'on en parle ?"
+✅ "Comment puis-je t'aider ?"
+❌ Évitez les jugements/minimisations`,
+                        inline: false
+                    }
+                )
+                .setFooter({ text: 'Votre présence et votre écoute font la différence' });
 
-    async handleAddUserModal(interaction) {
-        try {
-            const userId = interaction.fields.getTextInputValue('user_id').replace(/[<@!>]/g, '');
-            const channel = interaction.channel;
-            const guild = interaction.guild;
-
-            const user = await guild.members.fetch(userId).catch(() => null);
-            if (!user) {
-                return await this.safeInteractionReply(interaction, {
-                    content: '❌ Utilisateur introuvable. Vérifiez l\'ID ou la mention.',
-                    flags: MessageFlags.Ephemeral
-                });
-            }
-
-            // Ajouter les permissions à l'utilisateur
-            await channel.permissionOverwrites.create(user.id, {
-                ViewChannel: true,
-                SendMessages: true,
-                ReadMessageHistory: true,
-                AttachFiles: true,
-                EmbedLinks: true
-            });
-
-            const addUserEmbed = new EmbedBuilder()
-                .setColor('#2ecc71')
-                .setTitle('👥 **UTILISATEUR AJOUTÉ**')
+            // Embed final avec message d'espoir
+            const hopeEmbed = new EmbedBuilder()
+                .setColor('#FFD700')
+                .setTitle('🌟 **MESSAGE D\'ESPOIR**')
                 .setDescription(`
-**${user} a été ajouté au ticket !**
+**🌅 Il y a toujours une lueur d'espoir, même dans les moments les plus sombres.**
 
-**📋 Informations :**
-• **Utilisateur ajouté :** ${user} (${user.user.tag})
-• **Ajouté par :** ${interaction.user}
-• **Ajouté le :** <t:${Math.floor(Date.now() / 1000)}:F>
-• **Permissions accordées :** Lecture, écriture, fichiers
+**💪 Rappels importants :**
+• Vos sentiments sont temporaires, pas permanents
+• Demander de l'aide est un signe de force, pas de faiblesse  
+• Vous avez survécu à 100% de vos mauvais jours jusqu'à présent
+• Chaque jour est une nouvelle opportunité
+• Vous méritez d'être heureux(se) et en paix
 
-**👋 ${user}, bienvenue dans ce ticket !**`)
-                .setThumbnail(user.user.displayAvatarURL({ dynamic: true }))
-                .setFooter({ text: 'Utilisateur ajouté avec succès' })
-                .setTimestamp();
+**🎯 Prochaines étapes suggérées :**
+1️⃣ Contactez une ligne d'écoute dès maintenant si nécessaire
+2️⃣ Parlez à un proche de confiance
+3️⃣ Prenez rendez-vous avec un professionnel
+4️⃣ Créez un ticket "Support" si vous voulez parler à notre équipe
 
-            await this.safeInteractionReply(interaction, { embeds: [addUserEmbed] });
+**🌈 Votre histoire n'est pas terminée. Les plus belles pages restent à écrire.**`)
+                .setImage('https://i.imgur.com/hopeful-banner.png') // Vous pouvez ajouter une image inspirante
+                .setFooter({ 
+                    text: '💝 Vous n\'êtes jamais seul(e) • Cette communauté vous soutient',
+                    iconURL: interaction.guild.iconURL({ dynamic: true })
+                });
 
-        } catch (error) {
-            this.logger.error('Erreur lors de l\'ajout d\'utilisateur:', error);
+            // Boutons d'actions rapides
+            const sosActionsRow = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('sos_create_support_ticket')
+                        .setLabel('Parler à Notre Équipe')
+                        .setStyle(ButtonStyle.Success)
+                        .setEmoji('💬'),
+                    new ButtonBuilder()
+                        .setLabel('3114 - Prévention Suicide')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL('https://3114.fr')
+                        .setEmoji('📞'),
+                    new ButtonBuilder()
+                        .setLabel('31 14 - Soutien Psycho')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL('https://www.gouvernement.fr/3114-numero-national-de-prevention-du-suicide')
+                        .setEmoji('🆘'),
+                    new ButtonBuilder()
+                        .setLabel('Fil Santé Jeunes')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL('https://filsantejeunes.com')
+                        .setEmoji('👥')
+                );
+
             await this.safeInteractionReply(interaction, {
-                content: '❌ Une erreur est survenue lors de l\'ajout de l\'utilisateur.',
+                embeds: [sosMainEmbed, preventionEmbed, resourcesEmbed, supportEmbed, hopeEmbed],
+                components: [sosActionsRow],
                 flags: MessageFlags.Ephemeral
             });
-        }
-    }
 
-    async handleConfirmClose(interaction) {
-        try {
-            const channel = interaction.channel;
-            const guild = interaction.guild;
-            
-            const closingEmbed = new EmbedBuilder()
-                .setColor('#e74c3c')
-                .setTitle('🔒 **TICKET EN COURS DE FERMETURE**')
-                .setDescription(`
-**Ce ticket va être fermé dans 10 secondes...**
+            this.logger.info(`✅ Panel SOS envoyé avec succès pour ${interaction.user.username}`);
 
-**📋 Résumé final :**
-• **Fermé par :** ${interaction.user}
-• **Fermé le :** <t:${Math.floor(Date.now() / 1000)}:F>
-• **Durée totale :** <t:${Math.floor(channel.createdTimestamp / 1000)}:R>
-
-**💾 Pensez à sauvegarder les informations importantes !**
-
-*Merci d'avoir utilisé notre système de support.*`)
-                .setFooter({ text: 'Fermeture automatique dans 10 secondes' })
-                .setTimestamp();
-
-            // Tentative de mise à jour avec gestion d'erreur d'expiration
-            let updateSuccess = false;
-            try {
-                if (!interaction.replied && !interaction.deferred) {
-                    await interaction.update({
-                        embeds: [closingEmbed],
-                        components: []
-                    });
-                    updateSuccess = true;
-                } else {
-                    this.logger.warn('⚠️ Interaction déjà traitée dans handleConfirmClose');
-                }
-            } catch (updateError) {
-                if (updateError.code === 10062) {
-                    this.logger.warn('⏰ Interaction expirée lors de handleConfirmClose - envoi message direct');
-                    // Fallback : envoyer un nouveau message dans le canal
-                    await channel.send({
-                        content: `🔒 **${interaction.user} a confirmé la fermeture du ticket**`,
-                        embeds: [closingEmbed]
-                    });
-                    updateSuccess = true;
-                } else {
-                    throw updateError;
-                }
-            }
-
-            if (updateSuccess) {
-                // Envoyer le feedback complet dans le canal de logs (de manière asynchrone)
-                this.sendTicketFeedback(channel, interaction.user, guild).catch(error => {
-                    this.logger.error('Erreur lors de l\'envoi du feedback:', error);
-                });
-
-                // Supprimer le canal après 10 secondes
-                setTimeout(async () => {
-                    try {
-                        this.logger.info(`🗑️ Suppression du ticket: ${channel.name}`);
-                        await channel.delete('Ticket fermé');
-                        this.logger.success(`✅ Ticket ${channel.name} supprimé avec succès`);
-                    } catch (deleteError) {
-                        this.logger.error(`❌ Erreur lors de la suppression du canal ${channel.name}:`, deleteError);
-                    }
-                }, 10000);
-            }
+            // Log pour suivi (de manière anonyme)
+            this.logger.info(`Panel SOS consulté par un utilisateur dans ${interaction.guild.name}`);
 
         } catch (error) {
-            this.logger.error('Erreur lors de la fermeture confirmée:', error);
+            this.logger.error('Erreur lors de l\'affichage du panel SOS:', error);
             
-            // Fallback d'urgence : message dans le canal
+            // Message de fallback simple mais important
             try {
-                await interaction.channel.send({
-                    content: `❌ ${interaction.user}, une erreur est survenue lors de la fermeture. Le ticket reste ouvert.`
-                });
-            } catch (fallbackError) {
-                this.logger.error('Impossible d\'envoyer le message de fallback:', fallbackError);
-            }
-        }
-    }
-
-    async handleCancelClose(interaction) {
-        try {
+                await this.safeInteractionReply(interaction, {
             const cancelEmbed = new EmbedBuilder()
                 .setColor('#2ecc71')
                 .setTitle('✅ **FERMETURE ANNULÉE**')
