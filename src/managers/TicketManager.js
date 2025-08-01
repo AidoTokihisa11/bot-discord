@@ -578,13 +578,13 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                 // Créer ou récupérer la catégorie de tickets
                 const ticketCategory = await this.ensureTicketCategory(guild);
 
-                // Créer le canal de ticket
+                // Créer le canal de ticket PRIVÉ (uniquement pour l'utilisateur)
                 const ticketNumber = Date.now().toString().slice(-6);
                 const ticketChannel = await guild.channels.create({
                     name: `${config.emoji}・${type}-${user.username}-${ticketNumber}`,
                     type: ChannelType.GuildText,
                     parent: ticketCategory.id,
-                    topic: `Ticket ${config.name} • ${subject} • Créé par ${user.tag}`,
+                    topic: `Ticket ${config.name} PRIVÉ • ${subject} • Créé par ${user.tag}`,
                     permissionOverwrites: [
                         {
                             id: guild.id,
@@ -597,65 +597,59 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                                 PermissionFlagsBits.SendMessages,
                                 PermissionFlagsBits.ReadMessageHistory,
                                 PermissionFlagsBits.AttachFiles,
-                                PermissionFlagsBits.EmbedLinks
-                            ]
-                        },
-                        {
-                            id: this.staffRoleId,
-                            allow: [
-                                PermissionFlagsBits.ViewChannel,
-                                PermissionFlagsBits.SendMessages,
-                                PermissionFlagsBits.ReadMessageHistory,
-                                PermissionFlagsBits.ManageMessages,
-                                PermissionFlagsBits.AttachFiles,
-                                PermissionFlagsBits.EmbedLinks
+                                PermissionFlagsBits.EmbedLinks,
+                                PermissionFlagsBits.ManageMessages
                             ]
                         }
+                        // Pas d'accès au staff par défaut - channel privé
                     ]
                 });
                 
                 // Libérer immédiatement le verrou de création
                 ultimateLock.activeChannels.delete(channelCreationKey);
 
-            // Embed de bienvenue dans le ticket
+            // Embed de bienvenue dans le ticket PRIVÉ
             const welcomeEmbed = new EmbedBuilder()
                 .setColor(config.color)
-                .setTitle(`${config.emoji} **${config.name} - Ticket #${ticketNumber}**`)
+                .setTitle(`${config.emoji} **${config.name} - Ticket Privé #${ticketNumber}**`)
                 .setDescription(`
 ╭─────────────────────────────────────╮
 │     **Bienvenue ${user.displayName}** 👋     │
+│          **TICKET PRIVÉ** 🔒          │
 ╰─────────────────────────────────────╯
 
 **📋 Informations du Ticket :**
 • **Sujet :** ${subject}
-• **Type :** ${config.name}
+• **Type :** ${config.name} (Privé)
 • **Numéro :** \`#${ticketNumber}\`
 • **Priorité :** ${this.getPriorityDisplay(priority)}
 • **Créé le :** <t:${Math.floor(Date.now() / 1000)}:F>
-• **Temps de réponse estimé :** \`${config.responseTime}\`
+• **Statut :** Ticket privé - Seul vous avez accès
 
 **📝 Description :**
 \`\`\`
 ${description}
 \`\`\`
 
-**🎯 Prochaines Étapes :**
-1️⃣ Notre équipe a été notifiée automatiquement
-2️⃣ Un membre du staff vous répondra sous peu
-3️⃣ Restez disponible pour d'éventuelles questions
+**🔒 Confidentialité :**
+• Ce ticket est **100% privé**
+• Seul **vous** avez accès à ce channel
+• Aucun staff n'est notifié automatiquement
+• Vous pouvez inviter quelqu'un si nécessaire
 
-**💡 En attendant, vous pouvez :**
-• Ajouter des captures d'écran si nécessaire
+**💡 Actions disponibles :**
+• Ajouter des captures d'écran
 • Préciser des détails supplémentaires
-• Utiliser les boutons ci-dessous`)
+• Inviter un utilisateur ou staff si besoin
+• Fermer le ticket quand vous le souhaitez`)
                 .setThumbnail(user.displayAvatarURL({ dynamic: true }))
                 .setFooter({ 
-                    text: `Ticket ID: ${ticketNumber} • Notre équipe est notifiée`,
+                    text: `Ticket Privé ID: ${ticketNumber} • Accessible uniquement par vous`,
                     iconURL: guild.iconURL({ dynamic: true })
                 })
                 .setTimestamp();
 
-            // Boutons d'actions pour le ticket
+            // Boutons d'actions pour le ticket privé
             const ticketActionsRow = new ActionRowBuilder()
                 .addComponents(
                     new ButtonBuilder()
@@ -664,15 +658,15 @@ ${description}
                         .setStyle(ButtonStyle.Danger)
                         .setEmoji('🔒'),
                     new ButtonBuilder()
-                        .setCustomId('ticket_claim')
-                        .setLabel('Prendre en Charge')
+                        .setCustomId('ticket_invite_staff')
+                        .setLabel('Inviter le Staff')
                         .setStyle(ButtonStyle.Success)
-                        .setEmoji('✋'),
+                        .setEmoji('👥'),
                     new ButtonBuilder()
                         .setCustomId('ticket_add_user')
                         .setLabel('Ajouter Utilisateur')
                         .setStyle(ButtonStyle.Secondary)
-                        .setEmoji('👥'),
+                        .setEmoji('➕'),
                     new ButtonBuilder()
                         .setCustomId('ticket_transcript')
                         .setLabel('Transcript')
@@ -680,17 +674,17 @@ ${description}
                         .setEmoji('📄')
                 );
 
+            // Envoyer uniquement à l'utilisateur (pas de ping staff)
             await ticketChannel.send({
-                content: `${user} | <@&${this.staffRoleId}> | <@421670146604793856>`,
+                content: `🔒 **Ticket privé créé pour ${user}**\n\n💡 *Ce channel est privé et accessible uniquement par vous. Utilisez le bouton "Inviter le Staff" si vous souhaitez obtenir de l'aide.*`,
                 embeds: [welcomeEmbed],
                 components: [ticketActionsRow]
             });
 
-            // Notification privée au staff
-            await this.notifyStaff(guild, user, ticketChannel, config, subject, description, priority);
+            // PAS de notification au staff - ticket privé
 
                 await interaction.editReply({
-                    content: `✅ **Ticket créé avec succès !** ${ticketChannel}\n🎯 Notre équipe a été notifiée et vous répondra dans **${config.responseTime}**.`
+                    content: `✅ **Ticket privé créé avec succès !** ${ticketChannel}\n🔒 Ce ticket est **100% privé** - seul vous y avez accès.\n💡 Utilisez le bouton "Inviter le Staff" dans le ticket si vous avez besoin d'aide.`
                 });
 
                 this.logger.info(`Ticket #${ticketNumber} créé: ${ticketChannel.name} par ${user.tag} (${type})`);
@@ -1208,6 +1202,9 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
             case 'ticket_claim':
                 await this.claimTicket(interaction);
                 break;
+            case 'ticket_invite_staff':
+                await this.inviteStaffToTicket(interaction);
+                break;
             case 'ticket_add_user':
                 await this.addUserToTicket(interaction);
                 break;
@@ -1334,6 +1331,69 @@ Merci de votre patience, nous traitons votre demande.`)
             });
         } catch (error) {
             this.logger.error('Erreur lors de la prise en charge du ticket:', error);
+        }
+    }
+
+    async inviteStaffToTicket(interaction) {
+        try {
+            const channel = interaction.channel;
+            const user = interaction.user;
+            
+            // Vérifier que l'utilisateur est le créateur du ticket ou a les permissions
+            if (!channel.name.includes(user.username) && !interaction.member.roles.cache.has(this.staffRoleId)) {
+                return await this.safeInteractionReply(interaction, {
+                    content: '❌ Seul le créateur du ticket peut inviter le staff.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            // Donner accès au staff role
+            await channel.permissionOverwrites.create(this.staffRoleId, {
+                ViewChannel: true,
+                SendMessages: true,
+                ReadMessageHistory: true,
+                ManageMessages: true,
+                AttachFiles: true,
+                EmbedLinks: true
+            });
+
+            // Embed de notification d'invitation
+            const inviteEmbed = new EmbedBuilder()
+                .setColor('#2ecc71')
+                .setTitle('👥 **STAFF INVITÉ AU TICKET**')
+                .setDescription(`
+**${user} a invité l'équipe de support !**
+
+🔓 **Le ticket n'est plus privé**
+👥 **Staff notifié :** <@&${this.staffRoleId}>
+⏰ **Temps de réponse estimé :** 2-4 heures
+
+**L'équipe de support a maintenant accès à ce ticket et va vous répondre rapidement.**`)
+                .setFooter({ text: 'Ticket maintenant visible par le staff' })
+                .setTimestamp();
+
+            // Notification du staff
+            await channel.send({
+                content: `👥 **Staff invité par ${user}** | <@&${this.staffRoleId}>`,
+                embeds: [inviteEmbed]
+            });
+
+            // Notifier le staff en privé
+            const guild = interaction.guild;
+            const config = this.ticketTypes.general; // Config par défaut
+            await this.notifyStaff(guild, user, channel, config, 'Staff invité', 'L\'utilisateur a demandé l\'aide du staff dans son ticket privé.', '3');
+
+            await this.safeInteractionReply(interaction, {
+                content: '✅ Le staff a été invité et notifié. Ils vont vous répondre sous peu.',
+                flags: MessageFlags.Ephemeral
+            });
+
+        } catch (error) {
+            this.logger.error('Erreur lors de l\'invitation du staff:', error);
+            await this.safeInteractionReply(interaction, {
+                content: '❌ Une erreur est survenue lors de l\'invitation du staff.',
+                flags: MessageFlags.Ephemeral
+            });
         }
     }
 
