@@ -955,8 +955,7 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
         const contactEmbed = new EmbedBuilder()
             .setColor('#e74c3c')
             .setTitle('📞 **CONTACT DIRECT AVEC LE STAFF**')
-            .setDescription(`
-**Pour un contact direct avec notre équipe :**
+            .setDescription(`**Pour un contact direct avec notre équipe :**
 
 **💬 Discord :**
 • Mentionnez <@&${this.staffRoleId}> dans votre ticket
@@ -1317,8 +1316,28 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
             const claimEmbed = new EmbedBuilder()
                 .setColor('#2ecc71')
                 .setTitle('✋ **TICKET PRIS EN CHARGE**')
-                .setDescription(`
-**${staff} a pris ce ticket en charge !**
+                .setDescription(`**${staff} a pris ce ticket en charge !**
+
+⏰ **Temps de réponse:** Sous peu
+🎯 **Priorité:** Élevée
+👤 **Staff assigné:** ${staff}
+
+Merci de votre patience, nous traitons votre demande.`)
+                .setFooter({ text: 'Ticket en cours de traitement' })
+                .setTimestamp();
+
+            await channel.send({ embeds: [claimEmbed] });
+            
+            await this.safeInteractionReply(interaction, {
+                content: '✅ Vous avez pris ce ticket en charge.',
+                flags: MessageFlags.Ephemeral
+            });
+        } catch (error) {
+            this.logger.error('Erreur lors de la prise en charge du ticket:', error);
+        }
+    }
+
+    async showMyTickets(interaction) {
         const guild = interaction.guild;
         const userTickets = guild.channels.cache.filter(
             channel => channel.name.includes(interaction.user.username) && channel.name.includes('ticket')
@@ -1326,7 +1345,7 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
         
         const ticketsEmbed = new EmbedBuilder()
             .setColor('#9b59b6')
-            .setTitle('📋 **VOS TICKETS**')
+            .setTitle('� **VOS TICKETS**')
             .setDescription(userTickets.size > 0 ? 
                 userTickets.map(ticket => 
                     `• ${ticket} - Créé <t:${Math.floor(ticket.createdTimestamp / 1000)}:R>`
@@ -1343,15 +1362,14 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
         const contactEmbed = new EmbedBuilder()
             .setColor('#e74c3c')
             .setTitle('📞 **CONTACT DIRECT AVEC LE STAFF**')
-            .setDescription(`
-**Pour un contact direct avec notre équipe :**
+            .setDescription(`**Pour un contact direct avec notre équipe :**
 
 **💬 Discord :**
-• Mentionnez <@&${this.staffRoleId}> dans votre ticket
+• Mentionnez <@&${this.staffRoleId}> dans votre ticket  
 • Utilisez les canaux publics pour les questions générales
 
 **⚡ Urgences :**
-• Créez un ticket de type "Signalement" 
+• Créez un ticket de type "Signalement"
 • Temps de réponse garanti : 30 minutes - 1 heure
 
 **📧 Autres moyens :**
@@ -1577,6 +1595,17 @@ Cette action est **irréversible** et le canal sera supprimé dans 10 secondes a
             // Message de fallback simple mais important
             try {
                 await this.safeInteractionReply(interaction, {
+                    content: '❌ Une erreur est survenue lors de l\'affichage du panel SOS.',
+                    flags: MessageFlags.Ephemeral
+                });
+            } catch (fallbackError) {
+                this.logger.error('Erreur critique lors du fallback SOS:', fallbackError);
+            }
+        }
+    }
+
+    async cancelTicketClosure(interaction) {
+        try {
             const cancelEmbed = new EmbedBuilder()
                 .setColor('#2ecc71')
                 .setTitle('✅ **FERMETURE ANNULÉE**')
