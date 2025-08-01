@@ -233,10 +233,10 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
                         .setStyle(ButtonStyle.Secondary)
                         .setEmoji('📋'),
                     new ButtonBuilder()
-                        .setCustomId('ticket_contact_staff')
-                        .setLabel('Contact Direct')
-                        .setStyle(ButtonStyle.Secondary)
-                        .setEmoji('📞')
+                        .setCustomId('ticket_sos')
+                        .setLabel('SOS - Aide d\'Urgence')
+                        .setStyle(ButtonStyle.Danger)
+                        .setEmoji('🆘')
                 );
 
             // Embed d'informations détaillées
@@ -859,6 +859,13 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
             case 'ticket_contact_staff':
                 await this.contactStaff(interaction);
                 break;
+            case 'ticket_sos':
+                await this.showSOSPanel(interaction);
+                break;
+            case 'sos_create_support_ticket':
+                // Rediriger vers la création d'un ticket de support spécialisé
+                await this.handleTicketCreation(interaction, 'support');
+                break;
         }
     }
 
@@ -968,6 +975,227 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
             .setTimestamp();
 
         await this.safeInteractionReply(interaction, { embeds: [contactEmbed], flags: MessageFlags.Ephemeral });
+    }
+
+    async showSOSPanel(interaction) {
+        try {
+            // Embed principal SOS avec design professionnel
+            const sosMainEmbed = new EmbedBuilder()
+                .setColor('#ff0000')
+                .setTitle('🆘 **AIDE D\'URGENCE - PRÉVENTION DU SUICIDE**')
+                .setDescription(`
+╭─────────────────────────────────────╮
+│   **🚨 VOUS N'ÊTES PAS SEUL(E) 🚨**   │
+╰─────────────────────────────────────╯
+
+**Si vous traversez une période difficile, des professionnels sont là pour vous aider.**
+
+**⚡ URGENCE IMMÉDIATE :**
+• **SAMU :** \`15\` 🚑
+• **Pompiers :** \`18\` 🚒
+• **Police :** \`17\` 👮
+• **Numéro d'urgence européen :** \`112\` 🌍
+
+**🤝 Vous avez de la valeur et votre vie compte.**`)
+                .setThumbnail('https://cdn.discordapp.com/emojis/1234567890123456789.png') // Vous pouvez ajouter une icône
+                .setFooter({ 
+                    text: '💝 Il y a toujours de l\'espoir • Vous méritez d\'être aidé(e)',
+                    iconURL: interaction.client.user.displayAvatarURL()
+                })
+                .setTimestamp();
+
+            // Embed avec les numéros de prévention du suicide
+            const preventionEmbed = new EmbedBuilder()
+                .setColor('#ff6b6b')
+                .setTitle('📞 **LIGNES D\'ÉCOUTE SPÉCIALISÉES**')
+                .addFields(
+                    {
+                        name: '🇫🇷 **FRANCE - Prévention du Suicide**',
+                        value: `
+**📞 Suicide Écoute :** \`01 45 39 40 00\`
+• **Disponibilité :** 24h/24, 7j/7
+• **Service :** Gratuit et anonyme
+• **Site web :** suicide-ecoute.fr
+
+**📞 SOS Amitié :** \`09 72 39 40 50\`
+• **Disponibilité :** 24h/24, 7j/7  
+• **Service :** Écoute bienveillante
+• **Site web :** sos-amitie.org`,
+                        inline: false
+                    },
+                    {
+                        name: '🌐 **INTERNATIONAL**',
+                        value: `
+**🇧🇪 Belgique :** \`0800 32 123\` (24h/24)
+**🇨🇭 Suisse :** \`143\` (24h/24)
+**🇨🇦 Canada :** \`1-833-456-4566\` (24h/24)
+**🌍 International :** befrienders.org`,
+                        inline: true
+                    },
+                    {
+                        name: '👥 **JEUNES & ÉTUDIANTS**',
+                        value: `
+**📞 Fil Santé Jeunes :** \`0800 235 236\`
+• **Âge :** 12-25 ans
+• **Horaires :** 9h-23h
+• **Chat :** filsantejeunes.com
+
+**📞 Nightline :** nightline.fr
+• **Service :** Par et pour les étudiants`,
+                        inline: true
+                    }
+                )
+                .setFooter({ text: 'Tous ces services sont confidentiels et gratuits' });
+
+            // Embed avec resources en ligne et conseils
+            const resourcesEmbed = new EmbedBuilder()
+                .setColor('#4CAF50')
+                .setTitle('💻 **RESSOURCES EN LIGNE & CONSEILS**')
+                .addFields(
+                    {
+                        name: '🌐 **Sites Web d\'Aide**',
+                        value: `
+• **stopblues.fr** - Prévention de la dépression chez les jeunes
+• **psycom.org** - Information en santé mentale
+• **santementale.fr** - Ressources officielles
+• **tchat-suicide-ecoute.org** - Chat anonyme 24h/24`,
+                        inline: false
+                    },
+                    {
+                        name: '📱 **Applications Mobiles**',
+                        value: `
+• **Mon Sherpa** - Accompagnement psychologique
+• **Mood Tools** - Outils contre la dépression
+• **Sanvello** - Gestion de l'anxiété
+• **Headspace** - Méditation et bien-être`,
+                        inline: true
+                    },
+                    {
+                        name: '🏥 **Où Aller Physiquement**',
+                        value: `
+• **Urgences hospitalières** 🏥
+• **Centres Médico-Psychologiques (CMP)**
+• **Maisons des Adolescents (MDA)**
+• **Points d'Accueil Écoute Jeunes (PAEJ)**`,
+                        inline: true
+                    }
+                )
+                .setFooter({ text: 'N\'hésitez pas à vous faire accompagner par un proche' });
+
+            // Embed avec signes d'alarme et conseils pour l'entourage
+            const supportEmbed = new EmbedBuilder()
+                .setColor('#9C27B0')
+                .setTitle('❤️ **POUR L\'ENTOURAGE & SIGNES D\'ALARME**')
+                .addFields(
+                    {
+                        name: '🚨 **Signes à Surveiller**',
+                        value: `
+• Changements soudains de comportement
+• Isolement social marqué
+• Perte d'intérêt pour les activités
+• Troubles du sommeil/appétit
+• Expressions de désespoir
+• Don d'objets personnels`,
+                        inline: true
+                    },
+                    {
+                        name: '🤝 **Comment Aider**',
+                        value: `
+• **Écoutez** sans juger
+• **Prenez** les menaces au sérieux
+• **Encouragez** à chercher de l'aide
+• **Accompagnez** si possible
+• **Restez** en contact régulier
+• **Prenez soin** de vous aussi`,
+                        inline: true
+                    },
+                    {
+                        name: '💡 **Phrases Aidantes**',
+                        value: `
+✅ "Je suis là pour toi"
+✅ "Tu comptes pour moi"
+✅ "Veux-tu qu'on en parle ?"
+✅ "Comment puis-je t'aider ?"
+❌ Évitez les jugements/minimisations`,
+                        inline: false
+                    }
+                )
+                .setFooter({ text: 'Votre présence et votre écoute font la différence' });
+
+            // Embed final avec message d'espoir
+            const hopeEmbed = new EmbedBuilder()
+                .setColor('#FFD700')
+                .setTitle('🌟 **MESSAGE D\'ESPOIR**')
+                .setDescription(`
+**🌅 Il y a toujours une lueur d'espoir, même dans les moments les plus sombres.**
+
+**💪 Rappels importants :**
+• Vos sentiments sont temporaires, pas permanents
+• Demander de l'aide est un signe de force, pas de faiblesse  
+• Vous avez survécu à 100% de vos mauvais jours jusqu'à présent
+• Chaque jour est une nouvelle opportunité
+• Vous méritez d'être heureux(se) et en paix
+
+**🎯 Prochaines étapes suggérées :**
+1️⃣ Contactez une ligne d'écoute dès maintenant si nécessaire
+2️⃣ Parlez à un proche de confiance
+3️⃣ Prenez rendez-vous avec un professionnel
+4️⃣ Créez un ticket "Support" si vous voulez parler à notre équipe
+
+**🌈 Votre histoire n'est pas terminée. Les plus belles pages restent à écrire.**`)
+                .setImage('https://i.imgur.com/hopeful-banner.png') // Vous pouvez ajouter une image inspirante
+                .setFooter({ 
+                    text: '💝 Vous n\'êtes jamais seul(e) • Cette communauté vous soutient',
+                    iconURL: interaction.guild.iconURL({ dynamic: true })
+                });
+
+            // Boutons d'actions rapides
+            const sosActionsRow = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('sos_create_support_ticket')
+                        .setLabel('Parler à Notre Équipe')
+                        .setStyle(ButtonStyle.Success)
+                        .setEmoji('💬'),
+                    new ButtonBuilder()
+                        .setLabel('Suicide Écoute')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL('https://www.suicide-ecoute.fr')
+                        .setEmoji('📞'),
+                    new ButtonBuilder()
+                        .setLabel('SOS Amitié')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL('https://www.sos-amitie.org')
+                        .setEmoji('🤝'),
+                    new ButtonBuilder()
+                        .setLabel('Fil Santé Jeunes')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL('https://www.filsantejeunes.com')
+                        .setEmoji('👥')
+                );
+
+            await this.safeInteractionReply(interaction, {
+                embeds: [sosMainEmbed, preventionEmbed, resourcesEmbed, supportEmbed, hopeEmbed],
+                components: [sosActionsRow],
+                flags: MessageFlags.Ephemeral
+            });
+
+            // Log pour suivi (de manière anonyme)
+            this.logger.info(`Panel SOS consulté par un utilisateur dans ${interaction.guild.name}`);
+
+        } catch (error) {
+            this.logger.error('Erreur lors de l\'affichage du panel SOS:', error);
+            
+            // Message de fallback simple mais important
+            try {
+                await this.safeInteractionReply(interaction, {
+                    content: `🆘 **NUMÉROS D'URGENCE:**\n\n**France:**\n• Suicide Écoute: \`01 45 39 40 00\` (24h/24)\n• SOS Amitié: \`09 72 39 40 50\` (24h/24)\n• SAMU: \`15\`\n• Urgences: \`112\`\n\n**Vous n'êtes pas seul(e). Il y a toujours de l'espoir.** 💝`,
+                    flags: MessageFlags.Ephemeral
+                });
+            } catch (fallbackError) {
+                this.logger.error('Impossible d\'envoyer le message SOS de fallback:', fallbackError);
+            }
+        }
     }
 
     // Gestionnaires pour les actions dans les tickets
