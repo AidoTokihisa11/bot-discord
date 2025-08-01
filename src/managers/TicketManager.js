@@ -979,6 +979,8 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
 
     async showSOSPanel(interaction) {
         try {
+            this.logger.info(`🆘 Début de showSOSPanel pour ${interaction.user.username}`);
+            
             // Embed principal SOS avec design professionnel
             const sosMainEmbed = new EmbedBuilder()
                 .setColor('#ff0000')
@@ -1160,17 +1162,17 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
                     new ButtonBuilder()
                         .setLabel('Suicide Écoute')
                         .setStyle(ButtonStyle.Link)
-                        .setURL('https://www.suicide-ecoute.fr')
+                        .setURL('https://suicide-ecoute.fr')
                         .setEmoji('📞'),
                     new ButtonBuilder()
                         .setLabel('SOS Amitié')
                         .setStyle(ButtonStyle.Link)
-                        .setURL('https://www.sos-amitie.org')
+                        .setURL('https://sos-amitie.org')
                         .setEmoji('🤝'),
                     new ButtonBuilder()
                         .setLabel('Fil Santé Jeunes')
                         .setStyle(ButtonStyle.Link)
-                        .setURL('https://www.filsantejeunes.com')
+                        .setURL('https://filsantejeunes.com')
                         .setEmoji('👥')
                 );
 
@@ -1179,6 +1181,8 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
                 components: [sosActionsRow],
                 flags: MessageFlags.Ephemeral
             });
+
+            this.logger.info(`✅ Panel SOS envoyé avec succès pour ${interaction.user.username}`);
 
             // Log pour suivi (de manière anonyme)
             this.logger.info(`Panel SOS consulté par un utilisateur dans ${interaction.guild.name}`);

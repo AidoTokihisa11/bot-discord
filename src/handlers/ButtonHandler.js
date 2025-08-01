@@ -128,6 +128,8 @@ class ButtonHandler {
                 case 'ticket_status':
                 case 'ticket_my_tickets':
                 case 'ticket_contact_staff':
+                case 'ticket_sos':
+                case 'sos_create_support_ticket':
                     await ticketManager.handleQuickAction(interaction);
                     break;
                     
