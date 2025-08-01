@@ -984,19 +984,20 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
             // Embed principal SOS avec design professionnel
             const sosMainEmbed = new EmbedBuilder()
                 .setColor('#ff0000')
-                .setTitle('🆘 **AIDE D\'URGENCE - PRÉVENTION DU SUICIDE**')
+                .setTitle('🆘 **AIDE D\'URGENCE - NUMÉROS OFFICIELS**')
                 .setDescription(`
 ╭─────────────────────────────────────╮
 │   **🚨 VOUS N'ÊTES PAS SEUL(E) 🚨**   │
 ╰─────────────────────────────────────╯
 
-**Si vous traversez une période difficile, des professionnels sont là pour vous aider.**
+**⚡ URGENCES PRINCIPALES :**
+• **SAMU :** \`15\` 🚑 (Urgences médicales)
+• **Police :** \`17\` � (Interventions urgentes)
+• **Pompiers :** \`18\` � (Incendies, accidents)
+• **Urgence européenne :** \`112\` 🌍 (Toute urgence UE)
 
-**⚡ URGENCE IMMÉDIATE :**
-• **SAMU :** \`15\` 🚑
-• **Pompiers :** \`18\` 🚒
-• **Police :** \`17\` 👮
-• **Numéro d'urgence européen :** \`112\` 🌍
+**📞 SOUTIEN PSYCHOLOGIQUE IMMÉDIAT :**
+• **Détresse/Suicide :** \`31 14\` (24h/24, 7j/7)
 
 **🤝 Vous avez de la valeur et votre vie compte.**`)
                 .setThumbnail('https://cdn.discordapp.com/emojis/1234567890123456789.png') // Vous pouvez ajouter une icône
@@ -1006,48 +1007,43 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
                 })
                 .setTimestamp();
 
-            // Embed avec les numéros de prévention du suicide
+            // Embed avec les numéros spécialisés
             const preventionEmbed = new EmbedBuilder()
                 .setColor('#ff6b6b')
-                .setTitle('📞 **LIGNES D\'ÉCOUTE SPÉCIALISÉES**')
+                .setTitle('📞 **NUMÉROS SPÉCIALISÉS OFFICIELS**')
                 .addFields(
                     {
-                        name: '🇫🇷 **FRANCE - Prévention du Suicide**',
+                        name: '🚨 **NUMÉROS SPÉCIALISÉS URGENTS**',
                         value: `
-**📞 Suicide Écoute :** \`01 45 39 40 00\`
-• **Disponibilité :** 24h/24, 7j/7
-• **Service :** Gratuit et anonyme
-• **Site web :** suicide-ecoute.fr
-
-**📞 SOS Amitié :** \`09 72 39 40 50\`
-• **Disponibilité :** 24h/24, 7j/7  
-• **Service :** Écoute bienveillante
-• **Site web :** sos-amitie.org`,
+**📞 Soutien psychologique :** \`31 14\` (24h/24)
+**📞 Violences conjugales :** \`39 19\` (24h/24)
+**📞 Enfance en danger :** \`119\` (Maltraitance)
+**📞 Aide aux victimes :** \`116 006\` (Gratuit)
+**📞 Personnes sourdes/malentendantes :** \`114\`
+**📞 SAMU Social :** \`115\` (Sans-abri)`,
                         inline: false
                     },
                     {
-                        name: '🌐 **INTERNATIONAL**',
+                        name: '� **SECOURS SPÉCIALISÉS**',
                         value: `
-**🇧🇪 Belgique :** \`0800 32 123\` (24h/24)
-**🇨🇭 Suisse :** \`143\` (24h/24)
-**🇨🇦 Canada :** \`1-833-456-4566\` (24h/24)
-**🌍 International :** befrienders.org`,
+**📞 Secours en mer :** \`196\` (CROSS)
+**📞 Sauvetage aéronautique :** \`191\`
+**📞 Alerte attentat/enlèvement :** \`197\`
+**📞 Urgence gaz :** \`0800 47 33 33\`
+**📞 Pharmacie de garde :** \`3237\``,
                         inline: true
                     },
                     {
-                        name: '👥 **JEUNES & ÉTUDIANTS**',
+                        name: '👥 **JEUNES & ADDICTIONS**',
                         value: `
-**📞 Fil Santé Jeunes :** \`0800 235 236\`
-• **Âge :** 12-25 ans
-• **Horaires :** 9h-23h
-• **Chat :** filsantejeunes.com
-
-**📞 Nightline :** nightline.fr
-• **Service :** Par et pour les étudiants`,
+**📞 Cyber-harcèlement :** \`30 18\` (Jeunes)
+**📞 Drogues Info Service :** \`0800 23 13 13\`
+**📞 Permanence de soins :** \`116 117\`
+**📞 Rappel urgences :** \`0800 112 112\``,
                         inline: true
                     }
                 )
-                .setFooter({ text: 'Tous ces services sont confidentiels et gratuits' });
+                .setFooter({ text: '📋 Numéros officiels français - Services gratuits' });
 
             // Embed avec resources en ligne et conseils
             const resourcesEmbed = new EmbedBuilder()
@@ -1160,15 +1156,15 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
                         .setStyle(ButtonStyle.Success)
                         .setEmoji('💬'),
                     new ButtonBuilder()
-                        .setLabel('Suicide Écoute')
+                        .setLabel('3114 - Prévention Suicide')
                         .setStyle(ButtonStyle.Link)
-                        .setURL('https://suicide-ecoute.fr')
+                        .setURL('https://3114.fr')
                         .setEmoji('📞'),
                     new ButtonBuilder()
-                        .setLabel('SOS Amitié')
+                        .setLabel('31 14 - Soutien Psycho')
                         .setStyle(ButtonStyle.Link)
-                        .setURL('https://sos-amitie.org')
-                        .setEmoji('🤝'),
+                        .setURL('https://www.gouvernement.fr/3114-numero-national-de-prevention-du-suicide')
+                        .setEmoji('🆘'),
                     new ButtonBuilder()
                         .setLabel('Fil Santé Jeunes')
                         .setStyle(ButtonStyle.Link)
@@ -1193,7 +1189,7 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
             // Message de fallback simple mais important
             try {
                 await this.safeInteractionReply(interaction, {
-                    content: `🆘 **NUMÉROS D'URGENCE:**\n\n**France:**\n• Suicide Écoute: \`01 45 39 40 00\` (24h/24)\n• SOS Amitié: \`09 72 39 40 50\` (24h/24)\n• SAMU: \`15\`\n• Urgences: \`112\`\n\n**Vous n'êtes pas seul(e). Il y a toujours de l'espoir.** 💝`,
+                    content: `🆘 **NUMÉROS D'URGENCE OFFICIELS:**\n\n**🇫🇷 FRANCE - Urgences principales:**\n• **SAMU:** \`15\` (Urgences médicales)\n• **Police:** \`17\` (Interventions urgentes)\n• **Pompiers:** \`18\` (Incendies, accidents)\n• **Urgence UE:** \`112\` (Toute urgence)\n\n**🆘 Spécialisés:**\n• **Soutien psychologique:** \`31 14\` (24h/24)\n• **Violences conjugales:** \`39 19\` (24h/24)\n• **Enfance en danger:** \`119\`\n\n**Vous n'êtes pas seul(e). Ces numéros sont là pour vous aider.** 💝`,
                     flags: MessageFlags.Ephemeral
                 });
             } catch (fallbackError) {
