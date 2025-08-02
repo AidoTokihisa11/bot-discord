@@ -856,8 +856,12 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
                 await this.showSOSPanel(interaction);
                 break;
             case 'sos_create_support_ticket':
-                // Rediriger vers la création d'un ticket de support spécialisé
-                await this.handleTicketCreation(interaction, 'support');
+                // Créer un channel spécial SOS pour l'utilisateur
+                await this.createSOSChannel(interaction);
+                break;
+            case 'sos_resources':
+                // Afficher les ressources d'aide dans le channel SOS
+                await this.showSOSResources(interaction);
                 break;
         }
     }
@@ -1383,7 +1387,7 @@ Merci de votre patience, nous traitons votre demande.`)
 3️⃣ Prenez rendez-vous avec un professionnel
 4️⃣ Créez un ticket "Support" si vous voulez parler à notre équipe
 
-**🌈 Votre histoire n'est pas terminée. Les plus belles pages restent à écrire.**`)
+**🌈 Demain viendra.**`)
                 .setFooter({ 
                     text: '💝 Vous n\'êtes jamais seul(e) • Cette communauté vous soutient',
                     iconURL: interaction.guild.iconURL({ dynamic: true })
@@ -1422,6 +1426,246 @@ Merci de votre patience, nous traitons votre demande.`)
             } catch (fallbackError) {
                 this.logger.error('Erreur critique lors du fallback SOS:', fallbackError);
             }
+        }
+    }
+
+    async createSOSChannel(interaction) {
+        try {
+            // Protection contre les doublons
+            const ultimateLock = global.ULTIMATE_TICKET_LOCK;
+            const userId = interaction.user.id;
+            const now = Date.now();
+            
+            // Vérifier si l'utilisateur a déjà une action en cours
+            if (ultimateLock.activeUsers.has(userId)) {
+                const lastAction = ultimateLock.activeUsers.get(userId);
+                if (now - lastAction < 5000) {
+                    this.logger.warn(`🚫 BLOCAGE SOS: ${interaction.user.username} a déjà une action en cours`);
+                    return;
+                }
+            }
+            
+            // Verrouiller cet utilisateur
+            ultimateLock.activeUsers.set(userId, now);
+            
+            // Déférer l'interaction
+            if (!interaction.deferred && !interaction.replied) {
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            }
+
+            const guild = interaction.guild;
+            const user = interaction.user;
+
+            // Vérifier si l'utilisateur a déjà un channel SOS ouvert
+            const existingSOSChannels = guild.channels.cache.filter(
+                channel => channel.name.includes(user.username) && channel.name.includes('sos-support')
+            );
+
+            if (existingSOSChannels.size > 0) {
+                await interaction.editReply({
+                    content: `❌ Vous avez déjà un channel SOS ouvert : ${existingSOSChannels.first()}\n\n💡 Utilisez votre channel existant pour continuer la conversation.`
+                });
+                ultimateLock.activeUsers.delete(userId);
+                return;
+            }
+
+            // Créer la catégorie SOS si nécessaire
+            let sosCategory = guild.channels.cache.find(c => c.name === '🆘・Support SOS' && c.type === ChannelType.GuildCategory);
+            if (!sosCategory) {
+                sosCategory = await guild.channels.create({
+                    name: '🆘・Support SOS',
+                    type: ChannelType.GuildCategory,
+                    permissionOverwrites: [
+                        {
+                            id: guild.id,
+                            deny: [PermissionFlagsBits.ViewChannel]
+                        },
+                        {
+                            id: this.staffRoleId,
+                            allow: [
+                                PermissionFlagsBits.ViewChannel,
+                                PermissionFlagsBits.SendMessages,
+                                PermissionFlagsBits.ReadMessageHistory,
+                                PermissionFlagsBits.ManageMessages
+                            ]
+                        }
+                    ]
+                });
+            }
+
+            // Créer le channel SOS PRIVÉ
+            const sosNumber = Date.now().toString().slice(-6);
+            const sosChannel = await guild.channels.create({
+                name: `🆘・sos-support-${user.username}-${sosNumber}`,
+                type: ChannelType.GuildText,
+                parent: sosCategory.id,
+                topic: `Channel SOS PRIVÉ • Support émotionnel • Créé par ${user.tag}`,
+                permissionOverwrites: [
+                    {
+                        id: guild.id,
+                        deny: [PermissionFlagsBits.ViewChannel]
+                    },
+                    {
+                        id: user.id,
+                        allow: [
+                            PermissionFlagsBits.ViewChannel,
+                            PermissionFlagsBits.SendMessages,
+                            PermissionFlagsBits.ReadMessageHistory,
+                            PermissionFlagsBits.AttachFiles,
+                            PermissionFlagsBits.EmbedLinks
+                        ]
+                    }
+                    // Le staff n'a pas accès automatiquement - channel privé
+                ]
+            });
+
+            // Embed de bienvenue SOS
+            const sosWelcomeEmbed = new EmbedBuilder()
+                .setColor('#ff6b6b')
+                .setTitle('🆘 **ESPACE DE SOUTIEN PRIVÉ**')
+                .setDescription(`
+╭─────────────────────────────────────╮
+│     **Bienvenue ${user.displayName}** 💝     │
+│        **ESPACE 100% PRIVÉ** 🔒        │
+╰─────────────────────────────────────╯
+
+**🤗 Vous avez fait le bon choix en venant ici.**
+
+**📋 Cet espace vous offre :**
+• **Confidentialité totale** - Seul vous avez accès
+• **Aucune pression** - Parlez à votre rythme
+• **Bienveillance** - Vous êtes en sécurité ici
+• **Support disponible** - Notre équipe peut être invitée si vous le souhaitez
+
+**💬 Vous pouvez ici :**
+• Exprimer vos sentiments sans jugement
+• Poser toutes vos questions
+• Demander de l'aide quand vous êtes prêt(e)
+• Prendre le temps dont vous avez besoin
+
+**🌟 Rappels importants :**
+• Vos émotions sont valides
+• Demander de l'aide est courageux
+• Vous n'êtes pas seul(e)
+• **Demain viendra** 🌅
+
+**💡 Si vous souhaitez parler à notre équipe, utilisez le bouton "Inviter le Staff" ci-dessous.**`)
+                .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+                .setFooter({ 
+                    text: `Channel SOS Privé ID: ${sosNumber} • Accessible uniquement par vous`,
+                    iconURL: guild.iconURL({ dynamic: true })
+                })
+                .setTimestamp();
+
+            // Boutons pour le channel SOS
+            const sosChannelActionsRow = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('ticket_invite_staff')
+                        .setLabel('Inviter le Staff')
+                        .setStyle(ButtonStyle.Success)
+                        .setEmoji('👥'),
+                    new ButtonBuilder()
+                        .setCustomId('sos_resources')
+                        .setLabel('Ressources d\'Aide')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('📚'),
+                    new ButtonBuilder()
+                        .setCustomId('ticket_close')
+                        .setLabel('Fermer le Channel')
+                        .setStyle(ButtonStyle.Danger)
+                        .setEmoji('🔒')
+                );
+
+            // Message de bienvenue dans le channel SOS
+            await sosChannel.send({
+                content: `${user} 🆘 **Bienvenue dans votre espace de soutien privé**\n\n💝 *Ce channel est entièrement privé et accessible uniquement par vous. Prenez le temps dont vous avez besoin.*`,
+                embeds: [sosWelcomeEmbed],
+                components: [sosChannelActionsRow]
+            });
+
+            // Réponse à l'utilisateur
+            await interaction.editReply({
+                content: `✅ **Votre espace de soutien privé a été créé !** ${sosChannel}\n\n🔒 **Cet espace est 100% privé** - seul vous y avez accès.\n💝 **Vous avez été notifié dans le channel** - consultez ${sosChannel}\n🌟 Prenez le temps dont vous avez besoin. **Demain viendra.**`
+            });
+
+            // Libérer le verrou
+            ultimateLock.activeUsers.delete(userId);
+            
+            this.logger.info(`Channel SOS #${sosNumber} créé: ${sosChannel.name} par ${user.tag}`);
+
+        } catch (error) {
+            this.logger.error('Erreur lors de la création du channel SOS:', error);
+            
+            // Libérer le verrou en cas d'erreur
+            const ultimateLock = global.ULTIMATE_TICKET_LOCK;
+            ultimateLock.activeUsers.delete(interaction.user.id);
+            
+            try {
+                await interaction.editReply({
+                    content: '❌ Une erreur est survenue lors de la création de votre espace de soutien.'
+                });
+            } catch (replyError) {
+                this.logger.error('Erreur lors de la réponse d\'erreur SOS:', replyError);
+            }
+        }
+    }
+
+    async showSOSResources(interaction) {
+        try {
+            const resourcesEmbed = new EmbedBuilder()
+                .setColor('#4CAF50')
+                .setTitle('📚 **RESSOURCES D\'AIDE ET DE SOUTIEN**')
+                .setDescription(`
+**🌟 Vous n'êtes pas seul(e) dans cette épreuve.**
+
+**📞 NUMÉROS D'URGENCE (gratuits, 24h/24) :**
+• **Soutien psychologique :** \`31 14\` (ligne nationale)
+• **Urgences médicales :** \`15\` (SAMU)
+• **Violences conjugales :** \`39 19\`
+• **Enfance en danger :** \`119\`
+• **Aide aux victimes :** \`116 006\`
+
+**🏥 OÙ ALLER :**
+• **Urgences hospitalières** - Accueil 24h/24
+• **Centres Médico-Psychologiques (CMP)** - Consultations gratuites
+• **Maisons des Adolescents (MDA)** - Pour les jeunes
+• **Points d'Accueil Écoute Jeunes (PAEJ)** - Écoute spécialisée
+
+**💡 CONSEILS POUR ALLER MIEUX :**
+• **Parlez à quelqu'un** de confiance
+• **Écrivez** vos sentiments (journal, lettres...)
+• **Respirez profondément** quand l'angoisse monte
+• **Faites une chose** qui vous fait du bien chaque jour
+• **Rappellez-vous** : les émotions difficiles sont temporaires
+
+**🌅 Demain viendra, et avec lui de nouvelles possibilités.**`)
+                .addFields(
+                    {
+                        name: '🚨 **En cas de pensées suicidaires IMMÉDIATEMENT :**',
+                        value: '• Appelez le **31 14** (gratuit, 24h/24)\n• Rendez-vous aux **urgences** de l\'hôpital le plus proche\n• Contactez votre **médecin traitant**\n• Appelez un **proche** de confiance',
+                        inline: false
+                    },
+                    {
+                        name: '💝 **Rappelez-vous :**',
+                        value: '• Votre vie a de la valeur\n• Vos sentiments sont temporaires\n• De l\'aide existe et fonctionne\n• Vous méritez d\'être aidé(e)\n• **Demain viendra** 🌟',
+                        inline: false
+                    }
+                )
+                .setFooter({ text: 'Ces ressources sont là pour vous accompagner • N\'hésitez jamais à demander de l\'aide' })
+                .setTimestamp();
+
+            await this.safeInteractionReply(interaction, { 
+                embeds: [resourcesEmbed], 
+                flags: MessageFlags.Ephemeral 
+            });
+
+        } catch (error) {
+            this.logger.error('Erreur lors de l\'affichage des ressources SOS:', error);
+            await this.safeInteractionReply(interaction, {
+                content: '❌ Une erreur est survenue. En urgence, appelez le **31 14** (gratuit, 24h/24) ou les **urgences (15)**.',
+                flags: MessageFlags.Ephemeral
+            });
         }
     }
 
