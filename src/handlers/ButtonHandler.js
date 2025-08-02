@@ -130,6 +130,7 @@ class ButtonHandler {
                 case 'ticket_contact_staff':
                 case 'ticket_sos':
                 case 'sos_create_support_ticket':
+                case 'sos_resources':
                     await ticketManager.handleQuickAction(interaction);
                     break;
                     
@@ -138,6 +139,7 @@ class ButtonHandler {
                 case 'ticket_claim':
                 case 'ticket_add_user':
                 case 'ticket_transcript':
+                case 'ticket_invite_staff':
                     await ticketManager.handleTicketAction(interaction);
                     break;
             }
