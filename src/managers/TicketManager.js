@@ -675,7 +675,7 @@ ${description}
 
             // Envoyer uniquement à l'utilisateur (pas de ping staff)
             await ticketChannel.send({
-                content: `🔒 **Ticket privé créé pour ${user}**\n\n💡 *Ce channel est privé et accessible uniquement par vous. Utilisez le bouton "Inviter le Staff" si vous souhaitez obtenir de l'aide.*`,
+                content: `${user} 🔒 **Votre ticket privé a été créé avec succès !**\n\n💡 *Ce channel est privé et accessible uniquement par vous. Utilisez le bouton "Inviter le Staff" si vous souhaitez obtenir de l'aide.*`,
                 embeds: [welcomeEmbed],
                 components: [ticketActionsRow]
             });
@@ -683,7 +683,7 @@ ${description}
             // PAS de notification au staff - ticket privé
 
                 await interaction.editReply({
-                    content: `✅ **Ticket privé créé avec succès !** ${ticketChannel}\n🔒 Ce ticket est **100% privé** - seul vous y avez accès.\n💡 Utilisez le bouton "Inviter le Staff" dans le ticket si vous avez besoin d'aide.`
+                    content: `✅ **Ticket privé créé avec succès !** ${ticketChannel}\n\n🔒 **Votre ticket est 100% privé** - seul vous y avez accès.\n💡 **Vous avez été notifié dans le channel** - consultez ${ticketChannel}\n🎯 Utilisez le bouton "Inviter le Staff" dans le ticket si vous avez besoin d'aide.`
                 });
 
                 this.logger.info(`Ticket #${ticketNumber} créé: ${ticketChannel.name} par ${user.tag} (${type})`);
@@ -2784,13 +2784,13 @@ ${status === 'closed' ? '**🔒 Cette suggestion a été fermée sans traitement
                 const ticketCategory = await this.ensureTicketCategory(guild);
                 const config = this.ticketTypes['recruitment'];
 
-                // Créer le canal de ticket de recrutement
+                // Créer le canal de ticket de recrutement PRIVÉ
                 const ticketNumber = Date.now().toString().slice(-6);
                 const ticketChannel = await guild.channels.create({
                     name: `👥・recruitment-${user.username}-${ticketNumber}`,
                     type: ChannelType.GuildText,
                     parent: ticketCategory.id,
-                    topic: `Candidature Recrutement • ${position} • Créée par ${user.tag}`,
+                    topic: `Candidature Recrutement PRIVÉE • ${position} • Créée par ${user.tag}`,
                     permissionOverwrites: [
                         {
                             id: guild.id,
@@ -2803,33 +2803,25 @@ ${status === 'closed' ? '**🔒 Cette suggestion a été fermée sans traitement
                                 PermissionFlagsBits.SendMessages,
                                 PermissionFlagsBits.ReadMessageHistory,
                                 PermissionFlagsBits.AttachFiles,
-                                PermissionFlagsBits.EmbedLinks
-                            ]
-                        },
-                        {
-                            id: this.staffRoleId,
-                            allow: [
-                                PermissionFlagsBits.ViewChannel,
-                                PermissionFlagsBits.SendMessages,
-                                PermissionFlagsBits.ReadMessageHistory,
-                                PermissionFlagsBits.ManageMessages,
-                                PermissionFlagsBits.AttachFiles,
-                                PermissionFlagsBits.EmbedLinks
+                                PermissionFlagsBits.EmbedLinks,
+                                PermissionFlagsBits.ManageMessages
                             ]
                         }
+                        // Pas d'accès au staff par défaut - ticket privé
                     ]
                 });
                 
                 // Libérer immédiatement le verrou de création
                 ultimateLock.activeChannels.delete(channelCreationKey);
 
-            // Embed de candidature dans le ticket
+            // Embed de candidature dans le ticket PRIVÉ
             const recruitmentEmbed = new EmbedBuilder()
                 .setColor(config.color)
-                .setTitle(`👥 **CANDIDATURE DE RECRUTEMENT - Ticket #${ticketNumber}**`)
+                .setTitle(`👥 **CANDIDATURE DE RECRUTEMENT - Ticket Privé #${ticketNumber}**`)
                 .setDescription(`
 ╭─────────────────────────────────────╮
-│     **Nouvelle Candidature** 📋     │
+│     **Bienvenue ${user.displayName}** �     │
+│      **CANDIDATURE PRIVÉE** 🔒        │
 ╰─────────────────────────────────────╯
 
 **📋 Informations de la Candidature :**
@@ -2837,7 +2829,7 @@ ${status === 'closed' ? '**🔒 Cette suggestion a été fermée sans traitement
 • **Poste souhaité :** ${position}
 • **Numéro :** \`#${ticketNumber}\`
 • **Créé le :** <t:${Math.floor(Date.now() / 1000)}:F>
-• **Temps de réponse estimé :** \`${config.responseTime}\`
+• **Statut :** Candidature privée - Seul vous avez accès
 
 **💼 Expérience et Compétences :**
 \`\`\`
@@ -2849,18 +2841,20 @@ ${experience}
 ${availability}
 \`\`\`
 
-**🎯 Prochaines Étapes :**
-1️⃣ L'équipe RH a été notifiée automatiquement
-2️⃣ Un responsable vous contactera rapidement
-3️⃣ Restez disponible pour d'éventuelles questions
+**🔒 Confidentialité :**
+• Cette candidature est **100% privée**
+• Seul **vous** avez accès à ce channel
+• Aucun staff n'est notifié automatiquement
+• Vous pouvez inviter l'équipe RH si nécessaire
 
-**💡 En attendant, vous pouvez :**
+**💡 Actions disponibles :**
 • Ajouter des informations supplémentaires
 • Partager des références ou portfolio
+• Inviter l'équipe RH quand vous êtes prêt(e)
 • Utiliser les boutons ci-dessous`)
                 .setThumbnail(user.displayAvatarURL({ dynamic: true }))
                 .setFooter({ 
-                    text: `Candidature ID: ${ticketNumber} • Équipe RH notifiée`,
+                    text: `Candidature Privée ID: ${ticketNumber} • Accessible uniquement par vous`,
                     iconURL: guild.iconURL({ dynamic: true })
                 })
                 .setTimestamp();
@@ -2874,15 +2868,15 @@ ${availability}
                         .setStyle(ButtonStyle.Danger)
                         .setEmoji('🔒'),
                     new ButtonBuilder()
-                        .setCustomId('ticket_claim')
-                        .setLabel('Prendre en Charge')
+                        .setCustomId('ticket_invite_staff')
+                        .setLabel('Inviter l\'Équipe RH')
                         .setStyle(ButtonStyle.Success)
-                        .setEmoji('✋'),
+                        .setEmoji('👥'),
                     new ButtonBuilder()
                         .setCustomId('ticket_add_user')
                         .setLabel('Ajouter Utilisateur')
                         .setStyle(ButtonStyle.Secondary)
-                        .setEmoji('👥'),
+                        .setEmoji('➕'),
                     new ButtonBuilder()
                         .setCustomId('ticket_transcript')
                         .setLabel('Transcript')
@@ -2891,16 +2885,15 @@ ${availability}
                 );
 
             await ticketChannel.send({
-                content: `${user} | <@&${this.staffRoleId}> | <@421670146604793856>`,
+                content: `${user} 🔒 **Votre candidature privée a été créée avec succès !**\n\n💡 *Ce channel est privé et accessible uniquement par vous. Utilisez le bouton "Inviter l'Équipe RH" si vous souhaitez qu'ils examinent votre candidature.*`,
                 embeds: [recruitmentEmbed],
                 components: [ticketActionsRow]
             });
 
-            // Notification spéciale pour le recrutement
-            await this.notifyRecruitmentStaff(guild, user, ticketChannel, position, experience, availability);
+            // PAS de notification au staff - candidature privée
 
                 await interaction.editReply({
-                    content: `✅ **Candidature de recrutement soumise avec succès !** ${ticketChannel}\n🎯 L'équipe RH a été notifiée et vous répondra dans **${config.responseTime}**.`
+                    content: `✅ **Candidature privée créée avec succès !** ${ticketChannel}\n🔒 **Votre candidature est 100% privée** - seul vous y avez accès.\n💡 **Vous avez été notifié dans le channel** - consultez ${ticketChannel}\n🎯 Utilisez le bouton "Inviter l'Équipe RH" quand vous êtes prêt(e).`
                 });
 
                 this.logger.info(`Candidature recrutement #${ticketNumber} créée: ${ticketChannel.name} par ${user.tag} pour le poste: ${position}`);
