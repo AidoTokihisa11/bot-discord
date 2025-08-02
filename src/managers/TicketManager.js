@@ -108,20 +108,43 @@ class TicketManager {
         };
     }
 
-    // Méthode utilitaire pour répondre aux interactions de manière sécurisée
+    // Méthode utilitaire pour répondre aux interactions de manière sécurisée avec déférence immédiate
     async safeInteractionReply(interaction, replyOptions) {
         try {
-            // Vérifier l'état de l'interaction avant de répondre
-            if (interaction.replied) {
-                this.logger.warn('⚠️ Tentative de réponse à une interaction déjà répondue');
-                return false;
+            // DÉFÉRENCE IMMÉDIATE si pas encore fait pour éviter les timeouts
+            if (!interaction.replied && !interaction.deferred) {
+                try {
+                    await interaction.deferReply(replyOptions.flags ? { flags: replyOptions.flags } : {});
+                } catch (deferError) {
+                    if (deferError.code === 10062 || deferError.code === 'UNKNOWN_INTERACTION') {
+                        this.logger.warn('⏰ Interaction expirée avant déférence');
+                        return false;
+                    }
+                    // Si la déférence échoue, essayer une réponse directe
+                    this.logger.warn('⚠️ Échec de déférence, tentative de réponse directe');
+                    try {
+                        await interaction.reply(replyOptions);
+                        return true;
+                    } catch (replyError) {
+                        this.logger.error('❌ Interaction expirée complètement');
+                        return false;
+                    }
+                }
             }
             
+            // Si déféré, utiliser editReply
             if (interaction.deferred) {
                 await interaction.editReply(replyOptions);
                 return true;
             }
             
+            // Si déjà répondu, pas besoin de faire quoi que ce soit
+            if (interaction.replied) {
+                this.logger.warn('⚠️ Interaction déjà répondue lors de safeInteractionReply');
+                return false;
+            }
+            
+            // Fallback : réponse directe
             await interaction.reply(replyOptions);
             return true;
             
@@ -1091,15 +1114,19 @@ Merci de votre patience, nous traitons votre demande.`)
     // NOUVELLE FONCTION AMÉLIORÉE POUR L'INVITATION DU STAFF AVEC MENU DÉROULANT
     async inviteStaffToTicketV2(interaction) {
         try {
+            // DÉFÉRENCE IMMÉDIATE pour éviter les timeouts
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            }
+
             const channel = interaction.channel;
             const user = interaction.user;
             const isSOSChannel = channel.name.includes('sos-support');
             
             // Vérifier que l'utilisateur est le créateur du ticket ou a les permissions
             if (!channel.name.includes(user.username) && !interaction.member.roles.cache.has(this.staffRoleId)) {
-                return await this.safeInteractionReply(interaction, {
-                    content: '❌ Seul le créateur du ticket peut inviter le staff.',
-                    flags: MessageFlags.Ephemeral
+                return await interaction.editReply({
+                    content: '❌ Seul le créateur du ticket peut inviter le staff.'
                 });
             }
 
@@ -1107,9 +1134,8 @@ Merci de votre patience, nous traitons votre demande.`)
             const staffRole = guild.roles.cache.get(this.staffRoleId);
             
             if (!staffRole) {
-                return await this.safeInteractionReply(interaction, {
-                    content: '❌ Rôle staff introuvable.',
-                    flags: MessageFlags.Ephemeral
+                return await interaction.editReply({
+                    content: '❌ Rôle staff introuvable.'
                 });
             }
 
@@ -1123,18 +1149,31 @@ Merci de votre patience, nous traitons votre demande.`)
 
             // Récupérer TOUS les membres ayant le rôle spécial (même s'ils ont le staff role)
             const specialRole = guild.roles.cache.get(specialRoleId);
-            const specialRoleMembers = specialRole ? specialRole.members.filter(member => 
-                !member.user.bot // Inclure tous les humains avec ce rôle, même s'ils sont staff
-            ) : new Map();
+            let specialRoleMembers = new Map();
+            
+            if (specialRole) {
+                specialRoleMembers = specialRole.members.filter(member => 
+                    !member.user.bot // Inclure tous les humains avec ce rôle, même s'ils sont staff
+                );
+                this.logger.info(`👥 Membres du rôle spécial trouvés: ${specialRoleMembers.size}`);
+                
+                // Debug: lister tous les membres trouvés
+                for (const [id, member] of specialRoleMembers) {
+                    this.logger.info(`  ⭐ ${member.displayName} (${member.user.username}#${member.user.discriminator})`);
+                }
+            } else {
+                this.logger.warn(`❌ Rôle spécial ${specialRoleId} introuvable dans le serveur`);
+            }
 
             // Compter les membres uniques (éviter double comptage si quelqu'un a les deux rôles)
             const allUniqueMembers = new Set([...availableStaff.keys(), ...specialRoleMembers.keys()]);
             const totalAvailableMembers = allUniqueMembers.size;
 
+            this.logger.info(`📊 Staff disponible: ${availableStaff.size}, Membres spéciaux: ${specialRoleMembers.size}, Total unique: ${totalAvailableMembers}`);
+
             if (totalAvailableMembers === 0) {
-                return await this.safeInteractionReply(interaction, {
-                    content: '❌ Aucun membre du staff ou du rôle spécial disponible.',
-                    flags: MessageFlags.Ephemeral
+                return await interaction.editReply({
+                    content: '❌ Aucun membre du staff ou du rôle spécial disponible.'
                 });
             }
 
@@ -1170,7 +1209,10 @@ Merci de votre patience, nous traitons votre demande.`)
             this.logger.info(`📋 Ajout des membres staff restants...`);
             for (const [id, member] of availableStaff) {
                 if (optionCount >= 22) break; // Limite Discord
-                if (specialRoleMembers.has(id)) continue; // Skip si déjà ajouté comme membre spécial
+                if (specialRoleMembers.has(id)) {
+                    this.logger.info(`⏭️ Skip ${member.displayName} - déjà ajouté comme membre spécial`);
+                    continue; // Skip si déjà ajouté comme membre spécial
+                }
                 
                 const statusEmoji = member.presence?.status === 'online' ? '🟢' : 
                                   member.presence?.status === 'idle' ? '🟡' : 
@@ -1199,6 +1241,16 @@ Merci de votre patience, nous traitons votre demande.`)
                 });
             }
 
+            // Ajouter une option pour inviter tout le staff
+            if (availableStaff.size > 0) {
+                staffOptions.push({
+                    label: isSOSChannel ? 'Toute l\'Équipe de Soutien' : 'Tout le Staff Disponible',
+                    description: isSOSChannel ? 'Inviter l\'équipe de soutien complète' : 'Inviter tous les membres du staff',
+                    value: 'all_staff',
+                    emoji: isSOSChannel ? '🆘' : '👥'
+                });
+            }
+
             // Ajouter une option pour inviter tous les membres du rôle spécial
             if (specialRoleMembers.size > 0) {
                 staffOptions.push({
@@ -1208,6 +1260,8 @@ Merci de votre patience, nous traitons votre demande.`)
                     emoji: '⭐'
                 });
             }
+
+            this.logger.info(`📋 Menu créé avec ${staffOptions.length} options au total`);
 
             const selectMenu = new StringSelectMenuBuilder()
                 .setCustomId(isSOSChannel ? 'select_sos_staff_invite' : 'select_staff_invite')
@@ -1258,18 +1312,30 @@ Merci de votre patience, nous traitons votre demande.`)
                     .setFooter({ text: 'Sélectionnez dans le menu ci-dessous' });
             }
 
-            await this.safeInteractionReply(interaction, {
+            // Utiliser editReply puisqu'on a déféré au début
+            await interaction.editReply({
                 embeds: [inviteEmbed],
-                components: [selectRow],
-                flags: MessageFlags.Ephemeral
+                components: [selectRow]
             });
+
+            this.logger.success(`✅ Menu d'invitation créé avec succès - ${specialRoleMembers.size} membres spéciaux, ${availableStaff.size} staff`);
 
         } catch (error) {
             this.logger.error('❌ Erreur lors de l\'invitation du staff:', error);
-            await this.safeInteractionReply(interaction, {
-                content: '❌ Une erreur est survenue lors de la préparation de l\'invitation.',
-                flags: MessageFlags.Ephemeral
-            });
+            try {
+                if (interaction.deferred) {
+                    await interaction.editReply({
+                        content: '❌ Une erreur est survenue lors de la préparation de l\'invitation.'
+                    });
+                } else {
+                    await interaction.reply({
+                        content: '❌ Une erreur est survenue lors de la préparation de l\'invitation.',
+                        flags: MessageFlags.Ephemeral
+                    });
+                }
+            } catch (replyError) {
+                this.logger.error('❌ Impossible de répondre à l\'erreur:', replyError);
+            }
         }
     }
 
@@ -1384,19 +1450,23 @@ Merci de votre patience, nous traitons votre demande.`)
 
     async handleStaffInviteSelection(interaction) {
         try {
+            // DÉFÉRENCE IMMÉDIATE pour éviter les timeouts
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            }
+
             const channel = interaction.channel;
             const user = interaction.user;
             const selectedValues = interaction.values;
             
+            this.logger.info(`👥 Sélection d'invitation staff: ${selectedValues.join(', ')} par ${user.username}`);
+            
             // Vérifier les permissions
             if (!channel.name.includes(user.username) && !interaction.member.roles.cache.has(this.staffRoleId)) {
-                return await interaction.reply({
-                    content: '❌ Vous n\'avez pas les permissions pour cela.',
-                    flags: MessageFlags.Ephemeral
+                return await interaction.editReply({
+                    content: '❌ Vous n\'avez pas les permissions pour cela.'
                 });
             }
-
-            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
             // PROTECTION CONTRE LES DOUBLONS DE NOTIFICATIONS
             const notificationLockKey = `STAFF_INVITE_${channel.id}_${user.id}_${Date.now()}`;
@@ -1436,6 +1506,7 @@ Merci de votre patience, nous traitons votre demande.`)
                 });
 
                 invitedMembers.push('Tout le Staff');
+                this.logger.info(`✅ Tout le staff invité dans ${channel.name}`);
             } 
             // Si "all_special" est sélectionné, inviter tous les membres du rôle spécial
             else if (selectedValues.includes('all_special')) {
@@ -1450,6 +1521,9 @@ Merci de votre patience, nous traitons votre demande.`)
                     });
 
                     invitedMembers.push('Tous les Membres Spéciaux');
+                    this.logger.info(`✅ Tous les membres spéciaux invités dans ${channel.name}`);
+                } else {
+                    this.logger.warn(`❌ Rôle spécial ${specialRoleId} introuvable`);
                 }
             } else {
                 // Inviter les membres sélectionnés individuellement
