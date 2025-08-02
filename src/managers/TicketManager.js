@@ -1115,33 +1115,73 @@ Merci de votre patience, nous traitons votre demande.`)
 
             // Récupérer les membres du staff disponibles (excluant les rôles restreints)
             const restrictedRoleId = '1386990308679483393';
+            const specialRoleId = '1388265895264129157'; // Rôle spécial à inclure individuellement
+            
             const availableStaff = staffRole.members.filter(member => 
                 !member.roles.cache.has(restrictedRoleId) && !member.user.bot
             );
 
-            if (availableStaff.size === 0) {
+            // Récupérer TOUS les membres ayant le rôle spécial (même s'ils ont le staff role)
+            const specialRole = guild.roles.cache.get(specialRoleId);
+            const specialRoleMembers = specialRole ? specialRole.members.filter(member => 
+                !member.user.bot // Inclure tous les humains avec ce rôle, même s'ils sont staff
+            ) : new Map();
+
+            // Compter les membres uniques (éviter double comptage si quelqu'un a les deux rôles)
+            const allUniqueMembers = new Set([...availableStaff.keys(), ...specialRoleMembers.keys()]);
+            const totalAvailableMembers = allUniqueMembers.size;
+
+            if (totalAvailableMembers === 0) {
                 return await this.safeInteractionReply(interaction, {
-                    content: '❌ Aucun membre du staff disponible.',
+                    content: '❌ Aucun membre du staff ou du rôle spécial disponible.',
                     flags: MessageFlags.Ephemeral
                 });
             }
 
-            // Créer un menu de sélection pour choisir les membres du staff
+            // Créer un menu de sélection pour choisir les membres
             const staffOptions = [];
             let optionCount = 0;
             
-            for (const [id, member] of availableStaff) {
-                if (optionCount >= 24) break; // Limite Discord - on garde une place pour "all_staff"
+            // Ajouter TOUS les membres du rôle spécial en PREMIER (priorité)
+            this.logger.info(`📋 Ajout de ${specialRoleMembers.size} membres du rôle spécial dans la liste`);
+            for (const [id, member] of specialRoleMembers) {
+                if (optionCount >= 22) break; // Limite Discord - on garde 2 places pour "all_staff" et "all_special"
                 
                 const statusEmoji = member.presence?.status === 'online' ? '🟢' : 
                                   member.presence?.status === 'idle' ? '🟡' : 
                                   member.presence?.status === 'dnd' ? '🔴' : '⚫';
                 
-                const label = member.displayName.length > 25 ? member.displayName.substring(0, 22) + '...' : member.displayName;
-                const description = `${statusEmoji} ${member.user.tag}`.length > 50 ? `${statusEmoji} ${member.user.tag}`.substring(0, 47) + '...' : `${statusEmoji} ${member.user.tag}`;
+                // Assurer que le pseudo complet est visible
+                const displayName = member.displayName || member.user.displayName || member.user.username;
+                const label = displayName.length > 24 ? displayName.substring(0, 21) + '...' : displayName;
+                const description = `${statusEmoji} ${member.user.username} ⭐ [Spécial]`;
                 
                 staffOptions.push({
-                    label: label,
+                    label: `⭐ ${label}`,
+                    description: description,
+                    value: member.id,
+                    emoji: isSOSChannel ? '🆘' : '⭐'
+                });
+                optionCount++;
+                this.logger.info(`✅ Ajouté membre spécial: ${displayName} (${member.user.username})`);
+            }
+
+            // Ajouter ensuite les membres du staff qui n'ont PAS le rôle spécial
+            this.logger.info(`📋 Ajout des membres staff restants...`);
+            for (const [id, member] of availableStaff) {
+                if (optionCount >= 22) break; // Limite Discord
+                if (specialRoleMembers.has(id)) continue; // Skip si déjà ajouté comme membre spécial
+                
+                const statusEmoji = member.presence?.status === 'online' ? '🟢' : 
+                                  member.presence?.status === 'idle' ? '🟡' : 
+                                  member.presence?.status === 'dnd' ? '🔴' : '⚫';
+                
+                const displayName = member.displayName || member.user.displayName || member.user.username;
+                const label = displayName.length > 24 ? displayName.substring(0, 21) + '...' : displayName;
+                const description = `${statusEmoji} ${member.user.username} [Staff]`;
+                
+                staffOptions.push({
+                    label: `👤 ${label}`,
                     description: description,
                     value: member.id,
                     emoji: isSOSChannel ? '🆘' : '👤'
@@ -1150,12 +1190,24 @@ Merci de votre patience, nous traitons votre demande.`)
             }
 
             // Ajouter une option pour inviter tout le staff
-            staffOptions.push({
-                label: isSOSChannel ? 'Toute l\'Équipe de Soutien' : 'Tout le Staff Disponible',
-                description: isSOSChannel ? 'Inviter l\'équipe de soutien complète' : 'Inviter tous les membres du staff',
-                value: 'all_staff',
-                emoji: isSOSChannel ? '🆘' : '👥'
-            });
+            if (availableStaff.size > 0) {
+                staffOptions.push({
+                    label: isSOSChannel ? 'Toute l\'Équipe de Soutien' : 'Tout le Staff Disponible',
+                    description: isSOSChannel ? 'Inviter l\'équipe de soutien complète' : 'Inviter tous les membres du staff',
+                    value: 'all_staff',
+                    emoji: isSOSChannel ? '🆘' : '👥'
+                });
+            }
+
+            // Ajouter une option pour inviter tous les membres du rôle spécial
+            if (specialRoleMembers.size > 0) {
+                staffOptions.push({
+                    label: 'Tous les Membres Spéciaux',
+                    description: 'Inviter tous les membres du rôle spécial',
+                    value: 'all_special',
+                    emoji: '⭐'
+                });
+            }
 
             const selectMenu = new StringSelectMenuBuilder()
                 .setCustomId(isSOSChannel ? 'select_sos_staff_invite' : 'select_staff_invite')
@@ -1175,6 +1227,7 @@ Merci de votre patience, nous traitons votre demande.`)
 **${user.displayName}, choisissez qui peut vous aider :**
 
 🟢 **En ligne** | 🟡 **Absent** | 🔴 **Ne pas déranger** | ⚫ **Hors ligne**
+⭐ **[Spécial]** | 👤 **[Staff]**
 
 **💝 Notre équipe de soutien :**
 • **Écoute bienveillante** sans jugement
@@ -1184,7 +1237,7 @@ Merci de votre patience, nous traitons votre demande.`)
 
 **🌟 Vous n'êtes pas seul(e) dans cette épreuve.**
 
-**Membres disponibles :** ${availableStaff.size}`)
+**Membres disponibles :** ${totalAvailableMembers} (⭐ Spéciaux: ${specialRoleMembers.size}, 👤 Staff: ${availableStaff.size - specialRoleMembers.size})`)
                     .setFooter({ text: 'Sélectionnez dans le menu ci-dessous • Confidentialité garantie' });
             } else {
                 inviteEmbed = new EmbedBuilder()
@@ -1194,12 +1247,14 @@ Merci de votre patience, nous traitons votre demande.`)
 **Choisissez qui vous souhaitez inviter dans votre ticket :**
 
 🟢 **En ligne** | 🟡 **Absent** | 🔴 **Ne pas déranger** | ⚫ **Hors ligne**
+⭐ **[Spécial]** | 👤 **[Staff]**
 
 • Vous pouvez sélectionner plusieurs membres
-• Ou choisir "Tout le Staff Disponible"
+• Les membres spéciaux apparaissent en premier dans la liste
+• Tous les membres du rôle spécial sont disponibles avec leurs pseudos
 • Les membres invités pourront voir ce ticket
 
-**Membres disponibles :** ${availableStaff.size}`)
+**Membres disponibles :** ${totalAvailableMembers} (⭐ Spéciaux: ${specialRoleMembers.size}, 👤 Staff: ${availableStaff.size - specialRoleMembers.size})`)
                     .setFooter({ text: 'Sélectionnez dans le menu ci-dessous' });
             }
 
@@ -1364,6 +1419,8 @@ Merci de votre patience, nous traitons votre demande.`)
 
             const guild = interaction.guild;
             const staffRole = guild.roles.cache.get(this.staffRoleId);
+            const specialRoleId = '1388265895264129157';
+            const specialRole = guild.roles.cache.get(specialRoleId);
             const invitedMembers = [];
 
             // Si "all_staff" est sélectionné, inviter tout le staff
@@ -1379,6 +1436,21 @@ Merci de votre patience, nous traitons votre demande.`)
                 });
 
                 invitedMembers.push('Tout le Staff');
+            } 
+            // Si "all_special" est sélectionné, inviter tous les membres du rôle spécial
+            else if (selectedValues.includes('all_special')) {
+                if (specialRole) {
+                    // Donner accès au rôle spécial complet
+                    await channel.permissionOverwrites.create(specialRoleId, {
+                        ViewChannel: true,
+                        SendMessages: true,
+                        ReadMessageHistory: true,
+                        AttachFiles: true,
+                        EmbedLinks: true
+                    });
+
+                    invitedMembers.push('Tous les Membres Spéciaux');
+                }
             } else {
                 // Inviter les membres sélectionnés individuellement
                 for (const memberId of selectedValues) {
@@ -1391,7 +1463,13 @@ Merci de votre patience, nous traitons votre demande.`)
                             AttachFiles: true,
                             EmbedLinks: true
                         });
-                        invitedMembers.push(member.displayName);
+                        
+                        // Identifier le type de membre pour l'affichage
+                        const isStaff = member.roles.cache.has(this.staffRoleId);
+                        const isSpecial = member.roles.cache.has(specialRoleId);
+                        const memberType = isStaff ? '[Staff]' : isSpecial ? '[Spécial]' : '';
+                        
+                        invitedMembers.push(`${member.displayName} ${memberType}`);
                     }
                 }
             }
@@ -1412,22 +1490,31 @@ ${invitedMembers.map(name => `• ${name}`).join('\n')}
                 .setTimestamp();
 
             // Notifier dans le channel
-            const mentionList = selectedValues.includes('all_staff') ? 
-                `<@&${this.staffRoleId}>` : 
-                selectedValues.map(id => `<@${id}>`).join(' ');
+            let mentionList = '';
+            if (selectedValues.includes('all_staff')) {
+                mentionList = `<@&${this.staffRoleId}>`;
+            } else if (selectedValues.includes('all_special')) {
+                mentionList = `<@&${specialRoleId}>`;
+            } else {
+                mentionList = selectedValues.map(id => `<@${id}>`).join(' ');
+            }
 
             await channel.send({
-                content: `👥 **Staff invité par ${user}** | ${mentionList}`,
+                content: `👥 **Membres invités par ${user}** | ${mentionList}`,
                 embeds: [confirmEmbed]
             });
 
             // Confirmation à l'utilisateur
+            const memberCountText = selectedValues.includes('all_staff') || selectedValues.includes('all_special') 
+                ? `Groupe complet invité` 
+                : `${invitedMembers.length} membre(s) invité(s)`;
+                
             await interaction.editReply({
-                content: `✅ **${invitedMembers.length} membre(s) du staff ont été invités** et notifiés dans le ticket.`
+                content: `✅ **${memberCountText}** et notifié(s) dans le ticket.`
             });
 
             // NOTIFICATION PRIVÉE UNIQUE POUR ÉVITER LE SPAM
-            if (!selectedValues.includes('all_staff') && selectedValues.length <= 3) {
+            if (!selectedValues.includes('all_staff') && !selectedValues.includes('all_special') && selectedValues.length <= 3) {
                 const notificationPromises = [];
                 
                 for (const memberId of selectedValues) {
