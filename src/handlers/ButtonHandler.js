@@ -24,6 +24,10 @@ class ButtonHandler {
             if (customId.startsWith('ticket_')) {
                 await this.handleTicketButtons(interaction);
             }
+            // Boutons SOS
+            else if (customId.startsWith('sos_')) {
+                await this.handleTicketButtons(interaction);
+            }
             // Boutons de confirmation
             else if (customId === 'confirm_close' || customId === 'cancel_close') {
                 await this.handleConfirmationButtons(interaction);

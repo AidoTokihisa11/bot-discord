@@ -1431,6 +1431,11 @@ Merci de votre patience, nous traitons votre demande.`)
 
     async createSOSChannel(interaction) {
         try {
+            // DÉFÉRER IMMÉDIATEMENT pour éviter l'expiration
+            if (!interaction.deferred && !interaction.replied) {
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            }
+
             // Protection contre les doublons
             const ultimateLock = global.ULTIMATE_TICKET_LOCK;
             const userId = interaction.user.id;
@@ -1441,17 +1446,15 @@ Merci de votre patience, nous traitons votre demande.`)
                 const lastAction = ultimateLock.activeUsers.get(userId);
                 if (now - lastAction < 5000) {
                     this.logger.warn(`🚫 BLOCAGE SOS: ${interaction.user.username} a déjà une action en cours`);
+                    await interaction.editReply({
+                        content: '⏰ Veuillez patienter avant de créer un nouveau channel SOS.'
+                    });
                     return;
                 }
             }
             
             // Verrouiller cet utilisateur
             ultimateLock.activeUsers.set(userId, now);
-            
-            // Déférer l'interaction
-            if (!interaction.deferred && !interaction.replied) {
-                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-            }
 
             const guild = interaction.guild;
             const user = interaction.user;
