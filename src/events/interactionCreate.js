@@ -112,6 +112,8 @@ export default {
                 
                 if (interaction.customId === 'suggestion_type_select') {
                     await interaction.client.ticketManager.handleSuggestionTypeSelect(interaction);
+                } else if (interaction.customId === 'select_staff_invite') {
+                    await interaction.client.ticketManager.handleStaffInviteSelection(interaction);
                 } else {
                     logger.warn(`Menu non géré: ${interaction.customId}`);
                 }
