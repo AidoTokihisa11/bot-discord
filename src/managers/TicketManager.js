@@ -1088,6 +1088,136 @@ Merci de votre patience, nous traitons votre demande.`)
         }
     }
 
+    // NOUVELLE FONCTION AMÉLIORÉE POUR L'INVITATION DU STAFF AVEC MENU DÉROULANT
+    async inviteStaffToTicketV2(interaction) {
+        try {
+            const channel = interaction.channel;
+            const user = interaction.user;
+            const isSOSChannel = channel.name.includes('sos-support');
+            
+            // Vérifier que l'utilisateur est le créateur du ticket ou a les permissions
+            if (!channel.name.includes(user.username) && !interaction.member.roles.cache.has(this.staffRoleId)) {
+                return await this.safeInteractionReply(interaction, {
+                    content: '❌ Seul le créateur du ticket peut inviter le staff.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            const guild = interaction.guild;
+            const staffRole = guild.roles.cache.get(this.staffRoleId);
+            
+            if (!staffRole) {
+                return await this.safeInteractionReply(interaction, {
+                    content: '❌ Rôle staff introuvable.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            // Récupérer les membres du staff disponibles (excluant les rôles restreints)
+            const restrictedRoleId = '1386990308679483393';
+            const availableStaff = staffRole.members.filter(member => 
+                !member.roles.cache.has(restrictedRoleId) && !member.user.bot
+            );
+
+            if (availableStaff.size === 0) {
+                return await this.safeInteractionReply(interaction, {
+                    content: '❌ Aucun membre du staff disponible.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            // Créer un menu de sélection pour choisir les membres du staff
+            const staffOptions = [];
+            let optionCount = 0;
+            
+            for (const [id, member] of availableStaff) {
+                if (optionCount >= 24) break; // Limite Discord - on garde une place pour "all_staff"
+                
+                const statusEmoji = member.presence?.status === 'online' ? '🟢' : 
+                                  member.presence?.status === 'idle' ? '🟡' : 
+                                  member.presence?.status === 'dnd' ? '🔴' : '⚫';
+                
+                const label = member.displayName.length > 25 ? member.displayName.substring(0, 22) + '...' : member.displayName;
+                const description = `${statusEmoji} ${member.user.tag}`.length > 50 ? `${statusEmoji} ${member.user.tag}`.substring(0, 47) + '...' : `${statusEmoji} ${member.user.tag}`;
+                
+                staffOptions.push({
+                    label: label,
+                    description: description,
+                    value: member.id,
+                    emoji: isSOSChannel ? '🆘' : '👤'
+                });
+                optionCount++;
+            }
+
+            // Ajouter une option pour inviter tout le staff
+            staffOptions.push({
+                label: isSOSChannel ? 'Toute l\'Équipe de Soutien' : 'Tout le Staff Disponible',
+                description: isSOSChannel ? 'Inviter l\'équipe de soutien complète' : 'Inviter tous les membres du staff',
+                value: 'all_staff',
+                emoji: isSOSChannel ? '🆘' : '👥'
+            });
+
+            const selectMenu = new StringSelectMenuBuilder()
+                .setCustomId(isSOSChannel ? 'select_sos_staff_invite' : 'select_staff_invite')
+                .setPlaceholder(isSOSChannel ? 'Choisissez votre équipe de soutien...' : 'Choisissez qui inviter...')
+                .setMinValues(1)
+                .setMaxValues(Math.min(staffOptions.length, isSOSChannel ? 5 : 10)) // Limite plus petite pour SOS
+                .addOptions(staffOptions);
+
+            const selectRow = new ActionRowBuilder().addComponents(selectMenu);
+
+            let inviteEmbed;
+            if (isSOSChannel) {
+                inviteEmbed = new EmbedBuilder()
+                    .setColor('#ff6b6b')
+                    .setTitle('🆘 **DEMANDE D\'AIDE - ÉQUIPE DE SOUTIEN**')
+                    .setDescription(`
+**${user.displayName}, choisissez qui peut vous aider :**
+
+🟢 **En ligne** | 🟡 **Absent** | 🔴 **Ne pas déranger** | ⚫ **Hors ligne**
+
+**💝 Notre équipe de soutien :**
+• **Écoute bienveillante** sans jugement
+• **Confidentialité absolue** garantie
+• **Accompagnement personnalisé** selon vos besoins
+• **Ressources professionnelles** si nécessaire
+
+**🌟 Vous n'êtes pas seul(e) dans cette épreuve.**
+
+**Membres disponibles :** ${availableStaff.size}`)
+                    .setFooter({ text: 'Sélectionnez dans le menu ci-dessous • Confidentialité garantie' });
+            } else {
+                inviteEmbed = new EmbedBuilder()
+                    .setColor('#3498db')
+                    .setTitle('👥 **INVITATION DU STAFF**')
+                    .setDescription(`
+**Choisissez qui vous souhaitez inviter dans votre ticket :**
+
+🟢 **En ligne** | 🟡 **Absent** | 🔴 **Ne pas déranger** | ⚫ **Hors ligne**
+
+• Vous pouvez sélectionner plusieurs membres
+• Ou choisir "Tout le Staff Disponible"
+• Les membres invités pourront voir ce ticket
+
+**Membres disponibles :** ${availableStaff.size}`)
+                    .setFooter({ text: 'Sélectionnez dans le menu ci-dessous' });
+            }
+
+            await this.safeInteractionReply(interaction, {
+                embeds: [inviteEmbed],
+                components: [selectRow],
+                flags: MessageFlags.Ephemeral
+            });
+
+        } catch (error) {
+            this.logger.error('❌ Erreur lors de l\'invitation du staff:', error);
+            await this.safeInteractionReply(interaction, {
+                content: '❌ Une erreur est survenue lors de la préparation de l\'invitation.',
+                flags: MessageFlags.Ephemeral
+            });
+        }
+    }
+
     async inviteStaffToTicket(interaction) {
         try {
             const channel = interaction.channel;
@@ -1191,6 +1321,12 @@ Merci de votre patience, nous traitons votre demande.`)
         }
     }
 
+    // REDIRECTION DE L'ANCIENNE FONCTION VERS LA NOUVELLE VERSION AMÉLIORÉE
+    async inviteStaffToTicketOLD(interaction) {
+        // Redirection vers la nouvelle version améliorée avec menu déroulant
+        return await this.inviteStaffToTicketV2(interaction);
+    }
+
     async handleStaffInviteSelection(interaction) {
         try {
             const channel = interaction.channel;
@@ -1206,6 +1342,25 @@ Merci de votre patience, nous traitons votre demande.`)
             }
 
             await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+            // PROTECTION CONTRE LES DOUBLONS DE NOTIFICATIONS
+            const notificationLockKey = `STAFF_INVITE_${channel.id}_${user.id}_${Date.now()}`;
+            const globalLock = global.ULTIMATE_TICKET_LOCK;
+            
+            // Vérifier si une notification est déjà en cours pour ce canal
+            const existingNotifications = Array.from(globalLock.sentNotifications).filter(key => 
+                key.includes(`STAFF_INVITE_${channel.id}_${user.id}`)
+            );
+            
+            if (existingNotifications.length > 0) {
+                this.logger.warn(`🚫 Notification staff déjà envoyée pour ${channel.name}`);
+                return await interaction.editReply({
+                    content: '⚠️ Une invitation est déjà en cours pour ce ticket.'
+                });
+            }
+            
+            // Marquer cette notification comme envoyée
+            globalLock.sentNotifications.add(notificationLockKey);
 
             const guild = interaction.guild;
             const staffRole = guild.roles.cache.get(this.staffRoleId);
@@ -1271,23 +1426,26 @@ ${invitedMembers.map(name => `• ${name}`).join('\n')}
                 content: `✅ **${invitedMembers.length} membre(s) du staff ont été invités** et notifiés dans le ticket.`
             });
 
-            // Notifier le staff en privé (1 seule notification)
-            if (!selectedValues.includes('all_staff') && selectedValues.length === 1) {
-                const invitedMember = guild.members.cache.get(selectedValues[0]);
-                if (invitedMember) {
-                    try {
-                        const notifyEmbed = new EmbedBuilder()
-                            .setColor('#3498db')
-                            .setTitle('👥 **INVITATION DANS UN TICKET**')
-                            .setDescription(`Vous avez été invité dans le ticket ${channel} par ${user}.`)
-                            .setFooter({ text: 'Cliquez sur le lien pour accéder au ticket' });
-                        
-                        await invitedMember.send({ embeds: [notifyEmbed] });
-                    } catch (dmError) {
-                        this.logger.warn(`⚠️ Impossible d'envoyer MP à ${invitedMember.user.tag}`);
+            // NOTIFICATION PRIVÉE UNIQUE POUR ÉVITER LE SPAM
+            if (!selectedValues.includes('all_staff') && selectedValues.length <= 3) {
+                const notificationPromises = [];
+                
+                for (const memberId of selectedValues) {
+                    const invitedMember = guild.members.cache.get(memberId);
+                    if (invitedMember) {
+                        const notifyPromise = this.sendSingleStaffNotification(invitedMember, channel, user);
+                        notificationPromises.push(notifyPromise);
                     }
                 }
+                
+                // Envoyer toutes les notifications en parallèle avec gestion d'erreur
+                await Promise.allSettled(notificationPromises);
             }
+
+            // Auto-nettoyage de la notification après 5 minutes
+            setTimeout(() => {
+                globalLock.sentNotifications.delete(notificationLockKey);
+            }, 300000);
 
         } catch (error) {
             this.logger.error('❌ Erreur lors de la gestion de l\'invitation:', error);
@@ -1298,6 +1456,29 @@ ${invitedMembers.map(name => `• ${name}`).join('\n')}
             } catch (replyError) {
                 // Ignorer les erreurs de réponse
             }
+        }
+    }
+
+    // FONCTION UTILITAIRE POUR ENVOYER UNE NOTIFICATION UNIQUE AU STAFF
+    async sendSingleStaffNotification(member, channel, invitedBy) {
+        try {
+            const notifyEmbed = new EmbedBuilder()
+                .setColor('#3498db')
+                .setTitle('👥 **INVITATION DANS UN TICKET**')
+                .setDescription(`
+Vous avez été invité dans un ticket par ${invitedBy}.
+
+**📍 Canal :** ${channel}
+**👤 Invité par :** ${invitedBy}
+**📅 Date :** <t:${Math.floor(Date.now() / 1000)}:F>
+
+Cliquez sur le lien pour accéder au ticket.`)
+                .setFooter({ text: 'Invitation personnelle • Système de tickets' });
+            
+            await member.send({ embeds: [notifyEmbed] });
+            this.logger.info(`📧 Notification ticket envoyée à ${member.user.tag}`);
+        } catch (dmError) {
+            this.logger.warn(`⚠️ Impossible d'envoyer MP ticket à ${member.user.tag}`);
         }
     }
 
@@ -3458,6 +3639,306 @@ ${availability.substring(0, 300)}${availability.length > 300 ? '...' : ''}
             // Toujours libérer le verrou en cas d'erreur
             const globalLockKey = `ATOMIC_NOTIFY_RECRUITMENT_${ticketChannel.id}`;
             delete global[globalLockKey];
+        }
+    }
+
+    // NOUVELLES FONCTIONS POUR LA GESTION DES CONFIRMATIONS DE FERMETURE
+    async handleConfirmClose(interaction) {
+        try {
+            if (interaction.deferred || interaction.replied) {
+                this.logger.warn('⚠️ Interaction confirm_close déjà traitée');
+                return;
+            }
+
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+            const channel = interaction.channel;
+            const user = interaction.user;
+            const guild = interaction.guild;
+
+            // Déterminer le type de ticket pour la fermeture appropriée
+            const isRecruitment = channel.name.includes('recruitment');
+            const isReport = channel.name.includes('report') || channel.name.includes('signalement');
+            const isSuggestion = channel.name.includes('suggestion');
+            const isSOSChannel = channel.name.includes('sos-support');
+
+            this.logger.info(`🔒 Fermeture confirmée du ${isSOSChannel ? 'canal SOS' : 'ticket'}: ${channel.name} par ${user.tag}`);
+
+            // Gestion spécialisée selon le type
+            if (isRecruitment) {
+                await this.handleRecruitmentTicketClosure(channel, user, guild);
+            } else if (isSOSChannel) {
+                // Gestion spéciale pour les canaux SOS
+                await this.handleSOSChannelClosure(channel, user, guild);
+            } else {
+                // Gestion standard pour les autres types
+                await this.handleStandardTicketClosure(channel, user, guild, {
+                    isReport,
+                    isSuggestion,
+                    isRecrutment: false
+                });
+            }
+
+            // Message de confirmation
+            const closingEmbed = new EmbedBuilder()
+                .setColor('#e74c3c')
+                .setTitle('🔒 **FERMETURE EN COURS...**')
+                .setDescription(`
+**${isSOSChannel ? 'Canal SOS' : 'Ticket'} fermé par ${user}**
+
+**📅 Fermé le :** <t:${Math.floor(Date.now() / 1000)}:F>
+**⏱️ Suppression automatique dans 10 secondes...**
+
+${isSOSChannel ? '**💝 Merci d\'avoir utilisé notre service de soutien.**' : '**📊 Un résumé complet a été envoyé dans les logs.**'}`)
+                .setFooter({ text: isSOSChannel ? 'Support SOS • Confidentialité garantie' : 'Système de tickets' })
+                .setTimestamp();
+
+            await channel.send({ embeds: [closingEmbed] });
+
+            // Confirmation à l'utilisateur
+            await interaction.editReply({
+                content: `✅ ${isSOSChannel ? 'Canal SOS' : 'Ticket'} fermé avec succès. Suppression dans 10 secondes.`
+            });
+
+            // Suppression après 10 secondes
+            setTimeout(async () => {
+                try {
+                    await channel.delete(`${isSOSChannel ? 'Canal SOS' : 'Ticket'} fermé par ${user.tag}`);
+                    this.logger.success(`🗑️ ${isSOSChannel ? 'Canal SOS' : 'Ticket'} ${channel.name} supprimé avec succès`);
+                } catch (deleteError) {
+                    this.logger.error(`❌ Erreur lors de la suppression du ${isSOSChannel ? 'canal SOS' : 'ticket'}:`, deleteError);
+                }
+            }, 10000);
+
+        } catch (error) {
+            this.logger.error('❌ Erreur lors de la confirmation de fermeture:', error);
+            try {
+                if (interaction.deferred) {
+                    await interaction.editReply({
+                        content: '❌ Une erreur est survenue lors de la fermeture.'
+                    });
+                }
+            } catch (replyError) {
+                this.logger.warn('⚠️ Impossible de répondre à l\'erreur de fermeture');
+            }
+        }
+    }
+
+    async handleCancelClose(interaction) {
+        try {
+            if (interaction.deferred || interaction.replied) {
+                this.logger.warn('⚠️ Interaction cancel_close déjà traitée');
+                return;
+            }
+
+            const cancelEmbed = new EmbedBuilder()
+                .setColor('#2ecc71')
+                .setTitle('✅ **FERMETURE ANNULÉE**')
+                .setDescription(`
+**${interaction.user} a annulé la fermeture du ticket.**
+
+Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.`)
+                .setFooter({ text: 'Fermeture annulée avec succès' })
+                .setTimestamp();
+
+            await interaction.reply({
+                embeds: [cancelEmbed],
+                flags: MessageFlags.Ephemeral
+            });
+
+            this.logger.info(`❌ Fermeture annulée du ticket: ${interaction.channel.name} par ${interaction.user.tag}`);
+
+        } catch (error) {
+            this.logger.error('❌ Erreur lors de l\'annulation de fermeture:', error);
+            try {
+                if (!interaction.replied) {
+                    await interaction.reply({
+                        content: '❌ Une erreur est survenue lors de l\'annulation.',
+                        flags: MessageFlags.Ephemeral
+                    });
+                }
+            } catch (replyError) {
+                this.logger.warn('⚠️ Impossible de répondre à l\'erreur d\'annulation');
+            }
+        }
+    }
+
+    // NOUVELLE FONCTION POUR LA GESTION DES CANAUX SOS
+    async handleSOSChannelClosure(channel, closedBy, guild) {
+        try {
+            this.logger.info(`🆘 Traitement de fermeture spécialisé pour canal SOS: ${channel.name}`);
+
+            // Les canaux SOS sont privés et confidentiels - pas de logs détaillés
+            const sosLogChannelId = '1395049881470505132'; // Canal général pour les logs SOS (sans détails)
+            const sosLogChannel = guild.channels.cache.get(sosLogChannelId);
+
+            if (sosLogChannel) {
+                const sosLogEmbed = new EmbedBuilder()
+                    .setColor('#ff6b6b')
+                    .setTitle('🆘 **CANAL SOS FERMÉ**')
+                    .setDescription(`
+**📋 Informations générales :**
+• **Type :** Canal de soutien SOS
+• **Fermé par :** ${closedBy}
+• **Date de fermeture :** <t:${Math.floor(Date.now() / 1000)}:F>
+• **Durée d'utilisation :** <t:${Math.floor(channel.createdTimestamp / 1000)}:R>
+
+**🔒 Confidentialité :**
+• Aucun détail personnel conservé
+• Support fourni selon protocole
+• Canal supprimé après fermeture`)
+                    .setFooter({ text: 'Système SOS • Confidentialité garantie' })
+                    .setTimestamp();
+
+                await sosLogChannel.send({
+                    content: `<@&${this.staffRoleId}>`,
+                    embeds: [sosLogEmbed]
+                });
+
+                this.logger.success(`✅ Log SOS anonyme envoyé dans ${sosLogChannel.name}`);
+            }
+
+        } catch (error) {
+            this.logger.error('❌ Erreur lors du traitement de fermeture SOS:', error);
+        }
+    }
+
+    // NOUVELLE FONCTION POUR LA SÉLECTION DU STAFF SOS
+    async handleSOSStaffInviteSelection(interaction) {
+        try {
+            const channel = interaction.channel;
+            const user = interaction.user;
+            const selectedValues = interaction.values;
+            
+            // Vérifier que c'est bien un canal SOS et que l'utilisateur est le créateur
+            if (!channel.name.includes('sos-support') || !channel.name.includes(user.username)) {
+                return await interaction.reply({
+                    content: '❌ Vous ne pouvez inviter du staff que dans votre propre canal SOS.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+            const guild = interaction.guild;
+            const invitedMembers = [];
+
+            // Gestion des invitations SOS avec discrétion
+            if (selectedValues.includes('all_staff')) {
+                // Donner accès au rôle staff complet
+                await channel.permissionOverwrites.create(this.staffRoleId, {
+                    ViewChannel: true,
+                    SendMessages: true,
+                    ReadMessageHistory: true,
+                    ManageMessages: true,
+                    AttachFiles: true,
+                    EmbedLinks: true
+                });
+
+                invitedMembers.push('Équipe de soutien complète');
+            } else {
+                // Inviter les membres sélectionnés individuellement
+                for (const memberId of selectedValues) {
+                    const member = guild.members.cache.get(memberId);
+                    if (member) {
+                        await channel.permissionOverwrites.create(memberId, {
+                            ViewChannel: true,
+                            SendMessages: true,
+                            ReadMessageHistory: true,
+                            AttachFiles: true,
+                            EmbedLinks: true
+                        });
+                        invitedMembers.push(member.displayName);
+                    }
+                }
+            }
+
+            // Embed de confirmation spécial SOS
+            const confirmEmbed = new EmbedBuilder()
+                .setColor('#ff6b6b')
+                .setTitle('🆘 **ÉQUIPE DE SOUTIEN INVITÉE**')
+                .setDescription(`
+${user}, votre demande d'aide a été transmise.
+
+**👥 Membres invités :**
+${invitedMembers.map(name => `• ${name}`).join('\n')}
+
+**💝 Notre équipe va vous accompagner avec :**
+• Écoute bienveillante et sans jugement
+• Respect total de votre confidentialité
+• Support adapté à votre situation
+• Ressources d'aide professionnelles si nécessaire
+
+**🌟 Vous avez fait le pas le plus difficile en demandant de l'aide.**`)
+                .setFooter({ text: 'Équipe de soutien notifiée • Confidentialité garantie' })
+                .setTimestamp();
+
+            // Notification discrète dans le canal
+            const mentionList = selectedValues.includes('all_staff') ? 
+                `<@&${this.staffRoleId}>` : 
+                selectedValues.map(id => `<@${id}>`).join(' ');
+
+            await channel.send({
+                content: `🆘 **Équipe de soutien demandée** | ${mentionList}`,
+                embeds: [confirmEmbed]
+            });
+
+            // Confirmation à l'utilisateur
+            await interaction.editReply({
+                content: `✅ **Équipe de soutien invitée avec succès.**\n💝 Ils vont vous répondre dans les plus brefs délais.`
+            });
+
+            // Notification privée spéciale SOS (1 seule fois, pas de spam)
+            const globalLockKey = `SOS_STAFF_NOTIFICATION_${channel.id}`;
+            if (!global[globalLockKey]) {
+                global[globalLockKey] = true;
+                
+                // Notification individuelle pour les membres sélectionnés (non-spammante)
+                if (!selectedValues.includes('all_staff') && selectedValues.length <= 3) {
+                    for (const memberId of selectedValues) {
+                        const invitedMember = guild.members.cache.get(memberId);
+                        if (invitedMember) {
+                            try {
+                                const sosNotifyEmbed = new EmbedBuilder()
+                                    .setColor('#ff6b6b')
+                                    .setTitle('🆘 **DEMANDE DE SOUTIEN SOS**')
+                                    .setDescription(`
+Vous avez été invité dans un canal de soutien SOS.
+
+**📍 Canal :** ${channel}
+**👤 Demandeur :** Utilisateur en détresse
+**⏰ Urgence :** Support émotionnel nécessaire
+
+**💝 Approche recommandée :**
+• Écoute bienveillante et empathique
+• Respect de la confidentialité absolue
+• Orientation vers ressources professionnelles si besoin`)
+                                    .setFooter({ text: 'Intervention SOS • Confidentialité requise' });
+                                
+                                await invitedMember.send({ embeds: [sosNotifyEmbed] });
+                                this.logger.info(`🆘 Notification SOS envoyée à ${invitedMember.user.tag}`);
+                            } catch (dmError) {
+                                this.logger.warn(`⚠️ Impossible d'envoyer MP SOS à ${invitedMember.user.tag}`);
+                            }
+                        }
+                    }
+                }
+                
+                // Auto-nettoyage après 1 heure
+                setTimeout(() => {
+                    delete global[globalLockKey];
+                }, 3600000);
+            }
+
+        } catch (error) {
+            this.logger.error('❌ Erreur lors de la gestion de l\'invitation SOS:', error);
+            try {
+                await interaction.editReply({
+                    content: '❌ Une erreur est survenue lors de l\'invitation de l\'équipe de soutien.'
+                });
+            } catch (replyError) {
+                this.logger.warn('⚠️ Impossible de répondre à l\'erreur SOS');
+            }
         }
     }
 }
