@@ -49,6 +49,13 @@ export async function handleModal(interaction) {
             }
             await interaction.client.ticketManager.handleSuggestionFeedbackModal(interaction);
         }
+        // Modals du système de streams (désactivé)
+        else if (customId.startsWith('stream_')) {
+            await interaction.reply({
+                content: '❌ Le système de streams n\'est pas disponible.',
+                ephemeral: true
+            });
+        }
         // Modals d'embed
         else if (customId === 'advanced_embed_modal') {
             await handleAdvancedEmbedModal(interaction);

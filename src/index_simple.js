@@ -9,7 +9,6 @@ import Database from './utils/Database.js';
 import ErrorHandler from './utils/ErrorHandler.js';
 import RoleMentionManager from './utils/RoleMentionManager.js';
 import CacheManager from './utils/CacheManager.js';
-import StreamManager from './managers/StreamManager.js';
 
 // Configuration
 config();
@@ -141,7 +140,6 @@ async function initialize() {
         logger.info('🎭 Initialisation des gestionnaires...');
         client.roleMentionManager = new RoleMentionManager(client);
         client.cacheManager = new CacheManager(client);
-        client.streamManager = new StreamManager(client);
         logger.success('✅ Gestionnaires initialisés');
         
         // Connexion du bot

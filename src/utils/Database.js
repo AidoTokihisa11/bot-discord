@@ -14,7 +14,6 @@ class Database {
             users: {},
             tickets: {},
             ticketNumbers: {},
-            streamers: {},
             stats: {
                 totalTickets: 0,
                 totalCommands: 0,
@@ -282,17 +281,6 @@ class Database {
         return guild;
     }
 
-    // Méthodes de compatibilité pour StreamManager
-    async getGuildData(guildId) {
-        return this.getGuild(guildId);
-    }
-
-    async setGuildData(guildId, data) {
-        const guild = this.getGuild(guildId);
-        Object.assign(guild, data);
-        return guild;
-    }
-
     // === STATISTIQUES GLOBALES ===
 
     getStats() {
@@ -476,24 +464,6 @@ class Database {
         } catch (error) {
             console.error('Erreur lors de la suppression du streamer:', error);
             return false;
-        }
-    }
-
-    async getStreamer(streamerId) {
-        return this.data.streamers[streamerId] || null;
-    }
-
-    async updateStreamer(streamerId, updates) {
-        try {
-            if (this.data.streamers[streamerId]) {
-                Object.assign(this.data.streamers[streamerId], updates);
-                await this.save();
-                return this.data.streamers[streamerId];
-            }
-            return null;
-        } catch (error) {
-            console.error('Erreur lors de la mise à jour du streamer:', error);
-            return null;
         }
     }
 }

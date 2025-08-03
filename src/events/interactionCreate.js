@@ -78,6 +78,21 @@ export default {
                 await command.execute(interaction, interaction.client);
             }
             
+            // Gestion de l'autocomplétion
+            else if (interaction.isAutocomplete()) {
+                const command = interaction.client.commands.get(interaction.commandName);
+                
+                if (!command || !command.autocomplete) {
+                    return;
+                }
+                
+                try {
+                    await command.autocomplete(interaction);
+                } catch (error) {
+                    logger.error(`Erreur autocomplétion pour ${interaction.commandName}:`, error);
+                }
+            }
+            
             // Gestion des boutons - ULTRA-SÉCURISÉE
             else if (interaction.isButton()) {
                 // Vérification supplémentaire avant traitement
@@ -96,7 +111,17 @@ export default {
                     interaction.client.ticketManager = new TicketManager(interaction.client);
                 }
 
-                await interaction.client.buttonHandler.handleButton(interaction);
+                // Vérifier si c'est un bouton lié aux streams
+                if (interaction.customId.startsWith('stream_')) {
+                    // Gestion basique des boutons de streams (si nécessaire)
+                    logger.info('Bouton stream cliqué mais système désactivé');
+                    await interaction.reply({
+                        content: '❌ Le système de streams n\'est pas disponible.',
+                        ephemeral: true
+                    });
+                } else {
+                    await interaction.client.buttonHandler.handleButton(interaction);
+                }
             }
             
             // Gestion des menus de sélection - SÉCURISÉE
@@ -114,7 +139,14 @@ export default {
                     interaction.client.ticketManager = new TicketManager(interaction.client);
                 }
                 
-                if (interaction.customId === 'suggestion_type_select') {
+                // Vérifier si c'est un menu lié aux streams
+                if (interaction.customId.startsWith('stream_')) {
+                    logger.info('Menu stream cliqué mais système désactivé');
+                    await interaction.reply({
+                        content: '❌ Le système de streams n\'est pas disponible.',
+                        ephemeral: true
+                    });
+                } else if (interaction.customId === 'suggestion_type_select') {
                     await interaction.client.ticketManager.handleSuggestionTypeSelect(interaction);
                 } else if (interaction.customId === 'select_staff_invite') {
                     await interaction.client.ticketManager.handleStaffInviteSelection(interaction);
@@ -135,12 +167,21 @@ export default {
 
                 logger.info(`📝 Modal soumis: ${interaction.customId} par ${interaction.user.tag}`);
 
-                // Initialiser le TicketManager si nécessaire
-                if (!interaction.client.ticketManager) {
-                    interaction.client.ticketManager = new TicketManager(interaction.client);
-                }
+                // Vérifier si c'est un modal lié aux streams
+                if (interaction.customId.startsWith('stream_')) {
+                    logger.info('Modal stream soumis mais système désactivé');
+                    await interaction.reply({
+                        content: '❌ Le système de streams n\'est pas disponible.',
+                        ephemeral: true
+                    });
+                } else {
+                    // Initialiser le TicketManager si nécessaire
+                    if (!interaction.client.ticketManager) {
+                        interaction.client.ticketManager = new TicketManager(interaction.client);
+                    }
 
-                await handleModal(interaction);
+                    await handleModal(interaction);
+                }
             }
             
         } catch (error) {
