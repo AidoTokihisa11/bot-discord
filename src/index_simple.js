@@ -58,9 +58,6 @@ client.events = new Collection();
 client.cooldowns = new Collection();
 client.tickets = new Collection();
 client.config = new Collection();
-client.embedTemplates = new Collection();
-client.embedBuilder = new Collection();
-client.embedIA = new Collection();
 client.tempData = {};
 
 // Initialisation de la base de données

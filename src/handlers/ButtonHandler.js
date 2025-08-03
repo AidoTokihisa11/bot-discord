@@ -36,18 +36,6 @@ class ButtonHandler {
             else if (customId.startsWith('suggestion_')) {
                 await this.handleSuggestionButtons(interaction);
             }
-            // Boutons d'embed templates
-            else if (customId.startsWith('edit_template_') || customId.startsWith('send_template_') || customId.startsWith('preview_template_')) {
-                await this.handleEmbedTemplateButtons(interaction);
-            }
-            // Boutons du constructeur d'embed
-            else if (customId.startsWith('builder_')) {
-                await this.handleEmbedBuilderButtons(interaction);
-            }
-            // Boutons IA
-            else if (customId.startsWith('ia_')) {
-                await this.handleIAButtons(interaction);
-            }
             // Boutons de feedback modal
             else if (customId.startsWith('show_feedback_modal_')) {
                 await this.handleFeedbackModalButtons(interaction);
@@ -303,73 +291,6 @@ class ButtonHandler {
             } catch (editError) {
                 this.logger.warn('⏰ Impossible de modifier la réponse (interaction expirée)');
             }
-        }
-    }
-
-    async handleEmbedTemplateButtons(interaction) {
-        try {
-            if (interaction.replied || interaction.deferred) {
-                this.logger.warn('⚠️ Interaction embed template déjà traitée');
-                return;
-            }
-
-            // Import dynamique pour éviter les dépendances circulaires
-            const { handleEditTemplate, handleSendTemplate, handlePreviewTemplate } = await import('../handlers/EmbedHandler.js');
-            
-            if (interaction.customId.startsWith('edit_template_')) {
-                const template = interaction.customId.split('_')[2];
-                await handleEditTemplate(interaction, template);
-            }
-            else if (interaction.customId.startsWith('send_template_')) {
-                const template = interaction.customId.split('_')[2];
-                await handleSendTemplate(interaction, template);
-            }
-            else if (interaction.customId.startsWith('preview_template_')) {
-                const template = interaction.customId.split('_')[2];
-                await handlePreviewTemplate(interaction, template);
-            }
-        } catch (error) {
-            if (error.code === 10062 || error.code === 40060) {
-                this.logger.warn('⏰ Erreur d\'interaction expirée dans handleEmbedTemplateButtons');
-                return;
-            }
-            throw error;
-        }
-    }
-
-    async handleEmbedBuilderButtons(interaction) {
-        try {
-            if (interaction.replied || interaction.deferred) {
-                this.logger.warn('⚠️ Interaction embed builder déjà traitée');
-                return;
-            }
-
-            const { handleEmbedBuilder } = await import('../handlers/EmbedHandler.js');
-            await handleEmbedBuilder(interaction);
-        } catch (error) {
-            if (error.code === 10062 || error.code === 40060) {
-                this.logger.warn('⏰ Erreur d\'interaction expirée dans handleEmbedBuilderButtons');
-                return;
-            }
-            throw error;
-        }
-    }
-
-    async handleIAButtons(interaction) {
-        try {
-            if (interaction.replied || interaction.deferred) {
-                this.logger.warn('⚠️ Interaction IA déjà traitée');
-                return;
-            }
-
-            const { handleIAButtons } = await import('../handlers/IAHandler.js');
-            await handleIAButtons(interaction);
-        } catch (error) {
-            if (error.code === 10062 || error.code === 40060) {
-                this.logger.warn('⏰ Erreur d\'interaction expirée dans handleIAButtons');
-                return;
-            }
-            throw error;
         }
     }
 

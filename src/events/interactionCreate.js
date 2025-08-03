@@ -4,7 +4,6 @@ import ButtonHandler from '../handlers/ButtonHandler.js';
 import { handleModal } from '../handlers/ModalHandler.js';
 import TicketManager from '../managers/TicketManager.js';
 import InteractionValidator from '../utils/InteractionValidator.js';
-import EmbedHandler from '../handlers/EmbedHandler.js';
 
 export default {
     name: 'interactionCreate',
@@ -96,16 +95,8 @@ export default {
                 if (!interaction.client.ticketManager) {
                     interaction.client.ticketManager = new TicketManager(interaction.client);
                 }
-                if (!interaction.client.embedHandler) {
-                    interaction.client.embedHandler = new EmbedHandler(interaction.client);
-                }
 
-                // Vérifier si c'est une interaction d'embed
-                if (interaction.customId.startsWith('embed_')) {
-                    await interaction.client.embedHandler.handleEmbedInteraction(interaction);
-                } else {
-                    await interaction.client.buttonHandler.handleButton(interaction);
-                }
+                await interaction.client.buttonHandler.handleButton(interaction);
             }
             
             // Gestion des menus de sélection - SÉCURISÉE
@@ -122,20 +113,8 @@ export default {
                 if (!interaction.client.ticketManager) {
                     interaction.client.ticketManager = new TicketManager(interaction.client);
                 }
-                if (!interaction.client.embedHandler) {
-                    interaction.client.embedHandler = new EmbedHandler(interaction.client);
-                }
                 
-                // Vérifier si c'est un select menu d'embed
-                if (interaction.customId.startsWith('embed_')) {
-                    if (interaction.customId === 'embed_color_select') {
-                        await interaction.client.embedHandler.handleEmbedSelectMenu(interaction);
-                    } else if (interaction.customId === 'embed_channel_select') {
-                        await interaction.client.embedHandler.handleEmbedSelectMenu(interaction);
-                    } else {
-                        await interaction.client.embedHandler.handleEmbedInteraction(interaction);
-                    }
-                } else if (interaction.customId === 'suggestion_type_select') {
+                if (interaction.customId === 'suggestion_type_select') {
                     await interaction.client.ticketManager.handleSuggestionTypeSelect(interaction);
                 } else if (interaction.customId === 'select_staff_invite') {
                     await interaction.client.ticketManager.handleStaffInviteSelection(interaction);
@@ -160,16 +139,8 @@ export default {
                 if (!interaction.client.ticketManager) {
                     interaction.client.ticketManager = new TicketManager(interaction.client);
                 }
-                if (!interaction.client.embedHandler) {
-                    interaction.client.embedHandler = new EmbedHandler(interaction.client);
-                }
 
-                // Vérifier si c'est un modal d'embed
-                if (interaction.customId.startsWith('embed_')) {
-                    await interaction.client.embedHandler.handleEmbedModal(interaction);
-                } else {
-                    await handleModal(interaction);
-                }
+                await handleModal(interaction);
             }
             
         } catch (error) {
