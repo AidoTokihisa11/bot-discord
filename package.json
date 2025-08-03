@@ -9,7 +9,9 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "deploy": "node src/deploy-secure.js",
+    "start-railway": "node railway-start.js",
+    "deploy": "node src/deploy-simple.js",
+    "deploy-secure": "node src/deploy-secure.js",
     "dev": "node --watch src/index.js",
     "test": "node test-config.js",
     "clear-commands": "node force-deploy-commands.js"

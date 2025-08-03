@@ -119,6 +119,12 @@ async function loadEvents(dir = join(__dirname, 'events')) {
 // Fonction pour déployer automatiquement les commandes
 async function deployCommands() {
     try {
+        // Vérifier les variables d'environnement nécessaires
+        if (!process.env.DISCORD_TOKEN || !process.env.CLIENT_ID) {
+            logger.warn('⚠️ Variables d\'environnement manquantes pour le déploiement automatique');
+            return;
+        }
+
         logger.info('🚀 Déploiement automatique des commandes...');
         
         const commands = [];
@@ -131,7 +137,11 @@ async function deployCommands() {
             return;
         }
         
-        const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+        const rest = new REST({ 
+            version: '10',
+            timeout: 30000,
+            retries: 2
+        }).setToken(process.env.DISCORD_TOKEN);
         
         // Déploiement selon la configuration
         let route;
@@ -147,8 +157,9 @@ async function deployCommands() {
         logger.success(`✅ ${data.length} commande(s) déployée(s) avec succès`);
         
     } catch (error) {
-        logger.error('❌ Erreur lors du déploiement automatique:', error);
+        logger.error('❌ Erreur lors du déploiement automatique:', error.message || error);
         // Ne pas arrêter le bot si le déploiement échoue
+        logger.warn('⚠️ Le bot continuera de fonctionner sans déploiement automatique');
     }
 }
 
@@ -162,8 +173,8 @@ async function initialize() {
         await loadCommands();
         logger.success(`✅ ${client.commands.size} commande(s) chargée(s)`);
         
-        // Déploiement automatique des commandes (seulement en production)
-        if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
+        // Déploiement automatique des commandes (seulement si explicitement demandé)
+        if (process.env.AUTO_DEPLOY_COMMANDS === 'true') {
             await deployCommands();
         }
         
