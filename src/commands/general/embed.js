@@ -2,7 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, But
 
 export default {
     data: new SlashCommandBuilder()
-        .setName('embed')
+        .setName('embed-aido')
         .setDescription('🎨 Créer un embed personnalisé avec interface avancée')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
 
