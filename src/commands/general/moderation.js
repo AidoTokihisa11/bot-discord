@@ -195,64 +195,117 @@ export default {
     },
 
     async handlePanel(interaction, moderationManager) {
+        // Récupérer les statistiques actuelles
+        const stats = await moderationManager.getStats();
+        
         const embed = new EmbedBuilder()
-            .setTitle('🛡️ Panel de Modération')
-            .setDescription('Sélectionnez une action de modération à effectuer')
+            .setTitle('🛡️ Panel de Modération Complet')
+            .setDescription(`**Bienvenue dans le système de modération avancé !**\n\n` +
+                           `📊 **Statistiques du jour :**\n` +
+                           `• Actions totales : **${stats.actionsToday}**\n` +
+                           `• Mutes actifs : **${stats.activeMutes}**\n` +
+                           `• Avertissements totaux : **${stats.totalWarnings}**\n\n` +
+                           `Sélectionnez une action de modération ci-dessous :`)
             .addFields(
-                { name: '⚠️ Avertissement', value: 'Donner un avertissement à un utilisateur', inline: true },
-                { name: '🔇 Mute', value: 'Mettre un utilisateur en sourdine', inline: true },
-                { name: '👢 Kick', value: 'Expulser un utilisateur du serveur', inline: true },
-                { name: '🔨 Ban', value: 'Bannir un utilisateur définitivement', inline: true },
-                { name: '📋 Historique', value: 'Consulter l\'historique d\'un utilisateur', inline: true },
-                { name: '📊 Statistiques', value: 'Voir les stats de modération', inline: true }
+                { 
+                    name: '⚠️ Actions de Base', 
+                    value: '• **Avertir** - Donner un avertissement\n• **Muter** - Mettre en sourdine temporaire\n• **Kick** - Expulser du serveur', 
+                    inline: true 
+                },
+                { 
+                    name: '🔨 Actions Sévères', 
+                    value: '• **Ban** - Bannissement permanent/temporaire\n• **Unban** - Débannir un utilisateur\n• **Unmute** - Retirer un mute', 
+                    inline: true 
+                },
+                { 
+                    name: '📋 Gestion & Stats', 
+                    value: '• **Historique** - Voir l\'historique d\'un user\n• **Statistiques** - Stats de modération\n• **Configuration** - Paramètres système', 
+                    inline: true 
+                }
             )
             .setColor('#3498db')
             .setTimestamp()
-            .setFooter({ text: 'Système de modération • Sélectionnez une action' });
+            .setFooter({ 
+                text: `Système de modération • Utilisé par ${interaction.user.tag}`,
+                iconURL: interaction.user.displayAvatarURL()
+            })
+            .setThumbnail(interaction.guild.iconURL());
 
         const actionRow1 = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
                     .setCustomId('mod_warn_user')
-                    .setLabel('⚠️ Avertir')
+                    .setLabel('Avertir')
+                    .setEmoji('⚠️')
                     .setStyle(ButtonStyle.Secondary),
                 new ButtonBuilder()
                     .setCustomId('mod_mute_user')
-                    .setLabel('🔇 Muter')
+                    .setLabel('Muter')
+                    .setEmoji('🔇')
                     .setStyle(ButtonStyle.Secondary),
                 new ButtonBuilder()
                     .setCustomId('mod_kick_user')
-                    .setLabel('👢 Kick')
+                    .setLabel('Kick')
+                    .setEmoji('👢')
                     .setStyle(ButtonStyle.Danger),
                 new ButtonBuilder()
                     .setCustomId('mod_ban_user')
-                    .setLabel('🔨 Ban')
+                    .setLabel('Ban')
+                    .setEmoji('🔨')
                     .setStyle(ButtonStyle.Danger)
             );
 
         const actionRow2 = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
+                    .setCustomId('mod_unban_user')
+                    .setLabel('Unban')
+                    .setEmoji('✅')
+                    .setStyle(ButtonStyle.Success),
+                new ButtonBuilder()
+                    .setCustomId('mod_unmute_user')
+                    .setLabel('Unmute')
+                    .setEmoji('🔊')
+                    .setStyle(ButtonStyle.Success),
+                new ButtonBuilder()
+                    .setCustomId('mod_clear_warnings')
+                    .setLabel('Clear Warns')
+                    .setEmoji('🧹')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('mod_quick_actions')
+                    .setLabel('Actions Rapides')
+                    .setEmoji('⚡')
+                    .setStyle(ButtonStyle.Primary)
+            );
+
+        const actionRow3 = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
                     .setCustomId('mod_history_user')
-                    .setLabel('📋 Historique')
+                    .setLabel('Historique')
+                    .setEmoji('📋')
                     .setStyle(ButtonStyle.Primary),
                 new ButtonBuilder()
                     .setCustomId('mod_stats')
-                    .setLabel('📊 Statistiques')
+                    .setLabel('Statistiques')
+                    .setEmoji('📊')
                     .setStyle(ButtonStyle.Primary),
                 new ButtonBuilder()
                     .setCustomId('mod_config')
-                    .setLabel('⚙️ Configuration')
+                    .setLabel('Configuration')
+                    .setEmoji('⚙️')
                     .setStyle(ButtonStyle.Secondary),
                 new ButtonBuilder()
                     .setCustomId('mod_refresh_panel')
-                    .setLabel('🔄 Actualiser')
+                    .setLabel('Actualiser')
+                    .setEmoji('🔄')
                     .setStyle(ButtonStyle.Secondary)
             );
 
         await interaction.reply({
             embeds: [embed],
-            components: [actionRow1, actionRow2]
+            components: [actionRow1, actionRow2, actionRow3]
         });
     },
 

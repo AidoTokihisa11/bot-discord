@@ -9,6 +9,8 @@ import Database from './utils/Database.js';
 import ErrorHandler from './utils/ErrorHandler.js';
 import RoleMentionManager from './utils/RoleMentionManager.js';
 import CacheManager from './utils/CacheManager.js';
+import ModerationManager from './managers/ModerationManager.js';
+import ModerationButtonHandler from './handlers/ModerationButtonHandler.js';
 
 // Configuration
 config();
@@ -195,6 +197,12 @@ async function initialize() {
         logger.info('🧹 Initialisation du gestionnaire de cache...');
         client.cacheManager = new CacheManager(client);
         logger.success('✅ Gestionnaire de cache initialisé');
+        
+        // Initialisation du gestionnaire de modération
+        logger.info('🛡️ Initialisation du système de modération...');
+        client.moderationManager = new ModerationManager(client);
+        client.moderationButtonHandler = new ModerationButtonHandler(client);
+        logger.success('✅ Système de modération initialisé');
         
         // Connexion du bot
         logger.info('🔗 Connexion à Discord...');

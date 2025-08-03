@@ -119,6 +119,13 @@ export default {
                         content: '❌ Le système de streams n\'est pas disponible.',
                         ephemeral: true
                     });
+                } else if (interaction.customId.startsWith('mod_')) {
+                    // Gestion des boutons de modération
+                    if (!interaction.client.moderationButtonHandler) {
+                        logger.error('ModerationButtonHandler non initialisé');
+                        return;
+                    }
+                    await interaction.client.moderationButtonHandler.handleModerationButton(interaction);
                 } else {
                     await interaction.client.buttonHandler.handleButton(interaction);
                 }
@@ -146,6 +153,13 @@ export default {
                         content: '❌ Le système de streams n\'est pas disponible.',
                         ephemeral: true
                     });
+                } else if (interaction.customId.startsWith('mod_')) {
+                    // Gestion des menus de modération
+                    if (!interaction.client.moderationButtonHandler) {
+                        logger.error('ModerationButtonHandler non initialisé');
+                        return;
+                    }
+                    await interaction.client.moderationButtonHandler.handleModerationSelect(interaction);
                 } else if (interaction.customId === 'suggestion_type_select') {
                     await interaction.client.ticketManager.handleSuggestionTypeSelect(interaction);
                 } else if (interaction.customId === 'select_staff_invite') {
@@ -174,6 +188,13 @@ export default {
                         content: '❌ Le système de streams n\'est pas disponible.',
                         ephemeral: true
                     });
+                } else if (interaction.customId.startsWith('mod_')) {
+                    // Gestion des modals de modération
+                    if (!interaction.client.moderationButtonHandler) {
+                        logger.error('ModerationButtonHandler non initialisé');
+                        return;
+                    }
+                    await interaction.client.moderationButtonHandler.handleModerationModal(interaction);
                 } else {
                     // Initialiser le TicketManager si nécessaire
                     if (!interaction.client.ticketManager) {
