@@ -4,6 +4,7 @@ import ButtonHandler from '../handlers/ButtonHandler.js';
 import { handleModal } from '../handlers/ModalHandler.js';
 import TicketManager from '../managers/TicketManager.js';
 import InteractionValidator from '../utils/InteractionValidator.js';
+const EmbedHandler = require('../handlers/EmbedHandler.js');
 
 export default {
     name: 'interactionCreate',
@@ -88,11 +89,20 @@ export default {
 
                 logger.info(`🔘 Bouton cliqué: ${interaction.customId} par ${interaction.user.tag}`);
 
-                // Utiliser une seule instance de ButtonHandler stockée dans le client
+                // Initialiser les gestionnaires si nécessaire
                 if (!interaction.client.buttonHandler) {
                     interaction.client.buttonHandler = new ButtonHandler(interaction.client);
                 }
-                await interaction.client.buttonHandler.handleButton(interaction);
+                if (!interaction.client.ticketManager) {
+                    interaction.client.ticketManager = new TicketManager(interaction.client);
+                }
+
+                // Vérifier si c'est une interaction d'embed
+                if (interaction.customId.startsWith('embed_')) {
+                    await EmbedHandler.handleEmbedInteraction(interaction);
+                } else {
+                    await interaction.client.buttonHandler.handleButton(interaction);
+                }
             }
             
             // Gestion des menus de sélection - SÉCURISÉE
@@ -110,7 +120,16 @@ export default {
                     interaction.client.ticketManager = new TicketManager(interaction.client);
                 }
                 
-                if (interaction.customId === 'suggestion_type_select') {
+                // Vérifier si c'est un select menu d'embed
+                if (interaction.customId.startsWith('embed_')) {
+                    if (interaction.customId === 'embed_color_select') {
+                        await EmbedHandler.handleColorSelect(interaction);
+                    } else if (interaction.customId === 'embed_channel_select') {
+                        await EmbedHandler.handleChannelSelect(interaction);
+                    } else {
+                        await EmbedHandler.handleEmbedInteraction(interaction);
+                    }
+                } else if (interaction.customId === 'suggestion_type_select') {
                     await interaction.client.ticketManager.handleSuggestionTypeSelect(interaction);
                 } else if (interaction.customId === 'select_staff_invite') {
                     await interaction.client.ticketManager.handleStaffInviteSelection(interaction);
@@ -131,7 +150,17 @@ export default {
 
                 logger.info(`📝 Modal soumis: ${interaction.customId} par ${interaction.user.tag}`);
 
-                await handleModal(interaction);
+                // Initialiser le TicketManager si nécessaire
+                if (!interaction.client.ticketManager) {
+                    interaction.client.ticketManager = new TicketManager(interaction.client);
+                }
+
+                // Vérifier si c'est un modal d'embed
+                if (interaction.customId.startsWith('embed_')) {
+                    await EmbedHandler.handleEmbedInteraction(interaction);
+                } else {
+                    await handleModal(interaction);
+                }
             }
             
         } catch (error) {
