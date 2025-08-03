@@ -11,7 +11,8 @@
     "start": "node src/index.js",
     "deploy": "node src/deploy-secure.js",
     "dev": "node --watch src/index.js",
-    "test": "node test-config.js"
+    "test": "node test-config.js",
+    "clear-commands": "node force-deploy-commands.js"
   },
   "dependencies": {
     "axios": "^1.10.0",

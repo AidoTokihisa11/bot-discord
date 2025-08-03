@@ -1,4 +1,4 @@
-import { Client, Collection, GatewayIntentBits, ActivityType, Partials } from 'discord.js';
+import { Client, Collection, GatewayIntentBits, ActivityType, Partials, REST, Routes } from 'discord.js';
 import { config } from 'dotenv';
 import chalk from 'chalk';
 import { fileURLToPath, pathToFileURL } from 'url';
@@ -116,6 +116,42 @@ async function loadEvents(dir = join(__dirname, 'events')) {
     }
 }
 
+// Fonction pour déployer automatiquement les commandes
+async function deployCommands() {
+    try {
+        logger.info('🚀 Déploiement automatique des commandes...');
+        
+        const commands = [];
+        for (const [name, command] of client.commands) {
+            commands.push(command.data.toJSON());
+        }
+        
+        if (commands.length === 0) {
+            logger.warn('⚠️ Aucune commande à déployer');
+            return;
+        }
+        
+        const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+        
+        // Déploiement selon la configuration
+        let route;
+        if (process.env.GUILD_ID) {
+            route = Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID);
+            logger.info(`📡 Déploiement des commandes sur le serveur ${process.env.GUILD_ID}...`);
+        } else {
+            route = Routes.applicationCommands(process.env.CLIENT_ID);
+            logger.info('📡 Déploiement global des commandes...');
+        }
+        
+        const data = await rest.put(route, { body: commands });
+        logger.success(`✅ ${data.length} commande(s) déployée(s) avec succès`);
+        
+    } catch (error) {
+        logger.error('❌ Erreur lors du déploiement automatique:', error);
+        // Ne pas arrêter le bot si le déploiement échoue
+    }
+}
+
 // Fonction d'initialisation
 async function initialize() {
     try {
@@ -125,6 +161,11 @@ async function initialize() {
         logger.info('📁 Chargement des commandes...');
         await loadCommands();
         logger.success(`✅ ${client.commands.size} commande(s) chargée(s)`);
+        
+        // Déploiement automatique des commandes (seulement en production)
+        if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
+            await deployCommands();
+        }
         
         // Chargement des événements
         logger.info('⚡ Chargement des événements...');
