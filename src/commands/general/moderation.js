@@ -36,6 +36,11 @@ export default {
                         .setRequired(true))
                 .addStringOption(option =>
                     option
+                        .setName('reason')
+                        .setDescription('📝 Raison du mute')
+                        .setRequired(true))
+                .addStringOption(option =>
+                    option
                         .setName('duration')
                         .setDescription('⏱️ Durée (5m, 1h, 1d, 7d)')
                         .setRequired(false)
@@ -45,11 +50,6 @@ export default {
                             { name: '24 heures', value: '1d' },
                             { name: '7 jours', value: '7d' }
                         ))
-                .addStringOption(option =>
-                    option
-                        .setName('reason')
-                        .setDescription('📝 Raison du mute')
-                        .setRequired(true))
         )
         .addSubcommand(subcommand =>
             subcommand

@@ -177,6 +177,8 @@ async function initialize() {
         // Déploiement automatique des commandes (seulement si explicitement demandé)
         if (process.env.AUTO_DEPLOY_COMMANDS === 'true') {
             await deployCommands();
+        } else {
+            logger.info('💡 Conseil: Ajoutez AUTO_DEPLOY_COMMANDS=true dans votre .env pour déployer automatiquement les commandes');
         }
         
         // Chargement des événements
