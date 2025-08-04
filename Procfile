@@ -1,1 +1,1 @@
-worker: npm start
+worker: node railway-start.js

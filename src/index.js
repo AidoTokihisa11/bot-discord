@@ -9,8 +9,9 @@ import Database from './utils/Database.js';
 import ErrorHandler from './utils/ErrorHandler.js';
 import RoleMentionManager from './utils/RoleMentionManager.js';
 import CacheManager from './utils/CacheManager.js';
-import StreamManager from './managers/StreamManager.js';
+import AdvancedStreamManager from './managers/AdvancedStreamManager.js';
 import ModerationManager from './managers/ModerationManager.js';
+import ModerationButtonHandler from './handlers/ModerationButtonHandler.js';
 
 // Configuration
 config();
@@ -151,12 +152,13 @@ async function initialize() {
         
         // Initialisation du gestionnaire de streams
         logger.info('🎮 Initialisation du gestionnaire de streams...');
-        client.streamManager = new StreamManager(client);
+        client.streamManager = new AdvancedStreamManager(client);
         logger.success('✅ Gestionnaire de streams initialisé');
         
         // Initialisation du gestionnaire de modération
         logger.info('🛡️ Initialisation du gestionnaire de modération...');
         client.moderationManager = new ModerationManager(client);
+        client.moderationButtonHandler = new ModerationButtonHandler(client);
         await client.moderationManager.init();
         logger.success('✅ Gestionnaire de modération initialisé');
         

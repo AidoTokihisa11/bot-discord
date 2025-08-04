@@ -24,36 +24,6 @@ class CacheManager {
             const now = Date.now();
             let cleaned = 0;
 
-            // Nettoyer les templates d'embed expirés (30 minutes)
-            if (this.client.embedTemplates) {
-                for (const [userId, data] of this.client.embedTemplates.entries()) {
-                    if (now - data.timestamp > 30 * 60 * 1000) {
-                        this.client.embedTemplates.delete(userId);
-                        cleaned++;
-                    }
-                }
-            }
-
-            // Nettoyer les données du constructeur d'embed expirées (30 minutes)
-            if (this.client.embedBuilder) {
-                for (const [userId, data] of this.client.embedBuilder.entries()) {
-                    if (now - data.timestamp > 30 * 60 * 1000) {
-                        this.client.embedBuilder.delete(userId);
-                        cleaned++;
-                    }
-                }
-            }
-
-            // Nettoyer les données IA expirées (60 minutes)
-            if (this.client.embedIA) {
-                for (const [userId, data] of this.client.embedIA.entries()) {
-                    if (now - data.timestamp > 60 * 60 * 1000) {
-                        this.client.embedIA.delete(userId);
-                        cleaned++;
-                    }
-                }
-            }
-
             // Nettoyer les données temporaires expirées (15 minutes)
             if (this.client.tempData) {
                 for (const [userId, data] of Object.entries(this.client.tempData)) {
@@ -107,16 +77,6 @@ class CacheManager {
             cleaned++;
         }
 
-        if (this.client.embedBuilder?.has(userId)) {
-            this.client.embedBuilder.delete(userId);
-            cleaned++;
-        }
-
-        if (this.client.embedIA?.has(userId)) {
-            this.client.embedIA.delete(userId);
-            cleaned++;
-        }
-
         if (this.client.tempData?.[userId]) {
             delete this.client.tempData[userId];
             cleaned++;
@@ -128,9 +88,6 @@ class CacheManager {
     // Obtenir les statistiques du cache
     getCacheStats() {
         return {
-            embedTemplates: this.client.embedTemplates?.size || 0,
-            embedBuilder: this.client.embedBuilder?.size || 0,
-            embedIA: this.client.embedIA?.size || 0,
             tempData: Object.keys(this.client.tempData || {}).length,
             cooldowns: this.client.cooldowns?.size || 0,
             commands: this.client.commands?.size || 0
@@ -139,9 +96,6 @@ class CacheManager {
 
     // Forcer un nettoyage complet
     forceCleanup() {
-        this.client.embedTemplates?.clear();
-        this.client.embedBuilder?.clear();
-        this.client.embedIA?.clear();
         this.client.tempData = {};
         
         // Garder les cooldowns récents (moins de 1 minute)

@@ -1,4 +1,4 @@
 {
-  "buildCommand": "npm install --omit=dev && npm run build",
+  "buildCommand": "npm install --omit=dev",
   "cleanCache": true
 }

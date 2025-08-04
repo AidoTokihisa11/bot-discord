@@ -9,7 +9,6 @@ import Database from './utils/Database.js';
 import ErrorHandler from './utils/ErrorHandler.js';
 import RoleMentionManager from './utils/RoleMentionManager.js';
 import CacheManager from './utils/CacheManager.js';
-import StreamManager from './managers/StreamManager.js';
 
 // Configuration
 config();
@@ -58,9 +57,6 @@ client.events = new Collection();
 client.cooldowns = new Collection();
 client.tickets = new Collection();
 client.config = new Collection();
-client.embedTemplates = new Collection();
-client.embedBuilder = new Collection();
-client.embedIA = new Collection();
 client.tempData = {};
 
 // Initialisation de la base de données
@@ -144,7 +140,6 @@ async function initialize() {
         logger.info('🎭 Initialisation des gestionnaires...');
         client.roleMentionManager = new RoleMentionManager(client);
         client.cacheManager = new CacheManager(client);
-        client.streamManager = new StreamManager(client);
         logger.success('✅ Gestionnaires initialisés');
         
         // Connexion du bot
