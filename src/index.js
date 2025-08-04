@@ -10,6 +10,7 @@ import ErrorHandler from './utils/ErrorHandler.js';
 import RoleMentionManager from './utils/RoleMentionManager.js';
 import CacheManager from './utils/CacheManager.js';
 import StreamManager from './managers/StreamManager.js';
+import ModerationManager from './managers/ModerationManager.js';
 
 // Configuration
 config();
@@ -152,6 +153,12 @@ async function initialize() {
         logger.info('🎮 Initialisation du gestionnaire de streams...');
         client.streamManager = new StreamManager(client);
         logger.success('✅ Gestionnaire de streams initialisé');
+        
+        // Initialisation du gestionnaire de modération
+        logger.info('🛡️ Initialisation du gestionnaire de modération...');
+        client.moderationManager = new ModerationManager(client);
+        await client.moderationManager.init();
+        logger.success('✅ Gestionnaire de modération initialisé');
         
         // Connexion du bot
         logger.info('🔗 Connexion à Discord...');
