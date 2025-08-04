@@ -152,8 +152,13 @@ async function initialize() {
         
         // Initialisation du gestionnaire de streams
         logger.info('🎮 Initialisation du gestionnaire de streams...');
-        client.streamManager = new AdvancedStreamManager(client);
-        logger.success('✅ Gestionnaire de streams initialisé');
+        try {
+            client.streamManager = new AdvancedStreamManager(client);
+            logger.success('✅ Gestionnaire de streams initialisé');
+        } catch (error) {
+            logger.warn('⚠️ Gestionnaire de streams désactivé:', error.message);
+            logger.info('💡 Configurez TWITCH_CLIENT_ID et TWITCH_CLIENT_SECRET pour activer les streams');
+        }
         
         // Initialisation du gestionnaire de modération
         logger.info('🛡️ Initialisation du gestionnaire de modération...');

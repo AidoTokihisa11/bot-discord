@@ -73,6 +73,9 @@ export default class AdvancedStreamManager {
             webhooksActive: false
         };
         
+        // État du système
+        this.isEnabled = false;
+        
         this.init();
     }
 
@@ -112,17 +115,33 @@ export default class AdvancedStreamManager {
         const required = [];
         const optional = [];
         
-        if (!this.apis.twitch.clientId) required.push('TWITCH_CLIENT_ID');
-        if (!this.apis.twitch.clientSecret) required.push('TWITCH_CLIENT_SECRET');
-        if (!this.apis.youtube.apiKey) optional.push('YOUTUBE_API_KEY');
+        // Vérifier si les valeurs sont présentes ET ne sont pas des valeurs par défaut
+        const isValidTwitchId = this.apis.twitch.clientId && 
+                               this.apis.twitch.clientId !== 'disabled' && 
+                               this.apis.twitch.clientId !== 'your_twitch_client_id_here';
+        
+        const isValidTwitchSecret = this.apis.twitch.clientSecret && 
+                                   this.apis.twitch.clientSecret !== 'disabled' && 
+                                   this.apis.twitch.clientSecret !== 'your_twitch_client_secret_here';
+        
+        if (!isValidTwitchId) required.push('TWITCH_CLIENT_ID');
+        if (!isValidTwitchSecret) required.push('TWITCH_CLIENT_SECRET');
+        if (!this.apis.youtube.apiKey || this.apis.youtube.apiKey === 'your_youtube_api_key_here') {
+            optional.push('YOUTUBE_API_KEY');
+        }
         
         if (required.length > 0) {
-            throw new Error(`Variables d'environnement manquantes: ${required.join(', ')}`);
+            this.logger.warn(`⚠️ Variables d'environnement Twitch manquantes: ${required.join(', ')}`);
+            this.logger.warn('🔄 Le système de streams sera désactivé jusqu\'à configuration complète');
+            this.isEnabled = false;
+            return; // Ne pas lancer d'erreur, juste désactiver
         }
         
         if (optional.length > 0) {
             this.logger.warn(`Variables d'environnement optionnelles manquantes: ${optional.join(', ')}`);
         }
+        
+        this.isEnabled = true;
     }
 
     async initializeAPIs() {
