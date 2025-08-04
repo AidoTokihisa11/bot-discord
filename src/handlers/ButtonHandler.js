@@ -1,4 +1,5 @@
 import TicketManager from '../managers/TicketManager.js';
+import DataPrivacyButtonHandler from './DataPrivacyButtonHandler.js';
 import Logger from '../utils/Logger.js';
 import { EmbedBuilder, MessageFlags } from 'discord.js';
 
@@ -6,6 +7,7 @@ class ButtonHandler {
     constructor(client) {
         this.client = client;
         this.logger = new Logger();
+        this.dataPrivacyHandler = new DataPrivacyButtonHandler(client);
     }
 
     async handleButton(interaction) {
@@ -39,6 +41,14 @@ class ButtonHandler {
             // Boutons de feedback modal
             else if (customId.startsWith('show_feedback_modal_')) {
                 await this.handleFeedbackModalButtons(interaction);
+            }
+            // Boutons de suppression de données (RGPD)
+            else if (customId.startsWith('delete_data_')) {
+                await this.dataPrivacyHandler.handleDataDeletion(interaction);
+            }
+            // Boutons de navigation de la charte
+            else if (customId.startsWith('charte_')) {
+                await this.dataPrivacyHandler.handleCharteNavigation(interaction);
             }
             else {
                 this.logger.warn(`Bouton non géré: ${customId}`);

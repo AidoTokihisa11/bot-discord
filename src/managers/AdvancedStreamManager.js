@@ -86,28 +86,50 @@ export default class AdvancedStreamManager {
             // Vérifier les variables d'environnement
             this.validateEnvironment();
             
-            // Charger les streamers depuis la DB
-            await this.loadStreamersFromDB();
-            
-            // Initialiser les APIs
-            await this.initializeAPIs();
-            
-            // Configurer les webhooks Twitch si possible
-            if (this.apis.twitch.webhookUrl) {
-                await this.setupTwitchWebhooks();
+            // Si désactivé, arrêter l'initialisation
+            if (!this.isEnabled) {
+                this.logger.info('🔄 Système de streams désactivé - Initialisation interrompue');
+                return;
             }
             
-            // Démarrer la surveillance
-            await this.startMonitoring();
+            // Charger les streamers depuis la DB
+            try {
+                await this.loadStreamersFromDB();
+            } catch (error) {
+                this.logger.error('❌ Erreur lors du chargement des streamers:', error.message);
+            }
             
-            // Démarrer le nettoyage périodique
-            this.startCleanupSchedule();
+            // Initialiser les APIs
+            try {
+                await this.initializeAPIs();
+            } catch (error) {
+                this.logger.error('❌ Erreur lors de l\'initialisation des APIs:', error.message);
+                this.logger.warn('⚠️ Le système de streams sera partiellement fonctionnel');
+            }
+            
+            // Configurer les webhooks Twitch si possible
+            if (this.apis.twitch.webhookUrl && this.isEnabled) {
+                try {
+                    await this.setupTwitchWebhooks();
+                } catch (error) {
+                    this.logger.warn('⚠️ Échec de configuration des webhooks Twitch:', error.message);
+                }
+            }
+            
+            // Démarrer la surveillance seulement si tout est OK
+            if (this.isEnabled) {
+                await this.startMonitoring();
+                
+                // Démarrer le nettoyage périodique
+                this.startCleanupSchedule();
+            }
             
             this.logger.success('✅ Gestionnaire de streams avancé initialisé');
             
         } catch (error) {
             this.logger.error('❌ Erreur lors de l\'initialisation du gestionnaire de streams:', error);
-            throw error;
+            this.isEnabled = false;
+            // Ne pas relancer l'erreur pour éviter de crasher le bot
         }
     }
 
@@ -181,6 +203,12 @@ export default class AdvancedStreamManager {
     }
 
     async testYouTubeAPI() {
+        // Si pas de clé API YouTube, passer le test
+        if (!this.apis.youtube.apiKey || this.apis.youtube.apiKey === 'your_youtube_api_key_here') {
+            this.logger.warn('⚠️ Clé API YouTube non configurée - Fonctionnalités YouTube désactivées');
+            return;
+        }
+        
         try {
             await axios.get(`${this.apis.youtube.baseUrl}/search`, {
                 params: {
@@ -194,7 +222,8 @@ export default class AdvancedStreamManager {
             
         } catch (error) {
             if (error.response?.status === 403 || error.response?.status === 400) {
-                throw new Error('Clé API YouTube invalide ou permissions insuffisantes');
+                this.logger.warn('⚠️ Clé API YouTube invalide - Fonctionnalités YouTube désactivées');
+                return; // Ne pas lancer d'erreur, juste désactiver YouTube
             }
             throw error;
         }
