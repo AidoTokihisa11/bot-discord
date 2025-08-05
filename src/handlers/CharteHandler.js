@@ -2,8 +2,6 @@ import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentB
 
 export default class CharteInteractionHandler {
     static async handleCharteValidation(interaction) {
-        await interaction.deferUpdate();
-
         // Vérifier si l'utilisateur a déjà accepté la charte
         const hasAlreadyAccepted = await this.checkIfUserAccepted(interaction.user.id, interaction.guild.id);
         
@@ -32,19 +30,22 @@ export default class CharteInteractionHandler {
                     iconURL: 'https://i.imgur.com/s74nSIc.png'
                 });
 
-            return await interaction.followUp({
+            return await interaction.reply({
                 embeds: [alreadyAcceptedEmbed],
                 ephemeral: true
             });
         }
 
+        await interaction.deferUpdate();
+
         // Enregistrer la validation dans la base de données
         await this.saveCharteAcceptance(interaction.user.id, interaction.guild.id);
 
-        // Mettre à jour le message original avec le nouveau compteur
+        // Mettre à jour le message original avec le nouveau compteur (le message reste visible)
         await this.updateCharteMessage(interaction);
 
-        const embed = new EmbedBuilder()
+        // Envoyer une confirmation privée à l'utilisateur
+        const confirmationEmbed = new EmbedBuilder()
             .setTitle('✅ **CHARTE VALIDÉE**')
             .setDescription('**Validation enregistrée avec succès**')
             .addFields(
@@ -84,7 +85,7 @@ export default class CharteInteractionHandler {
             });
 
         await interaction.followUp({
-            embeds: [embed],
+            embeds: [confirmationEmbed],
             ephemeral: true
         });
 
@@ -206,6 +207,7 @@ export default class CharteInteractionHandler {
                     iconURL: 'https://i.imgur.com/s74nSIc.png'
                 });
 
+            // Le bouton reste toujours disponible pour les nouveaux utilisateurs
             const actionRow = new ActionRowBuilder()
                 .addComponents(
                     new ButtonBuilder()
@@ -220,7 +222,7 @@ export default class CharteInteractionHandler {
                     embeds: [updatedEmbed],
                     components: [actionRow]
                 });
-                console.log(`✅ Message de charte mis à jour avec ${acceptanceCount} acceptations`);
+                console.log(`✅ Message de charte mis à jour avec ${acceptanceCount} acceptations (bouton toujours actif)`);
             } catch (editError) {
                 if (editError.code === 10008) {
                     // Message introuvable - envoyer un nouveau message dans le même channel
