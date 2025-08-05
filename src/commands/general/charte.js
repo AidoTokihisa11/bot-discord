@@ -30,7 +30,7 @@ export default {
                 },
                 {
                     name: '🔧 **3.3 COMMANDES RGPD DISPONIBLES**',
-                    value: `**📁 /export-my-data** - Exporter toutes vos données (Article 20)\n• Formats disponibles : JSON, CSV, TXT\n• Export complet et sécurisé\n• Suppression automatique après 5min\n• Conforme au droit à la portabilité\n\n**👤 /my-data** - Consulter vos données stockées (Article 15)\n• Aperçu rapide de vos informations\n• Données de profil et modération\n• Statistiques d'utilisation du bot\n• Droit d'accès aux données personnelles\n\n**🗑️ /delete-my-data** - Supprimer toutes vos données (Article 17)\n• Effacement complet et définitif\n• Confirmation obligatoire en deux étapes\n• Rapport de suppression détaillé\n• Droit à l'effacement (droit à l'oubli)`,
+                    value: `**─────────────────────────────────────────**\n\n📁 **EXPORT DE DONNÉES** \`/export-my-data\`\n┣━ 📊 **Formats :** JSON, CSV, TXT\n┣━ 🔒 **Sécurité :** Chiffrement AES-256\n┣━ ⏱️ **Auto-suppression :** 5 minutes\n┗━ ⚖️ **Conformité :** RGPD Article 20\n\n👤 **CONSULTATION DE DONNÉES** \`/my-data\`\n┣━ 📋 **Aperçu :** Profil & Modération\n┣━ 📈 **Statistiques :** Utilisation complète\n┣━ 🕐 **Temps réel :** Données actualisées\n┗━ ⚖️ **Conformité :** RGPD Article 15\n\n🗑️ **SUPPRESSION DE DONNÉES** \`/delete-my-data\`\n┣━ 💥 **Effacement :** Complet & Définitif\n┣━ 🔐 **Sécurité :** Double confirmation\n┣━ 📄 **Rapport :** Certificat de suppression\n┗━ ⚖️ **Conformité :** RGPD Article 17\n\n**─────────────────────────────────────────**`,
                     inline: false
                 },
                 {
@@ -76,9 +76,18 @@ export default {
                     .setStyle(ButtonStyle.Success)
             );
 
-        await interaction.reply({
+        await interaction.deferReply({ ephemeral: true });
+
+        // Envoyer la charte dans le channel avec le bot comme auteur
+        await interaction.channel.send({
             embeds: [embed],
             components: [actionRow]
+        });
+
+        // Confirmer à l'utilisateur que la charte a été affichée
+        await interaction.editReply({
+            content: '✅ **Charte officielle affichée dans le channel !**\n\nLa charte DOC-BOT-2025-002 est maintenant visible par tous les membres du serveur.',
+            ephemeral: true
         });
     },
 
