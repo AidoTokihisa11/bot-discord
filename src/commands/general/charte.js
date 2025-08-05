@@ -6,6 +6,9 @@ export default {
         .setDescription('📋 Consulter la charte officielle d\'utilisation du bot Team7'),
 
     async execute(interaction) {
+        // Récupérer le nombre d'acceptations
+        const acceptanceCount = await this.getCharteAcceptanceCount(interaction.guild.id);
+        
         const embed = new EmbedBuilder()
             .setTitle('📋 **CHARTE OFFICIELLE D\'UTILISATION DU BOT DISCORD**')
             .setDescription('**Référence :** DOC-BOT-2025-002\n**Éditeur :** [Théo Garcès / AidoTokihisa], Développeur Discord\n**Statut :** Partenaire Certifié\n\n**Conformité :**\n• **Conditions des Développeurs Discord :** https://discord.com/developers/docs/legal\n• **Politique de Confidentialité Discord :** https://discord.com/privacy\n• **RGPD UE 2016/679 :** https://eur-lex.europa.eu/eli/reg/2016/679')
@@ -44,6 +47,11 @@ export default {
                     name: '⚠️ **AVERTISSEMENT LÉGAL**',
                     value: `Toute violation de cette charte peut entraîner des **poursuites judiciaires** conformément aux lois françaises et européennes en vigueur.\n\n**Document protégé - Reproduction interdite sans autorisation**`,
                     inline: false
+                },
+                {
+                    name: '📊 **STATISTIQUES D\'ACCEPTATION**',
+                    value: `${this.generateAcceptanceEmojis(acceptanceCount)} **${acceptanceCount} personnes** ont accepté cette charte\n\n*Dernière mise à jour : <t:${Math.floor(Date.now() / 1000)}:R>*`,
+                    inline: false
                 }
             )
             .setColor('#e74c3c')
@@ -51,7 +59,7 @@ export default {
             .setImage('https://i.imgur.com/s74nSIc.png')
             .setTimestamp()
             .setFooter({ 
-                text: 'Charte Officielle Team7 Bot • DOC-BOT-2025-002',
+                text: `Charte Officielle Team7 Bot • DOC-BOT-2025-002 • ${acceptanceCount} acceptations`,
                 iconURL: 'https://i.imgur.com/s74nSIc.png'
             });
 
@@ -67,5 +75,25 @@ export default {
             embeds: [embed],
             components: [actionRow]
         });
+    },
+
+    generateAcceptanceEmojis(count) {
+        if (count === 0) return '📋';
+        if (count <= 5) return '👤'.repeat(count);
+        if (count <= 10) return '👥'.repeat(Math.floor(count / 2)) + (count % 2 ? '👤' : '');
+        if (count <= 25) return '👪'.repeat(Math.floor(count / 5)) + '👥'.repeat(Math.floor((count % 5) / 2)) + (count % 2 ? '👤' : '');
+        if (count <= 50) return '🏢'.repeat(Math.floor(count / 10)) + '👪'.repeat(Math.floor((count % 10) / 5));
+        return '🏙️'.repeat(Math.floor(count / 50)) + '🏢'.repeat(Math.floor((count % 50) / 10));
+    },
+
+    async getCharteAcceptanceCount(guildId) {
+        try {
+            const fs = await import('fs/promises');
+            const data = await fs.readFile('data/charte_acceptances.json', 'utf8');
+            const acceptances = JSON.parse(data);
+            return acceptances.filter(a => a.guildId === guildId).length;
+        } catch (error) {
+            return 0; // Aucune acceptation trouvée
+        }
     }
 };

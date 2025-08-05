@@ -4,6 +4,12 @@ export default class CharteInteractionHandler {
     static async handleCharteValidation(interaction) {
         await interaction.deferUpdate();
 
+        // Enregistrer la validation dans la base de données
+        await this.saveCharteAcceptance(interaction.user.id, interaction.guild.id);
+
+        // Mettre à jour le message original avec le nouveau compteur
+        await this.updateCharteMessage(interaction);
+
         const embed = new EmbedBuilder()
             .setTitle('✅ **CHARTE VALIDÉE**')
             .setDescription('**Validation enregistrée avec succès**')
@@ -43,22 +49,23 @@ export default class CharteInteractionHandler {
                 iconURL: 'https://i.imgur.com/s74nSIc.png'
             });
 
-        await interaction.editReply({
+        await interaction.followUp({
             embeds: [embed],
-            components: []
+            ephemeral: true
         });
 
         // Envoyer une notification au channel de logs (si configuré)
         try {
             const logChannel = interaction.guild.channels.cache.find(ch => ch.name === 'logs-charte' || ch.name === 'logs');
             if (logChannel && logChannel.isTextBased()) {
+                const acceptanceCount = await this.getCharteAcceptanceCount(interaction.guild.id);
                 const logEmbed = new EmbedBuilder()
                     .setTitle('📋 **NOUVELLE VALIDATION DE CHARTE**')
                     .setDescription(`**${interaction.user.tag}** a validé la charte officielle`)
                     .addFields(
                         {
                             name: '📊 **Détails**',
-                            value: `**Utilisateur :** <@${interaction.user.id}>\n**Date :** <t:${Math.floor(Date.now() / 1000)}:F>\n**Document :** DOC-BOT-2025-002\n**Certificat :** CERT-${Date.now().toString(36).toUpperCase()}`,
+                            value: `**Utilisateur :** <@${interaction.user.id}>\n**Date :** <t:${Math.floor(Date.now() / 1000)}:F>\n**Document :** DOC-BOT-2025-002\n**Certificat :** CERT-${Date.now().toString(36).toUpperCase()}\n**Total acceptations :** ${acceptanceCount} 👥`,
                             inline: false
                         }
                     )
@@ -96,6 +103,146 @@ export default class CharteInteractionHandler {
             await interaction.user.send({ embeds: [dmEmbed] });
         } catch (error) {
             console.log('Impossible d\'envoyer le DM de confirmation');
+        }
+    }
+
+    static async updateCharteMessage(interaction) {
+        try {
+            // Récupérer le nombre d'acceptations
+            const acceptanceCount = await this.getCharteAcceptanceCount(interaction.guild.id);
+            
+            // Créer l'embed mis à jour avec le compteur
+            const updatedEmbed = new EmbedBuilder()
+                .setTitle('📋 **CHARTE OFFICIELLE D\'UTILISATION DU BOT DISCORD**')
+                .setDescription('**Référence :** DOC-BOT-2025-002\n**Éditeur :** [Théo Garcès / AidoTokihisa], Développeur Discord\n**Statut :** Partenaire Certifié\n\n**Conformité :**\n• **Conditions des Développeurs Discord :** https://discord.com/developers/docs/legal\n• **Politique de Confidentialité Discord :** https://discord.com/privacy\n• **RGPD UE 2016/679 :** https://eur-lex.europa.eu/eli/reg/2016/679')
+                .addFields(
+                    {
+                        name: '👨‍💻 **1. DROITS ET PROTECTIONS DU DÉVELOPPEUR**',
+                        value: `**1.1 Propriété Exclusive**\nLe code source, l'infrastructure et les algorithmes sont ma propriété intellectuelle exclusive.\n\nToute tentative de :\n• Reverse engineering (Article 2 des Conditions Développeurs)\n• Réutilisation non autorisée\n• Commercialisation sans accord écrit\n**est strictement interdite et passible de poursuites**\n\n**1.2 Protection Juridique**\nEn cas de :\n• **Fuite de code** → Application du Digital Millennium Copyright Act (DMCA)\n• **Utilisation abusive** → Signalement à Discord Trust & Safety : https://discord.com/safety`,
+                        inline: false
+                    },
+                    {
+                        name: '👥 **2. DROITS ET LIMITATIONS DU STAFF**',
+                        value: `**2.1 Autorisations**\nLe staff a le droit de :\n✅ Utiliser les commandes de modération standard (!ban, !mute)\n✅ Consulter les logs de modération (30 jours max)\n✅ Proposer des améliorations via le système de tickets\n\n**2.2 Interdictions Absolues**\nLe staff NE PEUT PAS :\n❌ Accéder au code source ou à l'infrastructure\n❌ Modifier les paramètres techniques du bot\n❌ Contourner les restrictions de sécurité\n❌ Utiliser le bot à des fins personnelles ou malveillantes\n\n**2.3 Responsabilités du Staff**\n• Maintenir la confidentialité des accès\n• Signaler immédiatement tout comportement suspect\n• Respecter les limites d'utilisation définies`,
+                        inline: false
+                    },
+                    {
+                        name: '🔒 **3. PROTECTION DES DONNÉES**',
+                        value: `**3.1 Données Collectées**\n\`\`\`\nType        Conservation  Finalité     Conformité\nUserIDs     90 jours      Modération   RGPD Art.5\nMessages    30 jours      Sécurité     Directive ePrivacy\nLogs        60 jours      Audit        Loi Informatique et Libertés\n\`\`\`\n\n**3.2 Sécurité Renforcée**\n• Chiffrement AES-256 des données sensibles\n• Double authentification pour les accès admin\n• Audit trimestriel par un tiers indépendant`,
+                        inline: false
+                    },
+                    {
+                        name: '⚖️ **4. GESTION DES CONFLITS**',
+                        value: `**4.1 Procédure de Médiation**\n• **Phase amiable :** Discussion en ticket privé\n• **Arbitrage :** Intervention d'un expert neutre\n• **Sanctions :**\n  - Suspension temporaire des fonctionnalités\n  - Bannissement définitif si nécessaire\n\n**4.2 Protection contre les Abus**\nToute tentative de :\n• **Piratage** → Signalement à https://discord.com/security\n• **Harcèlement** → Plainte via https://www.internet-signalement.gouv.fr`,
+                        inline: false
+                    },
+                    {
+                        name: '📄 **5. CLAUSES SPÉCIFIQUES**',
+                        value: `**5.1 Modification/Suppression**\nJe peux à tout moment :\n• Mettre à jour le bot\n• Modifier ses fonctionnalités\n• Interrompre le service (avec préavis de 15 jours)\n\n**5.2 Transfert de Propriété**\nConditions strictes :\n• Accord écrit obligatoire\n• Période de transition de 30 jours\n• Formation du nouveau propriétaire`,
+                        inline: false
+                    },
+                    {
+                        name: '✍️ **SIGNATURES**',
+                        value: `**Signé par :**\n**Theo / AidoTokihisa**, Développeur et Propriétaire\n**Le :** 05/08/2025\n\n**Pour acceptation :**\n**Membre du Conseil d'Administration Team7**\n**Le :** 05/08/2025`,
+                        inline: false
+                    },
+                    {
+                        name: '⚠️ **AVERTISSEMENT LÉGAL**',
+                        value: `Toute violation de cette charte peut entraîner des **poursuites judiciaires** conformément aux lois françaises et européennes en vigueur.\n\n**Document protégé - Reproduction interdite sans autorisation**`,
+                        inline: false
+                    },
+                    {
+                        name: '📊 **STATISTIQUES D\'ACCEPTATION**',
+                        value: `${this.generateAcceptanceEmojis(acceptanceCount)} **${acceptanceCount} personnes** ont accepté cette charte\n\n*Dernière mise à jour : <t:${Math.floor(Date.now() / 1000)}:R>*`,
+                        inline: false
+                    }
+                )
+                .setColor('#e74c3c')
+                .setThumbnail(interaction.guild.iconURL({ size: 256 }))
+                .setImage('https://i.imgur.com/s74nSIc.png')
+                .setTimestamp()
+                .setFooter({ 
+                    text: `Charte Officielle Team7 Bot • DOC-BOT-2025-002 • ${acceptanceCount} acceptations`,
+                    iconURL: 'https://i.imgur.com/s74nSIc.png'
+                });
+
+            const actionRow = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('charte_validate')
+                        .setLabel('✅ J\'ai lu et j\'accepte cette charte')
+                        .setStyle(ButtonStyle.Success)
+                );
+
+            // Mettre à jour le message original
+            await interaction.message.edit({
+                embeds: [updatedEmbed],
+                components: [actionRow]
+            });
+
+        } catch (error) {
+            console.error('Erreur lors de la mise à jour du message de charte:', error);
+        }
+    }
+
+    static generateAcceptanceEmojis(count) {
+        if (count === 0) return '📋';
+        if (count <= 5) return '👤'.repeat(count);
+        if (count <= 10) return '👥'.repeat(Math.floor(count / 2)) + (count % 2 ? '👤' : '');
+        if (count <= 25) return '👪'.repeat(Math.floor(count / 5)) + '👥'.repeat(Math.floor((count % 5) / 2)) + (count % 2 ? '👤' : '');
+        if (count <= 50) return '🏢'.repeat(Math.floor(count / 10)) + '👪'.repeat(Math.floor((count % 10) / 5));
+        return '🏙️'.repeat(Math.floor(count / 50)) + '🏢'.repeat(Math.floor((count % 50) / 10));
+    }
+
+    static async saveCharteAcceptance(userId, guildId) {
+        try {
+            // Simuler l'enregistrement en base de données
+            // Dans une vraie implémentation, vous stockeriez ceci dans votre base de données
+            const acceptanceData = {
+                userId: userId,
+                guildId: guildId,
+                timestamp: Date.now(),
+                version: 'DOC-BOT-2025-002'
+            };
+
+            // Charger les acceptations existantes
+            let acceptances = [];
+            try {
+                const fs = await import('fs/promises');
+                const data = await fs.readFile('data/charte_acceptances.json', 'utf8');
+                acceptances = JSON.parse(data);
+            } catch (error) {
+                // Fichier n'existe pas encore, on commence avec un tableau vide
+            }
+
+            // Vérifier si l'utilisateur a déjà accepté
+            const existingIndex = acceptances.findIndex(a => a.userId === userId && a.guildId === guildId);
+            if (existingIndex !== -1) {
+                // Mettre à jour l'acceptation existante
+                acceptances[existingIndex] = acceptanceData;
+            } else {
+                // Ajouter nouvelle acceptation
+                acceptances.push(acceptanceData);
+            }
+
+            // Sauvegarder
+            const fs = await import('fs/promises');
+            await fs.mkdir('data', { recursive: true });
+            await fs.writeFile('data/charte_acceptances.json', JSON.stringify(acceptances, null, 2));
+
+        } catch (error) {
+            console.error('Erreur lors de la sauvegarde de l\'acceptation:', error);
+        }
+    }
+
+    static async getCharteAcceptanceCount(guildId) {
+        try {
+            const fs = await import('fs/promises');
+            const data = await fs.readFile('data/charte_acceptances.json', 'utf8');
+            const acceptances = JSON.parse(data);
+            return acceptances.filter(a => a.guildId === guildId).length;
+        } catch (error) {
+            return 0; // Aucune acceptation trouvée
         }
     }
 
