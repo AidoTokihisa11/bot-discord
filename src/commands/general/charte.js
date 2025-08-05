@@ -65,8 +65,7 @@ export default {
 
         await interaction.reply({
             embeds: [embed],
-            components: [actionRow],
-            ephemeral: true
+            components: [actionRow]
         });
     }
 };
