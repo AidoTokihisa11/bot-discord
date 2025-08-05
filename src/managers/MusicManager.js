@@ -55,13 +55,40 @@ class MusicManager {
                 this.players.set(guildId, player);
                 connection.subscribe(player);
 
-                // Gérer les événements du player
+                // Gérer les événements du player avec plus de robustesse
                 player.on(AudioPlayerStatus.Idle, () => {
-                    this.handleSongEnd(guildId);
+                    console.log('🎵 Player idle pour', guildId);
+                    // Ajouter un délai pour éviter les fins prématurées
+                    setTimeout(() => {
+                        if (player.state.status === AudioPlayerStatus.Idle) {
+                            this.handleSongEnd(guildId);
+                        }
+                    }, 1000);
+                });
+
+                player.on(AudioPlayerStatus.Playing, () => {
+                    console.log('▶️ Player en cours de lecture pour', guildId);
+                });
+
+                player.on(AudioPlayerStatus.Paused, () => {
+                    console.log('⏸️ Player en pause pour', guildId);
                 });
 
                 player.on('error', error => {
-                    console.error('Erreur du player audio:', error);
+                    console.error('❌ Erreur du player audio pour', guildId, ':', error);
+                    const queue = this.getQueue(guildId);
+                    queue.isPlaying = false;
+                    
+                    // Informer l'utilisateur de l'erreur
+                    if (queue.textChannel) {
+                        const embed = new EmbedBuilder()
+                            .setTitle('❌ Erreur de lecture')
+                            .setDescription('Une erreur s\'est produite pendant la lecture. Passage à la musique suivante...')
+                            .setColor('#FF0000');
+                        
+                        queue.textChannel.send({ embeds: [embed] });
+                    }
+                    
                     this.handleSongEnd(guildId);
                 });
             }
@@ -105,20 +132,40 @@ class MusicManager {
         const queue = this.getQueue(guildId);
         const player = this.players.get(guildId);
 
-        if (!queue.songs.length || !player) return;
+        if (!queue.songs.length || !player) {
+            console.log('❌ Pas de musiques ou pas de player pour', guildId);
+            return;
+        }
 
-        if (queue.isPlaying) return;
+        if (queue.isPlaying) {
+            console.log('⚠️ Déjà en cours de lecture pour', guildId);
+            return;
+        }
 
         queue.isPlaying = true;
         const song = queue.songs[0];
 
         try {
-            const streamData = await stream(song.url);
-            const resource = createAudioResource(streamData.stream, {
-                inputType: streamData.type
+            console.log('🎵 Tentative de lecture:', song.title);
+            
+            // Utiliser play-dl avec des options plus robustes
+            const streamData = await stream(song.url, {
+                quality: 2, // Qualité audio moyenne pour éviter les problèmes
+                filter: 'audioonly'
             });
 
+            const resource = createAudioResource(streamData.stream, {
+                inputType: streamData.type,
+                inlineVolume: true
+            });
+
+            // Définir le volume
+            if (resource.volume) {
+                resource.volume.setVolume(queue.volume / 100);
+            }
+
             player.play(resource);
+            console.log('✅ Lecture démarrée pour:', song.title);
 
             // Envoyer un embed "En cours de lecture"
             if (queue.textChannel) {
@@ -137,8 +184,20 @@ class MusicManager {
             }
 
         } catch (error) {
-            console.error('Erreur lors de la lecture:', error);
+            console.error('❌ Erreur lors de la lecture:', error);
             queue.isPlaying = false;
+            
+            // Informer l'utilisateur de l'erreur
+            if (queue.textChannel) {
+                const embed = new EmbedBuilder()
+                    .setTitle('❌ Erreur de lecture')
+                    .setDescription(`Impossible de lire: **${song.title}**\nTentative avec la prochaine musique...`)
+                    .setColor('#FF0000');
+                
+                await queue.textChannel.send({ embeds: [embed] });
+            }
+            
+            // Passer à la musique suivante
             this.handleSongEnd(guildId);
         }
     }
@@ -147,27 +206,35 @@ class MusicManager {
     async handleSongEnd(guildId) {
         const queue = this.getQueue(guildId);
         
+        console.log('🏁 Fin de musique détectée pour', guildId, '- Queue length:', queue.songs.length);
+        
         if (queue.loop && queue.songs.length > 0) {
+            console.log('🔂 Mode répétition activé - relancer la même musique');
             // Mode répétition de la musique actuelle
-            this.play(guildId);
+            setTimeout(() => this.play(guildId), 500);
             return;
         }
 
         if (queue.loopQueue && queue.songs.length > 0) {
+            console.log('🔁 Mode répétition queue activé - déplacer à la fin');
             // Mode répétition de la queue - déplacer la première chanson à la fin
             const song = queue.songs.shift();
             queue.songs.push(song);
-            this.play(guildId);
+            setTimeout(() => this.play(guildId), 500);
             return;
         }
 
         // Passer à la musique suivante
-        queue.songs.shift();
+        const finishedSong = queue.songs.shift();
         queue.isPlaying = false;
+        
+        console.log('⏭️ Musique terminée:', finishedSong?.title, '- Musiques restantes:', queue.songs.length);
 
         if (queue.songs.length > 0) {
-            setTimeout(() => this.play(guildId), 1000);
+            console.log('▶️ Passage à la musique suivante');
+            setTimeout(() => this.play(guildId), 1500);
         } else {
+            console.log('🏁 Plus de musiques dans la queue');
             // Queue vide, arrêter la lecture
             if (queue.textChannel) {
                 const embed = new EmbedBuilder()
