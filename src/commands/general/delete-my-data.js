@@ -13,6 +13,11 @@ export default {
         ),
 
     async execute(interaction) {
+        // Vérifier si l'interaction vient d'un bouton
+        if (interaction.isButton()) {
+            return await this.executeFromButton(interaction);
+        }
+        
         const targetUser = interaction.options.getUser('utilisateur') || interaction.user;
         const isTargetingSelf = targetUser.id === interaction.user.id;
         
@@ -24,6 +29,81 @@ export default {
             });
         }
 
+        const embed = new EmbedBuilder()
+            .setTitle('🗑️ **SUPPRESSION DE DONNÉES PERSONNELLES**')
+            .setDescription(`**Article 17 du RGPD - Droit à l'effacement**`)
+            .addFields(
+                {
+                    name: '👤 **Informations de la demande**',
+                    value: `**Utilisateur concerné :** ${targetUser.tag} (\`${targetUser.id}\`)\n**Demandé par :** ${interaction.user.tag}\n**Date :** <t:${Math.floor(Date.now() / 1000)}:F>\n**Serveur :** ${interaction.guild.name}`,
+                    inline: false
+                },
+                {
+                    name: '🔍 **Données qui seront supprimées**',
+                    value: `**🔸 Données de modération :**\n• Historique des avertissements\n• Logs de sanctions (mutes, kicks, bans)\n• Notes de modération personnelles\n\n**🔸 Données d'activité :**\n• Messages supprimés archivés\n• Statistiques d'utilisation du bot\n• Données de tickets support\n\n**🔸 Données de configuration :**\n• Préférences personnelles\n• Paramètres de notification\n• Données de cache temporaires`,
+                    inline: false
+                },
+                {
+                    name: '📋 **Données qui seront conservées**',
+                    value: `**Pour des raisons légales et de sécurité :**\n• Logs de sécurité essentiels (anonymisés)\n• Données requises par Discord ToS\n• Preuves de violations graves (si applicable)\n\n*Ces données sont conservées conformément aux obligations légales*`,
+                    inline: false
+                },
+                {
+                    name: '⚠️ **Avertissement important**',
+                    value: `**Cette action est IRRÉVERSIBLE**\n\n• Toutes vos données personnelles seront définitivement supprimées\n• Votre historique de modération sera effacé\n• Vos préférences et configurations seront perdues\n• Un rapport de suppression sera généré pour audit`,
+                    inline: false
+                },
+                {
+                    name: '📊 **Processus de suppression**',
+                    value: `**1.** Validation de la demande\n**2.** Sauvegarde de sécurité (chiffrée)\n**3.** Suppression des données personnelles\n**4.** Anonymisation des logs essentiels\n**5.** Génération du rapport de conformité\n**6.** Notification de fin de traitement`,
+                    inline: false
+                },
+                {
+                    name: '🕐 **Délais de traitement**',
+                    value: `**Suppression immédiate :** Données personnelles\n**Traitement complet :** 72 heures maximum\n**Rapport final :** Envoyé par DM\n**Audit de conformité :** 30 jours`,
+                    inline: true
+                },
+                {
+                    name: '📞 **Support RGPD**',
+                    value: `**Questions :** \`/support\`\n**Réclamations :** \`/appeal\`\n**Email DPO :** dpo@team7.gg\n**CNIL :** www.cnil.fr`,
+                    inline: true
+                }
+            )
+            .setColor('#dc3545')
+            .setThumbnail(targetUser.displayAvatarURL({ size: 256 }))
+            .setImage('https://i.imgur.com/s74nSIc.png')
+            .setTimestamp()
+            .setFooter({ 
+                text: 'RGPD Article 17 - Droit à l\'effacement • Team7 Bot',
+                iconURL: 'https://i.imgur.com/s74nSIc.png'
+            });
+
+        const actionRow = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`delete_data_confirm_${targetUser.id}`)
+                    .setLabel('🗑️ Confirmer la suppression')
+                    .setStyle(ButtonStyle.Danger),
+                new ButtonBuilder()
+                    .setCustomId(`delete_data_preview_${targetUser.id}`)
+                    .setLabel('👁️ Aperçu des données')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('delete_data_cancel')
+                    .setLabel('❌ Annuler')
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+        await interaction.reply({
+            embeds: [embed],
+            components: [actionRow],
+            ephemeral: true
+        });
+    },
+
+    async executeFromButton(interaction) {
+        const targetUser = interaction.user;
+        
         const embed = new EmbedBuilder()
             .setTitle('🗑️ **SUPPRESSION DE DONNÉES PERSONNELLES**')
             .setDescription(`**Article 17 du RGPD - Droit à l'effacement**`)
