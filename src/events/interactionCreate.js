@@ -5,6 +5,7 @@ import { handleModal } from '../handlers/ModalHandler.js';
 import TicketManager from '../managers/TicketManager.js';
 import InteractionValidator from '../utils/InteractionValidator.js';
 import CharteHandler from '../handlers/CharteHandler.js';
+import MusicButtonHandler from '../handlers/MusicButtonHandler.js';
 
 export default {
     name: 'interactionCreate',
@@ -207,6 +208,12 @@ export default {
                             content: '📞 **Support RGPD**\n\nPour toute question concernant vos données personnelles, contactez :\n• **Support général :** `/support`\n• **Email DPO :** dpo@team7.gg\n• **CNIL :** www.cnil.fr',
                             ephemeral: true
                         });
+                    }
+                } else if (interaction.customId.startsWith('queue_')) {
+                    // Gestion des boutons de navigation de la queue de musique
+                    const handled = await MusicButtonHandler.handleQueueButton(interaction);
+                    if (!handled) {
+                        await interaction.client.buttonHandler.handleButton(interaction);
                     }
                 } else {
                     await interaction.client.buttonHandler.handleButton(interaction);
