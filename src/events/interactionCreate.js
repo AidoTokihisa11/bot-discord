@@ -4,6 +4,7 @@ import ButtonHandler from '../handlers/ButtonHandler.js';
 import { handleModal } from '../handlers/ModalHandler.js';
 import TicketManager from '../managers/TicketManager.js';
 import InteractionValidator from '../utils/InteractionValidator.js';
+import CharteHandler from '../handlers/CharteHandler.js';
 
 export default {
     name: 'interactionCreate',
@@ -126,6 +127,24 @@ export default {
                         return;
                     }
                     await interaction.client.moderationButtonHandler.handleModerationButton(interaction);
+                } else if (interaction.customId === 'charte_validate') {
+                    // Gestion de la validation de charte
+                    await CharteHandler.handleCharteValidation(interaction);
+                } else if (interaction.customId.startsWith('delete_data_confirm_')) {
+                    // Gestion de la confirmation de suppression de données
+                    const userId = interaction.customId.split('_')[3];
+                    await CharteHandler.handleDataDeletionConfirm(interaction, userId);
+                } else if (interaction.customId.startsWith('delete_data_preview_')) {
+                    // Gestion de l'aperçu des données à supprimer
+                    const userId = interaction.customId.split('_')[3];
+                    await CharteHandler.handleDataPreview(interaction, userId);
+                } else if (interaction.customId === 'delete_data_cancel') {
+                    // Annulation de suppression de données
+                    await interaction.update({
+                        content: '❌ **Suppression annulée**\nAucune donnée n\'a été supprimée.',
+                        embeds: [],
+                        components: []
+                    });
                 } else {
                     await interaction.client.buttonHandler.handleButton(interaction);
                 }
