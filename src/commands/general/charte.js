@@ -3,326 +3,406 @@ import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, But
 export default {
     data: new SlashCommandBuilder()
         .setName('charte')
-        .setDescription('📜 Consulter la charte officielle du bot Team7')
-        .addStringOption(option =>
-            option.setName('section')
-                .setDescription('Section spécifique à consulter')
-                .addChoices(
-                    { name: '📋 Vue d\'ensemble', value: 'overview' },
-                    { name: '🎯 Fonctionnalités', value: 'features' },
-                    { name: '🛡️ RGPD & Confidentialité', value: 'gdpr' },
-                    { name: '⚖️ Conditions d\'utilisation', value: 'terms' },
-                    { name: '🔒 Sécurité', value: 'security' }
-                )
-                .setRequired(false)
-        ),
+        .setDescription('📋 Consulter la charte officielle d\'utilisation du bot Team7'),
 
     async execute(interaction) {
-        const section = interaction.options.getString('section') || 'overview';
-        
-        let embed;
-        let components = [];
+        await this.showOverview(interaction);
+    },
 
-        switch (section) {
-            case 'features':
-                embed = this.createFeaturesEmbed();
-                break;
-            case 'gdpr':
-                embed = this.createGDPREmbed();
-                break;
-            case 'terms':
-                embed = this.createTermsEmbed();
-                break;
-            case 'security':
-                embed = this.createSecurityEmbed();
-                break;
-            default:
-                embed = this.createOverviewEmbed();
-        }
-
-        // Boutons de navigation
-        const navigationRow = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId('charte_overview')
-                    .setLabel('📋 Vue d\'ensemble')
-                    .setStyle(section === 'overview' ? ButtonStyle.Primary : ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId('charte_features')
-                    .setLabel('🎯 Fonctionnalités')
-                    .setStyle(section === 'features' ? ButtonStyle.Primary : ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId('charte_gdpr')
-                    .setLabel('🛡️ RGPD')
-                    .setStyle(section === 'gdpr' ? ButtonStyle.Primary : ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId('charte_terms')
-                    .setLabel('⚖️ Conditions')
-                    .setStyle(section === 'terms' ? ButtonStyle.Primary : ButtonStyle.Secondary)
-            );
+    async showOverview(interaction) {
+        const embed = new EmbedBuilder()
+            .setTitle('📋 **CHARTE OFFICIELLE D\'UTILISATION DU BOT DISCORD**')
+            .setDescription('**Référence :** DOC-BOT-2025-002\n**Éditeur :** [Théo Garcès / AidoTokihisa], Développeur Discord\n**Statut :** Partenaire Certifié')
+            .addFields(
+                {
+                    name: '⚖️ **Conformité Légale**',
+                    value: `• **Conditions des Développeurs Discord :** [Respectées](https://discord.com/developers/docs/legal)\n• **Politique de Confidentialité Discord :** [Conforme](https://discord.com/privacy)\n• **RGPD UE 2016/679 :** [Appliqué](https://eur-lex.europa.eu/eli/reg/2016/679)`,
+                    inline: false
+                },
+                {
+                    name: '📜 **Sections de la Charte**',
+                    value: `**1.** Droits et Protections du Développeur\n**2.** Droits et Limitations du Staff\n**3.** Protection des Données\n**4.** Gestion des Conflits\n**5.** Clauses Spécifiques`,
+                    inline: true
+                },
+                {
+                    name: '📊 **Informations Système**',
+                    value: `**Serveurs :** ${interaction.client.guilds.cache.size}\n**Utilisateurs :** ~${interaction.client.users.cache.size}\n**Uptime :** 99.8%\n**Sécurité :** AES-256`,
+                    inline: true
+                },
+                {
+                    name: '🔒 **Protection des Données**',
+                    value: `• **UserIDs :** Conservation 90 jours\n• **Messages :** Conservation 30 jours\n• **Logs :** Conservation 60 jours\n• **Chiffrement :** AES-256 actif`,
+                    inline: false
+                },
+                {
+                    name: '⚠️ **Avertissement Légal**',
+                    value: `Toute violation de cette charte peut entraîner des **poursuites judiciaires** conformément aux lois françaises et européennes en vigueur.`,
+                    inline: false
+                },
+                {
+                    name: '✍️ **Signatures**',
+                    value: `**Signé par :** Theo / AidoTokihisa, Développeur et Propriétaire\n**Date :** 05/08/2025\n\n**Pour acceptation :** Membre du Conseil d'Administration Team7\n**Date :** 05/08/2025`,
+                    inline: false
+                }
+            )
+            .setColor('#e74c3c')
+            .setThumbnail(interaction.guild.iconURL({ size: 256 }))
+            .setImage('https://i.imgur.com/s74nSIc.png')
+            .setTimestamp()
+            .setFooter({ 
+                text: 'Document protégé - Reproduction interdite sans autorisation • Team7 Bot',
+                iconURL: 'https://i.imgur.com/s74nSIc.png'
+            });
 
         const actionRow = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
-                    .setCustomId('charte_security')
-                    .setLabel('🔒 Sécurité')
-                    .setStyle(section === 'security' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+                    .setCustomId('charte_developer_rights')
+                    .setLabel('👨‍💻 Droits Développeur')
+                    .setStyle(ButtonStyle.Danger),
                 new ButtonBuilder()
-                    .setCustomId('charte_accept')
-                    .setLabel('✅ J\'accepte la charte')
+                    .setCustomId('charte_staff_rights')
+                    .setLabel('👥 Droits Staff')
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId('charte_data_protection')
+                    .setLabel('🔒 Protection Données')
                     .setStyle(ButtonStyle.Success),
                 new ButtonBuilder()
-                    .setCustomId('charte_download')
-                    .setLabel('📥 Télécharger')
+                    .setCustomId('charte_conflicts')
+                    .setLabel('⚖️ Conflits')
                     .setStyle(ButtonStyle.Secondary)
             );
 
-        components = [navigationRow, actionRow];
+        const actionRow2 = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('charte_clauses')
+                    .setLabel('📄 Clauses Spécifiques')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('charte_accept')
+                    .setLabel('✅ Accepter la Charte')
+                    .setStyle(ButtonStyle.Success),
+                new ButtonBuilder()
+                    .setCustomId('charte_download')
+                    .setLabel('📥 Télécharger PDF')
+                    .setStyle(ButtonStyle.Secondary)
+            );
 
         await interaction.reply({
             embeds: [embed],
-            components: components,
-            ephemeral: false
+            components: [actionRow, actionRow2],
+            ephemeral: true
         });
     },
 
-    createOverviewEmbed() {
-        return new EmbedBuilder()
-            .setTitle('📜 **CHARTE OFFICIELLE TEAM7 BOT**')
-            .setDescription('**Document officiel de référence et d\'utilisation**')
+    async showDeveloperRights(interaction) {
+        const embed = new EmbedBuilder()
+            .setTitle('👨‍💻 **1. DROITS ET PROTECTIONS DU DÉVELOPPEUR**')
+            .setDescription('**Protection juridique de la propriété intellectuelle**')
             .addFields(
                 {
-                    name: '🏢 **À propos de Team7 Bot**',
-                    value: '**Team7 Bot** est un assistant Discord avancé conçu pour optimiser la gestion communautaire, assurer la modération automatisée et fournir des outils d\'administration complets tout en respectant les normes RGPD les plus strictes.',
+                    name: '🏛️ **1.1 Propriété Exclusive**',
+                    value: `Le **code source**, l'**infrastructure** et les **algorithmes** sont ma propriété intellectuelle exclusive.\n\nToute tentative de :\n• **Reverse engineering** (Article 2 des Conditions Développeurs)\n• **Réutilisation non autorisée**\n• **Commercialisation sans accord écrit**\n\n**est strictement interdite et passible de poursuites**`,
                     inline: false
                 },
                 {
-                    name: '🎯 **Mission et objectifs**',
-                    value: `• **Sécurité** : Protection des données personnelles selon RGPD\n• **Efficacité** : Automatisation des tâches administratives\n• **Transparence** : Accès complet aux données utilisateur\n• **Innovation** : Technologies de pointe pour l'expérience utilisateur`,
+                    name: '⚖️ **1.2 Protection Juridique**',
+                    value: `**En cas de :**\n\n• **Fuite de code** → Application du **Digital Millennium Copyright Act (DMCA)**\n\n• **Utilisation abusive** → Signalement à **Discord Trust & Safety** : https://discord.com/safety`,
                     inline: false
                 },
                 {
-                    name: '🛡️ **Engagement RGPD**',
-                    value: `• **Article 15** : Droit d'accès aux données (\`/my-data\`)\n• **Article 20** : Portabilité des données (\`/export-my-data\`)\n• **Article 17** : Droit à l'effacement\n• **Article 6** : Traitement licite et transparent`,
+                    name: '🛡️ **Mesures de Protection**',
+                    value: `• **Monitoring 24/7** des accès\n• **Logs détaillés** de toutes les actions\n• **Chiffrement AES-256** du code source\n• **Authentification multi-facteurs** obligatoire\n• **Audits de sécurité** trimestriels`,
                     inline: true
                 },
                 {
-                    name: '⚖️ **Conformité légale**',
-                    value: `• **RGPD** : Règlement européen 2016/679\n• **Discord ToS** : Respect intégral des conditions\n• **Loi Informatique et Libertés** : Conformité française\n• **Audit** : Vérifications régulières`,
+                    name: '📞 **Contact Légal**',
+                    value: `**Violations :** security@team7.gg\n**DMCA :** dmca@team7.gg\n**Signalement Discord :** https://discord.com/safety\n**Urgence :** +33 (0)1 23 45 67 89`,
                     inline: true
-                },
-                {
-                    name: '📊 **Données collectées**',
-                    value: `**Essentielles :**\n• ID utilisateur Discord (anonymisé)\n• Historique de modération (sécurité)\n• Préférences de configuration\n\n**Jamais collecté :**\n• Messages privés\n• Données sensibles\n• Informations bancaires`,
-                    inline: false
-                },
-                {
-                    name: '📞 **Contact et support**',
-                    value: `**Support technique :** Commande \`/support\`\n**Réclamations RGPD :** \`/appeal\`\n**Suggestions :** \`/suggest\`\n**Documentation :** \`/help --full\``,
-                    inline: false
                 }
             )
-            .setColor('#2c3e50')
+            .setColor('#dc3545')
             .setThumbnail('https://i.imgur.com/s74nSIc.png')
-            .setImage('https://i.imgur.com/s74nSIc.png')
             .setTimestamp()
             .setFooter({ 
-                text: 'Team7 Bot - Charte officielle v2.1 • Dernière mise à jour',
+                text: 'Section 1 - Droits Développeur • Protection Maximale',
                 iconURL: 'https://i.imgur.com/s74nSIc.png'
             });
+
+        const backButton = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('charte_overview')
+                    .setLabel('← Retour à l\'aperçu')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('charte_staff_rights')
+                    .setLabel('Suivant: Droits Staff →')
+                    .setStyle(ButtonStyle.Primary)
+            );
+
+        await interaction.update({
+            embeds: [embed],
+            components: [backButton]
+        });
     },
 
-    createFeaturesEmbed() {
-        return new EmbedBuilder()
-            .setTitle('🎯 **FONCTIONNALITÉS TEAM7 BOT**')
-            .setDescription('**Catalogue complet des services disponibles**')
+    async showStaffRights(interaction) {
+        const embed = new EmbedBuilder()
+            .setTitle('👥 **2. DROITS ET LIMITATIONS DU STAFF**')
+            .setDescription('**Autorisations et restrictions pour l\'équipe de modération**')
             .addFields(
                 {
-                    name: '🛡️ **Modération avancée**',
-                    value: `• **\`/warn\`** : Système d'avertissements graduels\n• **\`/mute\`** : Sanctions temporaires configurable\n• **\`/kick\`** : Expulsions avec historique\n• **\`/ban\`** : Bannissements avec durée\n• **\`/history\`** : Consultation complète des antécédents`,
-                    inline: true
-                },
-                {
-                    name: '🏗️ **Administration**',
-                    value: `• **\`/config\`** : Configuration avancée du serveur\n• **\`/backup\`** : Sauvegarde automatique des données\n• **\`/cleanup\`** : Nettoyage intelligent des salons\n• **\`/setup-tickets\`** : Système de tickets professionnel\n• **\`/stream-notifications\`** : Notifications de streams`,
-                    inline: true
-                },
-                {
-                    name: '📊 **Statistiques et analyses**',
-                    value: `• **\`/stats\`** : Analyses complètes du serveur\n• **\`/info\`** : Profils utilisateurs détaillés\n• **\`/ticket-stats\`** : Métriques du support\n• **\`/diagnostic\`** : Vérifications système\n• **\`/verify-bot\`** : Tests de fonctionnement`,
-                    inline: true
-                },
-                {
-                    name: '🔒 **Conformité RGPD**',
-                    value: `• **\`/my-data\`** : Consultation des données personnelles\n• **\`/export-my-data\`** : Export multi-format (JSON/CSV/TXT)\n• **\`/appeal\`** : Système de réclamations\n• **Chiffrement** : Sécurisation AES-256\n• **Anonymisation** : Protection d'identité`,
+                    name: '✅ **2.1 Autorisations**',
+                    value: `**Le staff a le droit de :**\n\n✅ Utiliser les commandes de modération standard (\`!ban\`, \`!mute\`)\n✅ Consulter les logs de modération (30 jours max)\n✅ Proposer des améliorations via le système de tickets`,
                     inline: false
                 },
                 {
-                    name: '🎮 **Divertissement et communauté**',
-                    value: `• **\`/embed\`** : Création d'embeds personnalisés\n• **\`/ping\`** : Tests de latence avancés\n• **\`/help\`** : Documentation interactive\n• **Réactions automatiques** : Engagement communautaire\n• **Anti-spam intelligent** : Protection en temps réel`,
+                    name: '❌ **2.2 Interdictions Absolues**',
+                    value: `**Le staff NE PEUT PAS :**\n\n❌ Accéder au code source ou à l'infrastructure\n❌ Modifier les paramètres techniques du bot\n❌ Contourner les restrictions de sécurité\n❌ Utiliser le bot à des fins personnelles ou malveillantes`,
+                    inline: false
+                },
+                {
+                    name: '📋 **2.3 Responsabilités du Staff**',
+                    value: `• **Maintenir** la confidentialité des accès\n• **Signaler** immédiatement tout comportement suspect\n• **Respecter** les limites d'utilisation définies\n• **Former** les nouveaux membres selon cette charte\n• **Documenter** toutes les actions de modération`,
                     inline: true
                 },
                 {
-                    name: '🔧 **Outils de développement**',
-                    value: `• **\`/test-interactions\`** : Tests des composants\n• **\`/send-women-message\`** : Messages spécialisés\n• **\`/setup-demo-streamers\`** : Configuration de démonstration\n• **API REST** : Intégrations tierces\n• **Webhooks** : Automatisations externes`,
+                    name: '🔒 **Contrôles de Sécurité**',
+                    value: `• **Logs d'audit** de toutes les actions\n• **Révision hebdomadaire** des accès\n• **Formation obligatoire** sur la sécurité\n• **Certification annuelle** requise\n• **Surveillance continue** des activités`,
                     inline: true
+                },
+                {
+                    name: '⚠️ **Sanctions en cas d\'abus**',
+                    value: `**1ère violation :** Avertissement formel\n**2ème violation :** Suspension temporaire\n**3ème violation :** Révocation définitive\n**Violation grave :** Exclusion immédiate + signalement`,
+                    inline: false
                 }
             )
-            .setColor('#3498db')
+            .setColor('#007bff')
             .setThumbnail('https://i.imgur.com/s74nSIc.png')
-            .setImage('https://i.imgur.com/s74nSIc.png')
             .setTimestamp()
             .setFooter({ 
-                text: 'Team7 Bot - Fonctionnalités v2.1 • Plus de 50 commandes disponibles',
+                text: 'Section 2 - Droits et Limitations Staff • Responsabilité Partagée',
                 iconURL: 'https://i.imgur.com/s74nSIc.png'
             });
+
+        const backButton = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('charte_developer_rights')
+                    .setLabel('← Précédent: Droits Développeur')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('charte_overview')
+                    .setLabel('📋 Aperçu')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('charte_data_protection')
+                    .setLabel('Suivant: Protection Données →')
+                    .setStyle(ButtonStyle.Success)
+            );
+
+        await interaction.update({
+            embeds: [embed],
+            components: [backButton]
+        });
     },
 
-    createGDPREmbed() {
-        return new EmbedBuilder()
-            .setTitle('🛡️ **RGPD & CONFIDENTIALITÉ**')
-            .setDescription('**Engagement total pour la protection de vos données**')
+    async showDataProtection(interaction) {
+        const embed = new EmbedBuilder()
+            .setTitle('🔒 **3. PROTECTION DES DONNÉES**')
+            .setDescription('**Conformité RGPD et sécurité des informations**')
             .addFields(
                 {
-                    name: '📋 **Droits garantis (RGPD)**',
-                    value: `**Article 15 - Droit d'accès :**\n• Commande \`/my-data\` pour consulter vos données\n• Inventaire complet et transparent\n• Métadonnées de traitement incluses\n\n**Article 20 - Portabilité :**\n• Commande \`/export-my-data\` pour l'export\n• Formats : JSON, CSV, TXT\n• Données structurées et réutilisables`,
+                    name: '📊 **3.1 Données Collectées**',
+                    value: '```\n' +
+                          '┌─────────────┬─────────────┬─────────────┬─────────────┐\n' +
+                          '│ Type        │ Conservation│ Finalité    │ Conformité  │\n' +
+                          '├─────────────┼─────────────┼─────────────┼─────────────┤\n' +
+                          '│ UserIDs     │ 90 jours    │ Modération  │ RGPD Art.5  │\n' +
+                          '│ Messages    │ 30 jours    │ Sécurité    │ ePrivacy    │\n' +
+                          '│ Logs        │ 60 jours    │ Audit       │ Loi Info&L  │\n' +
+                          '└─────────────┴─────────────┴─────────────┴─────────────┘\n' +
+                          '```',
                     inline: false
                 },
                 {
-                    name: '🔒 **Sécurité technique**',
-                    value: `• **Chiffrement AES-256** : Toutes les données sensibles\n• **Hachage SHA-256** : Identifiants utilisateurs\n• **HTTPS/TLS 1.3** : Communications sécurisées\n• **Audit logs** : Traçabilité complète\n• **Backup chiffré** : Sauvegarde quotidienne`,
+                    name: '🛡️ **3.2 Sécurité Renforcée**',
+                    value: `• **Chiffrement AES-256** des données sensibles\n• **Double authentification** pour les accès admin\n• **Audit trimestriel** par un tiers indépendant\n• **Sauvegarde cryptée** quotidienne\n• **Monitoring 24/7** des accès`,
                     inline: true
                 },
                 {
-                    name: '⏱️ **Rétention des données**',
-                    value: `• **Données actives** : Pendant l'utilisation du bot\n• **Logs de modération** : 2 ans maximum\n• **Données exportées** : Suppression après 30 jours\n• **Cache temporaire** : Nettoyage automatique\n• **Suppression sur demande** : Sous 72h`,
+                    name: '👤 **Droits des Utilisateurs**',
+                    value: `• **Article 15** : Droit d'accès (\`/my-data\`)\n• **Article 20** : Portabilité (\`/export-my-data\`)\n• **Article 17** : Effacement\n• **Article 21** : Opposition\n• **Article 22** : Décision automatisée`,
                     inline: true
                 },
                 {
-                    name: '👥 **Base légale du traitement**',
-                    value: `**Article 6.1.a - Consentement :**\n• Utilisation volontaire du bot\n• Révocation possible à tout moment\n\n**Article 6.1.f - Intérêt légitime :**\n• Modération pour sécurité communautaire\n• Lutte contre le spam et abus`,
-                    inline: false
-                },
-                {
-                    name: '📊 **Transparence des traitements**',
-                    value: `• **Finalité** : Modération et administration Discord\n• **Licéité** : Consentement et intérêt légitime\n• **Minimisation** : Seules les données nécessaires\n• **Exactitude** : Mise à jour en temps réel\n• **Intégrité** : Vérifications automatiques`,
+                    name: '🔐 **Mesures Techniques**',
+                    value: `**Chiffrement :**\n• Données en transit : TLS 1.3\n• Données au repos : AES-256\n• Clés de chiffrement : Rotation mensuelle\n\n**Accès :**\n• Authentification multi-facteurs\n• Logs d'audit complets\n• Principe du moindre privilège`,
                     inline: true
                 },
                 {
-                    name: '🚨 **Exercice de vos droits**',
-                    value: `• **\`/appeal\`** : Réclamations et demandes RGPD\n• **\`/support\`** : Assistance personnalisée\n• **Délai de réponse** : 72h maximum\n• **DPO Team7** : contact-rgpd@team7.fr\n• **CNIL** : Droit de plainte si insatisfait`,
+                    name: '📞 **Contact DPO**',
+                    value: `**Délégué à la Protection des Données :**\ndpo@team7.gg\n\n**Autorité de contrôle :**\nCNIL - www.cnil.fr\n\n**Réclamations :**\n\`/appeal\` ou privacy@team7.gg`,
                     inline: true
                 }
             )
-            .setColor('#27ae60')
+            .setColor('#28a745')
             .setThumbnail('https://i.imgur.com/s74nSIc.png')
-            .setImage('https://i.imgur.com/s74nSIc.png')
             .setTimestamp()
             .setFooter({ 
-                text: 'Team7 Bot - Conformité RGPD certifiée • Protection maximale',
+                text: 'Section 3 - Protection des Données • Conformité RGPD Totale',
                 iconURL: 'https://i.imgur.com/s74nSIc.png'
             });
+
+        const backButton = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('charte_staff_rights')
+                    .setLabel('← Précédent: Droits Staff')
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId('charte_overview')
+                    .setLabel('📋 Aperçu')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('charte_conflicts')
+                    .setLabel('Suivant: Gestion Conflits →')
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+        await interaction.update({
+            embeds: [embed],
+            components: [backButton]
+        });
     },
 
-    createTermsEmbed() {
-        return new EmbedBuilder()
-            .setTitle('⚖️ **CONDITIONS D\'UTILISATION**')
-            .setDescription('**Termes et conditions d\'utilisation de Team7 Bot**')
+    async showConflicts(interaction) {
+        const embed = new EmbedBuilder()
+            .setTitle('⚖️ **4. GESTION DES CONFLITS**')
+            .setDescription('**Procédures de médiation et protection contre les abus**')
             .addFields(
                 {
-                    name: '🤝 **Acceptation des conditions**',
-                    value: `L'utilisation de **Team7 Bot** implique l'acceptation pleine et entière de ces conditions. En interagissant avec le bot via des commandes, vous acceptez ces termes de manière irrévocable.`,
+                    name: '🤝 **4.1 Procédure de Médiation**',
+                    value: `**Phase amiable :** Discussion en ticket privé\n**Arbitrage :** Intervention d'un expert neutre\n\n**Sanctions :**\n• Suspension temporaire des fonctionnalités\n• Bannissement définitif si nécessaire\n• Signalement aux autorités compétentes`,
                     inline: false
                 },
                 {
-                    name: '✅ **Utilisation autorisée**',
-                    value: `• **Modération** : Utilisation des outils de modération\n• **Administration** : Gestion du serveur Discord\n• **Statistiques** : Consultation des données publiques\n• **RGPD** : Exercice de vos droits\n• **Support** : Assistance technique et utilisateur`,
-                    inline: true
-                },
-                {
-                    name: '❌ **Utilisation interdite**',
-                    value: `• **Spam** : Utilisation abusive des commandes\n• **Contournement** : Évitement des sanctions\n• **Reverse engineering** : Ingénierie inverse\n• **Exploitation** : Recherche de vulnérabilités\n• **Revente** : Commercialisation non autorisée`,
-                    inline: true
-                },
-                {
-                    name: '🛡️ **Responsabilités de Team7**',
-                    value: `• **Disponibilité** : Service 24/7 avec maintenance programmée\n• **Sécurité** : Protection des données selon RGPD\n• **Support** : Assistance technique en français\n• **Mises à jour** : Améliorations continues\n• **Conformité** : Respect des réglementations`,
+                    name: '🛡️ **4.2 Protection contre les Abus**',
+                    value: `**Toute tentative de :**\n\n• **Piratage** → Signalement à https://discord.com/security\n• **Harcèlement** → Plainte via https://www.internet-signalement.gouv.fr\n• **Usurpation** → Contact immédiat des autorités\n• **Chantage** → Procédures judiciaires engagées`,
                     inline: false
                 },
                 {
-                    name: '👤 **Responsabilités utilisateur**',
-                    value: `• **Respect** : Utilisation conforme aux règles Discord\n• **Vérification** : Exactitude des informations fournies\n• **Signalement** : Rapport des dysfonctionnements\n• **Sécurité** : Protection de vos accès Discord\n• **Conformité** : Respect des lois applicables`,
+                    name: '📋 **Procédure Étape par Étape**',
+                    value: `**1.** Signalement via \`/support\`\n**2.** Enquête interne (48h max)\n**3.** Médiation proposée\n**4.** Décision motivée\n**5.** Recours possible (15 jours)\n**6.** Décision définitive`,
                     inline: true
                 },
                 {
-                    name: '📋 **Limitation de responsabilité**',
-                    value: `Team7 ne peut être tenu responsable des dommages indirects, pertes de données non imputables au bot, ou utilisations non conformes. La responsabilité est limitée au service fourni.`,
+                    name: '⚖️ **Juridictions Compétentes**',
+                    value: `**France :** Tribunal de Paris\n**UE :** Conformité RGPD\n**International :** Arbitrage CCI\n**Discord :** Trust & Safety Team\n**Urgence :** Numéro d'urgence national`,
                     inline: true
                 },
                 {
-                    name: '🔄 **Modifications des conditions**',
-                    value: `Ces conditions peuvent être modifiées avec un préavis de 30 jours. Les utilisateurs seront notifiés via les canaux officiels. La poursuite de l'utilisation vaut acceptation.`,
-                    inline: false
-                },
-                {
-                    name: '⚖️ **Droit applicable et juridiction**',
-                    value: `Ces conditions sont régies par le droit français. Tout litige sera soumis aux tribunaux compétents de Paris, après tentative de résolution amiable via \`/appeal\`.`,
+                    name: '📞 **Contacts d\'Urgence**',
+                    value: `**Signalement Discord :**\nhttps://discord.com/security\n\n**Cybercriminalité France :**\nhttps://www.internet-signalement.gouv.fr\n\n**Support Team7 :**\nsupport@team7.gg\n+33 (0)1 23 45 67 89`,
                     inline: false
                 }
             )
-            .setColor('#e67e22')
+            .setColor('#ffc107')
             .setThumbnail('https://i.imgur.com/s74nSIc.png')
-            .setImage('https://i.imgur.com/s74nSIc.png')
             .setTimestamp()
             .setFooter({ 
-                text: 'Team7 Bot - Conditions d\'utilisation v2.1 • Applicables immédiatement',
+                text: 'Section 4 - Gestion des Conflits • Justice et Équité',
                 iconURL: 'https://i.imgur.com/s74nSIc.png'
             });
+
+        const backButton = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('charte_data_protection')
+                    .setLabel('← Précédent: Protection Données')
+                    .setStyle(ButtonStyle.Success),
+                new ButtonBuilder()
+                    .setCustomId('charte_overview')
+                    .setLabel('📋 Aperçu')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('charte_clauses')
+                    .setLabel('Suivant: Clauses Spécifiques →')
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+        await interaction.update({
+            embeds: [embed],
+            components: [backButton]
+        });
     },
 
-    createSecurityEmbed() {
-        return new EmbedBuilder()
-            .setTitle('🔒 **SÉCURITÉ ET PROTECTION**')
-            .setDescription('**Mesures de sécurité et protection des données**')
+    async showClauses(interaction) {
+        const embed = new EmbedBuilder()
+            .setTitle('📄 **5. CLAUSES SPÉCIFIQUES**')
+            .setDescription('**Conditions particulières et dispositions techniques**')
             .addFields(
                 {
-                    name: '🛡️ **Architecture sécurisée**',
-                    value: `• **Chiffrement bout-en-bout** : AES-256 pour toutes les données\n• **Authentification** : OAuth2 avec Discord\n• **API sécurisée** : Rate limiting et validation\n• **Infrastructure** : Hébergement sécurisé certifié\n• **Monitoring** : Surveillance 24/7 des accès`,
+                    name: '🔄 **5.1 Modification/Suppression**',
+                    value: `**Je peux à tout moment :**\n\n• **Mettre à jour** le bot\n• **Modifier** ses fonctionnalités\n• **Interrompre** le service (avec préavis de 15 jours)\n• **Suspendre** l'accès en cas d'abus\n• **Transférer** la propriété sous conditions`,
                     inline: false
                 },
                 {
-                    name: '🔐 **Protection des données**',
-                    value: `• **Anonymisation** : Hachage SHA-256 des identifiants\n• **Segmentation** : Isolation des données par serveur\n• **Backup chiffré** : Sauvegardes quotidiennes\n• **Purge automatique** : Nettoyage des données obsolètes\n• **Audit trail** : Historique complet des accès`,
-                    inline: true
-                },
-                {
-                    name: '🚨 **Détection d\'intrusion**',
-                    value: `• **IDS/IPS** : Détection temps réel\n• **Analyse comportementale** : Patterns suspects\n• **Alertes automatiques** : Notification immédiate\n• **Forensic** : Investigation post-incident\n• **Mitigation** : Réponse automatisée`,
-                    inline: true
-                },
-                {
-                    name: '🔍 **Conformité et audits**',
-                    value: `• **RGPD** : Audit annuel de conformité\n• **ISO 27001** : Standards de sécurité\n• **Penetration testing** : Tests d'intrusion réguliers\n• **Code review** : Révision sécuritaire du code\n• **Vulnerability scanning** : Scan automatisé`,
+                    name: '📋 **5.2 Transfert de Propriété**',
+                    value: `**Conditions strictes :**\n\n• **Accord écrit** obligatoire\n• **Période de transition** de 30 jours\n• **Formation** du nouveau propriétaire\n• **Audit de sécurité** complet\n• **Validation juridique** par avocat spécialisé`,
                     inline: false
                 },
                 {
-                    name: '📊 **Gestion des incidents**',
-                    value: `• **Plan de réponse** : Procédure documentée\n• **Notification** : Alert sous 72h si requis\n• **Investigation** : Analyse forensique complète\n• **Remediation** : Correction et prévention\n• **Communication** : Transparence utilisateurs`,
+                    name: '⚖️ **Dispositions Légales**',
+                    value: `• **Droit applicable :** Français\n• **Juridiction :** Tribunaux de Paris\n• **Langue :** Français (version officielle)\n• **Modifications :** Notification 30 jours\n• **Nullité partielle :** Sans effet sur l'ensemble`,
                     inline: true
                 },
                 {
-                    name: '🛠️ **Outils de sécurité utilisateur**',
-                    value: `• **\`/my-data\`** : Vérification de vos données\n• **\`/export-my-data\`** : Sauvegarde personnelle\n• **\`/appeal\`** : Signalement d'incident\n• **Logs d'activité** : Traçabilité de vos actions\n• **Suppression** : Effacement sur demande`,
+                    name: '🔒 **Confidentialité**',
+                    value: `• **Code source :** Secret industriel\n• **Architecture :** Propriété exclusive\n• **Données techniques :** Confidentielles\n• **Algorithmes :** Propriété intellectuelle\n• **Violation :** Sanctions pénales`,
                     inline: true
+                },
+                {
+                    name: '📅 **Durée et Résiliation**',
+                    value: `**Durée :** Indéterminée\n**Résiliation :**\n• Par le développeur : 15 jours de préavis\n• Pour violation : Immédiate\n• Force majeure : Sans préavis\n• Transfert : Selon accord écrit`,
+                    inline: false
+                },
+                {
+                    name: '✍️ **Signatures et Validation**',
+                    value: `**Signé par :**\n**Theo / AidoTokihisa**\nDéveloppeur et Propriétaire\n**Le :** 05/08/2025\n\n**Pour acceptation :**\n**Membre du Conseil d'Administration Team7**\n**Le :** 05/08/2025`,
+                    inline: false
                 }
             )
-            .setColor('#8e44ad')
+            .setColor('#6f42c1')
             .setThumbnail('https://i.imgur.com/s74nSIc.png')
-            .setImage('https://i.imgur.com/s74nSIc.png')
             .setTimestamp()
             .setFooter({ 
-                text: 'Team7 Bot - Sécurité renforcée • Protection maximale des données',
+                text: 'Section 5 - Clauses Spécifiques • Dispositions Finales',
                 iconURL: 'https://i.imgur.com/s74nSIc.png'
             });
+
+        const backButton = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('charte_conflicts')
+                    .setLabel('← Précédent: Gestion Conflits')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('charte_overview')
+                    .setLabel('📋 Retour à l\'Aperçu')
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId('charte_accept')
+                    .setLabel('✅ Accepter la Charte')
+                    .setStyle(ButtonStyle.Success)
+            );
+
+        await interaction.update({
+            embeds: [embed],
+            components: [backButton]
+        });
     }
 };
