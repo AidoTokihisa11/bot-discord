@@ -4,6 +4,40 @@ export default class CharteInteractionHandler {
     static async handleCharteValidation(interaction) {
         await interaction.deferUpdate();
 
+        // Vérifier si l'utilisateur a déjà accepté la charte
+        const hasAlreadyAccepted = await this.checkIfUserAccepted(interaction.user.id, interaction.guild.id);
+        
+        if (hasAlreadyAccepted) {
+            // L'utilisateur a déjà accepté, juste afficher une confirmation
+            const alreadyAcceptedEmbed = new EmbedBuilder()
+                .setTitle('ℹ️ **CHARTE DÉJÀ VALIDÉE**')
+                .setDescription('**Vous avez déjà accepté cette charte**')
+                .addFields(
+                    {
+                        name: '✅ **Statut actuel**',
+                        value: `**Utilisateur :** ${interaction.user.tag}\n**Charte :** DOC-BOT-2025-002\n**Statut :** Déjà acceptée\n**Serveur :** ${interaction.guild.name}`,
+                        inline: false
+                    },
+                    {
+                        name: '📋 **Actions disponibles**',
+                        value: `• **Consulter vos données :** \`/my-data\`\n• **Exporter vos données :** \`/export-my-data\`\n• **Support :** \`/support\`\n• **Suggestions :** \`/suggest\``,
+                        inline: false
+                    }
+                )
+                .setColor('#17a2b8')
+                .setThumbnail(interaction.user.displayAvatarURL({ size: 256 }))
+                .setTimestamp()
+                .setFooter({ 
+                    text: 'Charte déjà validée • Team7 Bot',
+                    iconURL: 'https://i.imgur.com/s74nSIc.png'
+                });
+
+            return await interaction.followUp({
+                embeds: [alreadyAcceptedEmbed],
+                ephemeral: true
+            });
+        }
+
         // Enregistrer la validation dans la base de données
         await this.saveCharteAcceptance(interaction.user.id, interaction.guild.id);
 
@@ -108,6 +142,12 @@ export default class CharteInteractionHandler {
 
     static async updateCharteMessage(interaction) {
         try {
+            // Vérifier si le message original existe encore
+            if (!interaction.message || !interaction.message.id) {
+                console.log('Message original de charte introuvable - impossible de mettre à jour');
+                return;
+            }
+
             // Récupérer le nombre d'acceptations
             const acceptanceCount = await this.getCharteAcceptanceCount(interaction.guild.id);
             
@@ -174,14 +214,34 @@ export default class CharteInteractionHandler {
                         .setStyle(ButtonStyle.Success)
                 );
 
-            // Mettre à jour le message original
-            await interaction.message.edit({
-                embeds: [updatedEmbed],
-                components: [actionRow]
-            });
+            try {
+                // Essayer de mettre à jour le message original
+                await interaction.message.edit({
+                    embeds: [updatedEmbed],
+                    components: [actionRow]
+                });
+                console.log(`✅ Message de charte mis à jour avec ${acceptanceCount} acceptations`);
+            } catch (editError) {
+                if (editError.code === 10008) {
+                    // Message introuvable - envoyer un nouveau message dans le même channel
+                    console.log('Message original supprimé - envoi d\'un nouveau message de charte');
+                    
+                    await interaction.channel.send({
+                        embeds: [updatedEmbed],
+                        components: [actionRow]
+                    });
+                    
+                    console.log('✅ Nouveau message de charte envoyé avec succès');
+                } else {
+                    throw editError; // Re-lancer l'erreur si ce n'est pas le code 10008
+                }
+            }
 
         } catch (error) {
             console.error('Erreur lors de la mise à jour du message de charte:', error);
+            
+            // En cas d'échec total, au moins logger l'acceptation
+            console.log(`📋 Nouvelle acceptation de charte enregistrée pour ${interaction.user.tag}`);
         }
     }
 
@@ -243,6 +303,17 @@ export default class CharteInteractionHandler {
             return acceptances.filter(a => a.guildId === guildId).length;
         } catch (error) {
             return 0; // Aucune acceptation trouvée
+        }
+    }
+
+    static async checkIfUserAccepted(userId, guildId) {
+        try {
+            const fs = await import('fs/promises');
+            const data = await fs.readFile('data/charte_acceptances.json', 'utf8');
+            const acceptances = JSON.parse(data);
+            return acceptances.some(a => a.userId === userId && a.guildId === guildId);
+        } catch (error) {
+            return false; // Fichier n'existe pas ou erreur
         }
     }
 
