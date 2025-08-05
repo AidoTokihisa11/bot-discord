@@ -54,11 +54,6 @@ export default {
                         name: '⚖️ **Conformité légale**',
                         value: `• **RGPD Article 20** ✅\n• **Format machine-readable** ✅\n• **Données structurées** ✅\n• **Horodatage certifié** ✅`,
                         inline: false
-                    },
-                    {
-                        name: '🔧 **Commandes RGPD disponibles**',
-                        value: `**📁 /export-my-data** - Exporter toutes vos données (Article 20)\n• Formats : JSON, CSV, TXT\n• Export complet et sécurisé\n• Suppression automatique après 5min\n\n**👤 /my-data** - Consulter vos données stockées (Article 15)\n• Aperçu rapide de vos informations\n• Données de profil et modération\n• Statistiques d'utilisation\n\n**🗑️ /delete-my-data** - Supprimer toutes vos données (Article 17)\n• Effacement complet et définitif\n• Confirmation obligatoire\n• Rapport de suppression détaillé`,
-                        inline: false
                     }
                 )
                 .setColor('#27ae60')
@@ -132,11 +127,6 @@ export default {
                     {
                         name: '⚖️ **Conformité légale**',
                         value: `• **RGPD Article 20** ✅\n• **Format machine-readable** ✅\n• **Données structurées** ✅\n• **Horodatage certifié** ✅`,
-                        inline: false
-                    },
-                    {
-                        name: '🔧 **Commandes RGPD disponibles**',
-                        value: `**📁 /export-my-data** - Exporter toutes vos données (Article 20)\n• Formats : JSON, CSV, TXT\n• Export complet et sécurisé\n• Suppression automatique après 5min\n\n**👤 /my-data** - Consulter vos données stockées (Article 15)\n• Aperçu rapide de vos informations\n• Données de profil et modération\n• Statistiques d'utilisation\n\n**🗑️ /delete-my-data** - Supprimer toutes vos données (Article 17)\n• Effacement complet et définitif\n• Confirmation obligatoire\n• Rapport de suppression détaillé`,
                         inline: false
                     }
                 )

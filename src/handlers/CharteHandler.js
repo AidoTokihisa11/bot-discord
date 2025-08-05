@@ -173,6 +173,11 @@ export default class CharteInteractionHandler {
                         inline: false
                     },
                     {
+                        name: '🔧 **3.3 COMMANDES RGPD DISPONIBLES**',
+                        value: `**📁 /export-my-data** - Exporter toutes vos données (Article 20)\n• Formats disponibles : JSON, CSV, TXT\n• Export complet et sécurisé\n• Suppression automatique après 5min\n• Conforme au droit à la portabilité\n\n**👤 /my-data** - Consulter vos données stockées (Article 15)\n• Aperçu rapide de vos informations\n• Données de profil et modération\n• Statistiques d'utilisation du bot\n• Droit d'accès aux données personnelles\n\n**🗑️ /delete-my-data** - Supprimer toutes vos données (Article 17)\n• Effacement complet et définitif\n• Confirmation obligatoire en deux étapes\n• Rapport de suppression détaillé\n• Droit à l'effacement (droit à l'oubli)`,
+                        inline: false
+                    },
+                    {
                         name: '⚖️ **4. GESTION DES CONFLITS**',
                         value: `**4.1 Procédure de Médiation**\n• **Phase amiable :** Discussion en ticket privé\n• **Arbitrage :** Intervention d'un expert neutre\n• **Sanctions :**\n  - Suspension temporaire des fonctionnalités\n  - Bannissement définitif si nécessaire\n\n**4.2 Protection contre les Abus**\nToute tentative de :\n• **Piratage** → Signalement à https://discord.com/security\n• **Harcèlement** → Plainte via https://www.internet-signalement.gouv.fr`,
                         inline: false
