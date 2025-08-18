@@ -40,7 +40,7 @@ export default {
 async function handleRuleRevocation(message, member, logger) {
     try {
         const guild = member.guild;
-        const validationRoleId = '1387536419588931616';
+    const validationRoleId = '1387543998448668843';
 
         // Vérifier si le message contient le règlement (recherche dans les embeds)
         const isRuleMessage = message.embeds.some(embed => 
@@ -69,31 +69,11 @@ async function handleRuleRevocation(message, member, logger) {
 
         // Envoyer un message d'information en MP
         try {
-            const revocationMessage = `
-⚠️ **Révocation de la validation - ${guild.name}**
-
-❌ **Votre validation du règlement a été révoquée.**
-Vous avez retiré votre réaction ✅ du message de règlement.
-
-**🔒 Conséquences :**
-• Accès limité aux canaux du serveur
-• Certaines fonctionnalités peuvent être restreintes
-• Participation aux activités limitée
-
-**🔄 Pour retrouver l'accès complet :**
-• Retournez sur le message du règlement
-• Relisez attentivement les règles
-• Réagissez à nouveau avec ✅
-
-**💡 Besoin d'aide ?**
-Utilisez le système de tickets pour contacter l'équipe de modération.
-
-**🛡️ Rappel :** La validation du règlement est obligatoire pour participer pleinement à la communauté.`;
+            const revocationMessage = `⚠️ Révocation de la validation - ${guild.name}\n\n❌ Votre validation du règlement a été révoquée.\nVous avez retiré votre réaction ✅ du message de règlement.\n\n🔒 Conséquences :\n• Accès limité aux canaux du serveur\n• Certaines fonctionnalités peuvent être restreintes\n• Participation aux activités limitée\n\n🔄 Pour retrouver l'accès complet :\n• Retournez sur le message du règlement\n• Relisez attentivement les règles\n• Réagissez à nouveau avec ✅\n\n💡 Besoin d'aide ?\nUtilisez le système de tickets pour contacter l'équipe de modération.\n\n🛡️ Rappel : La validation du règlement est obligatoire pour participer pleinement à la communauté.`;
 
             await member.send(revocationMessage);
         } catch (dmError) {
-            // Ignorer si on ne peut pas envoyer de MP
-            logger.warn(`Impossible d'envoyer un MP à ${member.user.tag}:`, dmError.message);
+            logger.warn(`Impossible d'envoyer un MP à ${member.user.tag}: ${dmError.message}`);
         }
 
         // Log de l'action

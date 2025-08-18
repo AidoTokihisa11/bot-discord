@@ -55,7 +55,7 @@ export default {
 async function handleRuleValidation(message, member, logger) {
     try {
         const guild = member.guild;
-        const validationRoleId = '1387536419588931616';
+    const validationRoleId = '1387543998448668843';
 
         logger.info(`🎯 Traitement de la validation pour ${member.user.tag}`);
         logger.info(`📋 ID du rôle de validation: ${validationRoleId}`);
@@ -91,26 +91,11 @@ async function handleRuleValidation(message, member, logger) {
 
         // Envoyer un message de confirmation en MP
         try {
-            const welcomeMessage = `
-🎉 **Bienvenue sur ${guild.name} !**
-
-✅ **Règlement validé avec succès !**
-Vous avez maintenant accès à l'ensemble du serveur.
-
-**🎯 Prochaines étapes :**
-• Explorez les différents canaux
-• Présentez-vous si vous le souhaitez
-• Participez aux discussions
-• N'hésitez pas à utiliser le système de tickets pour toute question
-
-**🛡️ Rappel :** Le respect du règlement est obligatoire en permanence.
-
-Bonne découverte ! 🚀`;
+            const welcomeMessage = `🎉 Bienvenue sur ${guild.name} !\n\n✅ Règlement validé avec succès !\nVous avez maintenant accès à l'ensemble du serveur.\n\n🎯 Prochaines étapes :\n• Explorez les différents canaux\n• Présentez-vous si vous le souhaitez\n• Participez aux discussions\n• N'hésitez pas à utiliser le système de tickets pour toute question\n\n🛡️ Rappel : Le respect du règlement est obligatoire en permanence.\n\nBonne découverte ! 🚀`;
 
             await member.send(welcomeMessage);
         } catch (dmError) {
-            // Ignorer si on ne peut pas envoyer de MP
-            logger.warn(`Impossible d'envoyer un MP à ${member.user.tag}:`, dmError.message);
+            logger.warn(`Impossible d'envoyer un MP à ${member.user.tag}: ${dmError.message}`);
         }
 
         // Log de l'action
