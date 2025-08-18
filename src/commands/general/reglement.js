@@ -68,7 +68,8 @@ En restant sur ce serveur, vous acceptez automatiquement les règles énoncées 
 
 
 Maintenant rends toi dans le salon <#1368919061425164288>  pour choisir tes jeux préférés ! <a:licorne:1165016593307279450> <a:GatoXD:1394093700837150740>`)
-                .setThumbnail('https://i.pinimg.com/originals/45/90/c5/4590c5b9594ea14b91456b15e4e08ba7.jpg');
+                .setThumbnail('https://i.pinimg.com/originals/45/90/c5/4590c5b9594ea14b91456b15e4e08ba7.jpg')
+                .setImage('https://i.pinimg.com/originals/45/90/c5/4590c5b9594ea14b91456b15e4e08ba7.jpg');
 
             const message = await channel.send({ embeds: [ruleEmbed] });
             await message.react('✅');
