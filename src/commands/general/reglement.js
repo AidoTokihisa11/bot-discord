@@ -82,10 +82,9 @@ Maintenant rends toi dans le salon <#1368919061425164288>  pour choisir tes jeux
                 );
 
             const message = await channel.send({ embeds: [ruleEmbed], components: [validationButton] });
-            await message.react('✅');
 
             logger.success(`Règlement publié avec succès dans #${channel.name}`);
-            logger.info(`Message ID pour les réactions: ${message.id}`);
+            logger.info(`Message ID pour les boutons: ${message.id}`);
 
             await interaction.editReply({
                 content: `✅ **Règlement publié avec succès !**\n\n📋 Le règlement complet a été affiché dans ${channel}\n\n**Message ID :** \`${message.id}\``

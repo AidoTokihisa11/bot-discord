@@ -27,9 +27,10 @@ export default {
 
 
             // Système de révocation du règlement (fallback pour l'ancien système)
-            if (emoji.name === '✅') {
-                await handleRuleRevocation(message, member, logger);
-            }
+            // Système de révocation du règlement DÉSACTIVÉ (utiliser seulement les boutons)
+            // if (emoji.name === '✅') {
+            //     await handleRuleRevocation(message, member, logger);
+            // }
 
         } catch (error) {
             logger.error('Erreur dans messageReactionRemove:', error);

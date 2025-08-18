@@ -358,11 +358,46 @@ async function handleReglementValidation(interaction) {
                 ephemeral: true
             });
 
-            // Envoyer notification privée
+            // Envoyer notification privée détaillée
             try {
-                const welcomeMessage = `🎉 Bienvenue sur ${guild.name} !\n\n✅ Règlement validé avec succès !\nVous avez maintenant accès à l'ensemble du serveur.\n\n🎯 Prochaines étapes :\n• Explorez les différents canaux\n• Présentez-vous si vous le souhaitez\n• Participez aux discussions\n• N'hésitez pas à utiliser le système de tickets pour toute question\n\n🛡️ Rappel : Le respect du règlement est obligatoire en permanence.\n\nBonne découverte ! 🚀`;
-                await member.send(welcomeMessage);
-                logger.success(`Notification de bienvenue envoyée à ${member.user.tag}`);
+                const welcomeEmbed = {
+                    color: 0x2F3136,
+                    title: '🎉 Bienvenue sur ' + guild.name + ' !',
+                    description: `**Félicitations ${member.user.username} !** ✨\n\nVous venez de valider avec succès le règlement de notre serveur et vous avez maintenant accès à l'ensemble de nos espaces communautaires !`,
+                    fields: [
+                        {
+                            name: '📋 Règlement validé',
+                            value: 'Vous vous engagez à respecter toutes les règles énoncées dans le règlement général du serveur. En cas de non-respect, des sanctions pourront être appliquées.',
+                            inline: false
+                        },
+                        {
+                            name: '🎯 Prochaines étapes recommandées',
+                            value: '• Rendez-vous dans <#1368919061425164288> pour choisir vos jeux préférés\n• Explorez les différents canaux disponibles\n• Présentez-vous si vous le souhaitez\n• Participez aux discussions dans le respect des règles',
+                            inline: false
+                        },
+                        {
+                            name: '🛠️ Besoin d\'aide ?',
+                            value: 'Utilisez le salon <#1398336201844457485> option "signalement" pour toute question ou problème. Notre équipe de modération est là pour vous aider !',
+                            inline: false
+                        },
+                        {
+                            name: '🛡️ Rappels importants',
+                            value: '• Le respect entre membres est obligatoire\n• Aucun comportement toxique ne sera toléré\n• Respectez les thématiques de chaque salon\n• En cas de problème, contactez le staff',
+                            inline: false
+                        }
+                    ],
+                    footer: {
+                        text: 'Règlement Team7 • Bonne découverte sur le serveur !',
+                        icon_url: guild.iconURL() || undefined
+                    },
+                    timestamp: new Date().toISOString(),
+                    thumbnail: {
+                        url: 'https://i.pinimg.com/originals/45/90/c5/4590c5b9594ea14b91456b15e4e08ba7.jpg'
+                    }
+                };
+                
+                await member.send({ embeds: [welcomeEmbed] });
+                logger.success(`Notification de bienvenue détaillée envoyée à ${member.user.tag}`);
             } catch (dmError) {
                 logger.warn(`Impossible d'envoyer un MP à ${member.user.tag}: ${dmError.message}`);
                 
@@ -380,7 +415,7 @@ async function handleReglementValidation(interaction) {
                     }
 
                     if (fallbackChannel && fallbackChannel.isTextBased()) {
-                        const welcomeMessage = `🎉 **Bienvenue ${member} !**\n\n✅ Règlement validé avec succès ! Vous avez maintenant accès à l'ensemble du serveur.\n\nBonne découverte ! 🚀`;
+                        const welcomeMessage = `🎉 **Bienvenue ${member} !**\n\n✅ Règlement validé avec succès ! Vous avez maintenant accès à l'ensemble du serveur.\n\n🎯 N'oubliez pas de vous rendre dans <#1368919061425164288> pour choisir vos jeux préférés !\n\nBonne découverte ! 🚀`;
                         await fallbackChannel.send({ content: welcomeMessage });
                         logger.info(`Notification de bienvenue envoyée dans ${fallbackChannel.name} pour ${member.user.tag}`);
                     }
