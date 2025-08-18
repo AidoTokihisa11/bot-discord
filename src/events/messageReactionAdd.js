@@ -34,6 +34,15 @@ export default {
 
             // Système de validation du règlement (fallback pour l'ancien système)
             if (emoji.name === '✅') {
+                // Vérifier d'abord le footer token ajouté par /reglement
+                const isRuleMessageByFooter = message.embeds.some(embed => (embed.footer && embed.footer.text && embed.footer.text.includes('reglement:team7')));
+
+                if (isRuleMessageByFooter) {
+                    await handleRuleValidation(message, member, logger);
+                    return;
+                }
+
+                // Fallback historique: vérifier le titre/description
                 await handleRuleValidation(message, member, logger);
             }
 
