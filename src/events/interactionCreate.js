@@ -314,7 +314,7 @@ async function handleReglementValidation(interaction) {
     try {
         const { guild, user } = interaction;
         const member = guild.members.cache.get(user.id);
-        const validationRoleId = '1387543998448668843'; // ID du rôle Team7
+        const validationRoleId = '1387536419588931616'; // ID du rôle Team7
         
         if (!member) {
             return await interaction.reply({

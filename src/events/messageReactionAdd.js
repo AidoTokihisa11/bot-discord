@@ -55,7 +55,7 @@ export default {
 async function handleRuleValidation(message, member, logger) {
     try {
         const guild = member.guild;
-    const validationRoleId = '1387543998448668843';
+    const validationRoleId = '1387536419588931616';
 
         logger.info(`🎯 Traitement de la validation pour ${member.user.tag}`);
         logger.info(`📋 ID du rôle de validation: ${validationRoleId}`);
