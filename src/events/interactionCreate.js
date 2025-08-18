@@ -4,6 +4,8 @@ import ButtonHandler from '../handlers/ButtonHandler.js';
 import { handleModal } from '../handlers/ModalHandler.js';
 import TicketManager from '../managers/TicketManager.js';
 import InteractionValidator from '../utils/InteractionValidator.js';
+import CharteHandler from '../handlers/CharteHandler.js';
+import MusicButtonHandler from '../handlers/MusicButtonHandler.js';
 
 export default {
     name: 'interactionCreate',
@@ -126,6 +128,93 @@ export default {
                         return;
                     }
                     await interaction.client.moderationButtonHandler.handleModerationButton(interaction);
+                } else if (interaction.customId === 'charte_validate') {
+                    // Gestion de la validation de charte
+                    await CharteHandler.handleCharteValidation(interaction);
+                } else if (interaction.customId.startsWith('delete_data_confirm_')) {
+                    // Gestion de la confirmation de suppression de données
+                    const userId = interaction.customId.split('_')[3];
+                    await CharteHandler.handleDataDeletionConfirm(interaction, userId);
+                } else if (interaction.customId.startsWith('delete_data_preview_')) {
+                    // Gestion de l'aperçu des données à supprimer
+                    const userId = interaction.customId.split('_')[3];
+                    await CharteHandler.handleDataPreview(interaction, userId);
+                } else if (interaction.customId === 'delete_data_cancel') {
+                    // Annulation de suppression de données
+                    await interaction.update({
+                        content: '❌ **Suppression annulée**\nAucune donnée n\'a été supprimée.',
+                        embeds: [],
+                        components: []
+                    });
+                } else if (interaction.customId === 'export_my_data') {
+                    // Bouton "Exporter mes données" depuis /my-data
+                    const exportCommand = interaction.client.commands?.get('export-my-data');
+                    if (exportCommand) {
+                        await exportCommand.execute(interaction);
+                    } else {
+                        await interaction.reply({
+                            content: '❌ Erreur: Commande d\'export non trouvée.',
+                            ephemeral: true
+                        });
+                    }
+                } else if (interaction.customId === 'delete_my_data') {
+                    // Bouton "Supprimer mes données" depuis /my-data
+                    const deleteCommand = interaction.client.commands?.get('delete-my-data');
+                    if (deleteCommand) {
+                        await deleteCommand.execute(interaction);
+                    } else {
+                        await interaction.reply({
+                            content: '❌ Erreur: Commande de suppression non trouvée.',
+                            ephemeral: true
+                        });
+                    }
+                } else if (interaction.customId === 'data_refresh') {
+                    // Bouton "Actualiser" depuis /my-data
+                    const myDataCommand = interaction.client.commands?.get('my-data');
+                    if (myDataCommand) {
+                        await myDataCommand.execute(interaction);
+                    } else {
+                        await interaction.reply({
+                            content: '❌ Erreur: Commande my-data non trouvée.',
+                            ephemeral: true
+                        });
+                    }
+                } else if (interaction.customId.startsWith('export_before_delete_')) {
+                    // Bouton "Exporter avant suppression" depuis l'aperçu des données
+                    const userId = interaction.customId.split('_')[3];
+                    const exportCommand = interaction.client.commands?.get('export-my-data');
+                    if (exportCommand) {
+                        await exportCommand.execute(interaction);
+                    } else {
+                        await interaction.reply({
+                            content: '❌ Erreur: Commande d\'export non trouvée.',
+                            ephemeral: true
+                        });
+                    }
+                } else if (interaction.customId.startsWith('download_deletion_report_')) {
+                    // Bouton "Télécharger rapport" après suppression
+                    const userId = interaction.customId.split('_')[3];
+                    await interaction.reply({
+                        content: '📋 **Rapport de suppression**\n\nVotre rapport détaillé a été envoyé par message privé. Si vous ne l\'avez pas reçu, vérifiez vos paramètres de confidentialité.',
+                        ephemeral: true
+                    });
+                } else if (interaction.customId === 'gdpr_support') {
+                    // Bouton "Support RGPD"
+                    const supportCommand = interaction.client.commands?.get('support');
+                    if (supportCommand) {
+                        await supportCommand.execute(interaction);
+                    } else {
+                        await interaction.reply({
+                            content: '📞 **Support RGPD**\n\nPour toute question concernant vos données personnelles, contactez :\n• **Support général :** `/support`\n• **Email DPO :** dpo@team7.gg\n• **CNIL :** www.cnil.fr',
+                            ephemeral: true
+                        });
+                    }
+                } else if (interaction.customId.startsWith('queue_')) {
+                    // Gestion des boutons de navigation de la queue de musique
+                    const handled = await MusicButtonHandler.handleQueueButton(interaction);
+                    if (!handled) {
+                        await interaction.client.buttonHandler.handleButton(interaction);
+                    }
                 } else {
                     await interaction.client.buttonHandler.handleButton(interaction);
                 }

@@ -1,4 +1,4 @@
-import { Client, Collection, GatewayIntentBits, ActivityType, Partials, REST, Routes } from 'discord.js';
+import { Client, Collection, GatewayIntentBits, ActivityType, Partials } from 'discord.js';
 import { config } from 'dotenv';
 import chalk from 'chalk';
 import { fileURLToPath, pathToFileURL } from 'url';
@@ -9,6 +9,7 @@ import Database from './utils/Database.js';
 import ErrorHandler from './utils/ErrorHandler.js';
 import RoleMentionManager from './utils/RoleMentionManager.js';
 import CacheManager from './utils/CacheManager.js';
+import AdvancedStreamManager from './managers/AdvancedStreamManager.js';
 import ModerationManager from './managers/ModerationManager.js';
 import ModerationButtonHandler from './handlers/ModerationButtonHandler.js';
 
@@ -55,6 +56,9 @@ client.tickets = new Collection();
 client.config = new Collection();
 
 // Collections pour les interactions et données temporaires
+client.embedTemplates = new Collection();
+client.embedBuilder = new Collection();
+client.embedIA = new Collection();
 client.tempData = {};
 
 // Initialisation de la base de données
@@ -117,53 +121,6 @@ async function loadEvents(dir = join(__dirname, 'events')) {
     }
 }
 
-// Fonction pour déployer automatiquement les commandes
-async function deployCommands() {
-    try {
-        // Vérifier les variables d'environnement nécessaires
-        if (!process.env.DISCORD_TOKEN || !process.env.CLIENT_ID) {
-            logger.warn('⚠️ Variables d\'environnement manquantes pour le déploiement automatique');
-            return;
-        }
-
-        logger.info('🚀 Déploiement automatique des commandes...');
-        
-        const commands = [];
-        for (const [name, command] of client.commands) {
-            commands.push(command.data.toJSON());
-        }
-        
-        if (commands.length === 0) {
-            logger.warn('⚠️ Aucune commande à déployer');
-            return;
-        }
-        
-        const rest = new REST({ 
-            version: '10',
-            timeout: 30000,
-            retries: 2
-        }).setToken(process.env.DISCORD_TOKEN);
-        
-        // Déploiement selon la configuration
-        let route;
-        if (process.env.GUILD_ID) {
-            route = Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID);
-            logger.info(`📡 Déploiement des commandes sur le serveur ${process.env.GUILD_ID}...`);
-        } else {
-            route = Routes.applicationCommands(process.env.CLIENT_ID);
-            logger.info('📡 Déploiement global des commandes...');
-        }
-        
-        const data = await rest.put(route, { body: commands });
-        logger.success(`✅ ${data.length} commande(s) déployée(s) avec succès`);
-        
-    } catch (error) {
-        logger.error('❌ Erreur lors du déploiement automatique:', error.message || error);
-        // Ne pas arrêter le bot si le déploiement échoue
-        logger.warn('⚠️ Le bot continuera de fonctionner sans déploiement automatique');
-    }
-}
-
 // Fonction d'initialisation
 async function initialize() {
     try {
@@ -173,13 +130,6 @@ async function initialize() {
         logger.info('📁 Chargement des commandes...');
         await loadCommands();
         logger.success(`✅ ${client.commands.size} commande(s) chargée(s)`);
-        
-        // Déploiement automatique des commandes (seulement si explicitement demandé)
-        if (process.env.AUTO_DEPLOY_COMMANDS === 'true') {
-            await deployCommands();
-        } else {
-            logger.info('💡 Conseil: Ajoutez AUTO_DEPLOY_COMMANDS=true dans votre .env pour déployer automatiquement les commandes');
-        }
         
         // Chargement des événements
         logger.info('⚡ Chargement des événements...');
@@ -200,11 +150,22 @@ async function initialize() {
         client.cacheManager = new CacheManager(client);
         logger.success('✅ Gestionnaire de cache initialisé');
         
+        // Initialisation du gestionnaire de streams
+        logger.info('🎮 Initialisation du gestionnaire de streams...');
+        try {
+            client.streamManager = new AdvancedStreamManager(client);
+            logger.success('✅ Gestionnaire de streams initialisé');
+        } catch (error) {
+            logger.warn('⚠️ Gestionnaire de streams désactivé:', error.message);
+            logger.info('💡 Configurez TWITCH_CLIENT_ID et TWITCH_CLIENT_SECRET pour activer les streams');
+        }
+        
         // Initialisation du gestionnaire de modération
-        logger.info('🛡️ Initialisation du système de modération...');
+        logger.info('🛡️ Initialisation du gestionnaire de modération...');
         client.moderationManager = new ModerationManager(client);
         client.moderationButtonHandler = new ModerationButtonHandler(client);
-        logger.success('✅ Système de modération initialisé');
+        await client.moderationManager.init();
+        logger.success('✅ Gestionnaire de modération initialisé');
         
         // Connexion du bot
         logger.info('🔗 Connexion à Discord...');
@@ -230,6 +191,7 @@ process.on('uncaughtException', (error) => {
 process.on('SIGINT', async () => {
     logger.info('🛑 Arrêt du bot...');
     client.cacheManager?.stopAutoCleanup();
+    client.streamManager?.stopMonitoring();
     await client.destroy();
     process.exit(0);
 });
@@ -237,6 +199,7 @@ process.on('SIGINT', async () => {
 process.on('SIGTERM', async () => {
     logger.info('🛑 Arrêt du bot...');
     client.cacheManager?.stopAutoCleanup();
+    client.streamManager?.stopMonitoring();
     await client.destroy();
     process.exit(0);
 });

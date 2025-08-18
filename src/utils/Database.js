@@ -439,6 +439,11 @@ class Database {
     // === MÉTHODES POUR LES STREAMERS ===
 
     async getStreamers() {
+        // Vérifier que streamers existe et est un objet
+        if (!this.data.streamers || typeof this.data.streamers !== 'object') {
+            this.data.streamers = {};
+            await this.save();
+        }
         return Object.values(this.data.streamers) || [];
     }
 
