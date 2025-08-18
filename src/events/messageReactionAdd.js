@@ -96,6 +96,30 @@ async function handleRuleValidation(message, member, logger) {
             await member.send(welcomeMessage);
         } catch (dmError) {
             logger.warn(`Impossible d'envoyer un MP à ${member.user.tag}: ${dmError.message}`);
+
+            // Fallback: envoyer la notification dans un channel configuré ou trouvé automatiquement
+            try {
+                const logChannelId = process.env.LOG_CHANNEL_ID;
+                let fallbackChannel = null;
+
+                if (logChannelId) {
+                    fallbackChannel = guild.channels.cache.get(logChannelId);
+                }
+
+                if (!fallbackChannel) {
+                    // Essayer quelques noms de canaux courants
+                    fallbackChannel = guild.channels.cache.find(ch => ['welcome', 'bienvenue', 'annonces', 'welcome-channel'].includes((ch.name || '').toLowerCase()));
+                }
+
+                if (fallbackChannel && fallbackChannel.isTextBased()) {
+                    await fallbackChannel.send({ content: `${member} ${welcomeMessage}` });
+                    logger.info(`Notification de bienvenue envoyée dans ${fallbackChannel.name} pour ${member.user.tag}`);
+                } else {
+                    logger.warn('Aucun canal de fallback trouvé pour envoyer la notification de bienvenue');
+                }
+            } catch (fallbackError) {
+                logger.error('Erreur lors de l\'envoi de la notification de bienvenue en fallback:', fallbackError);
+            }
         }
 
         // Log de l'action

@@ -80,10 +80,19 @@ async function handleRuleRevocation(message, member, logger) {
         logger.warn(`Rôle de validation retiré à ${member.user.tag} (${member.id})`);
 
         // Optionnel : Envoyer une notification dans un canal de logs
-        const logChannelId = process.env.LOG_CHANNEL_ID; // Vous pouvez configurer cela
-        if (logChannelId) {
-            const logChannel = guild.channels.cache.get(logChannelId);
-            if (logChannel) {
+        try {
+            const logChannelId = process.env.LOG_CHANNEL_ID; // Vous pouvez configurer cela
+            let logChannel = null;
+
+            if (logChannelId) {
+                logChannel = guild.channels.cache.get(logChannelId);
+            }
+
+            if (!logChannel) {
+                logChannel = guild.channels.cache.find(ch => ['logs', 'logs-charte', 'annonces'].includes((ch.name || '').toLowerCase()));
+            }
+
+            if (logChannel && logChannel.isTextBased()) {
                 const logEmbed = {
                     color: 0xff6b6b,
                     title: '❌ Validation Révoquée',
@@ -113,6 +122,8 @@ async function handleRuleRevocation(message, member, logger) {
 
                 await logChannel.send({ embeds: [logEmbed] });
             }
+        } catch (logError) {
+            logger.error('Erreur lors de l\'envoi du log de révocation:', logError);
         }
 
     } catch (error) {
