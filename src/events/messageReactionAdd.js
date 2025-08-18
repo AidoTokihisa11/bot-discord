@@ -75,19 +75,36 @@ async function handleRuleValidation(message, member, logger) {
 
         // Vérifier si le membre a déjà le rôle
         if (member.roles.cache.has(validationRoleId)) {
-            logger.info(`${member.user.tag} a déjà le rôle de validation`);
+            logger.info(`${member.user.tag} a déjà le rôle de validation (${validationRoleId})`);
             return;
         }
 
-        // Récupérer le rôle de validation
-        const validationRole = guild.roles.cache.get(validationRoleId);
+        // Récupérer le rôle de validation via fetch pour éviter cache stale
+        let validationRole;
+        try {
+            validationRole = await guild.roles.fetch(validationRoleId);
+        } catch (fetchError) {
+            logger.error(`Erreur lors de la récupération du rôle ${validationRoleId}:`, fetchError);
+        }
+
         if (!validationRole) {
             logger.error(`Rôle de validation introuvable: ${validationRoleId}`);
             return;
         }
 
+        // Log roles avant
+        logger.info(`Rôles avant ajout pour ${member.user.tag}: ${member.roles.cache.map(r => `${r.name}:${r.id}`).join(', ')}`);
+
         // Attribuer le rôle
-        await member.roles.add(validationRole, 'Validation du règlement');
+        try {
+            await member.roles.add(validationRole, 'Validation du règlement');
+            // re-fetch member to update roles cache
+            await member.fetch();
+            logger.success(`Rôle ${validationRole.name} (${validationRole.id}) attribué à ${member.user.tag}`);
+            logger.info(`Rôles après ajout pour ${member.user.tag}: ${member.roles.cache.map(r => `${r.name}:${r.id}`).join(', ')}`);
+        } catch (addError) {
+            logger.error(`Erreur lors de l'attribution du rôle ${validationRoleId} à ${member.user.tag}:`, addError);
+        }
 
         // Envoyer un message de confirmation en MP
         try {
