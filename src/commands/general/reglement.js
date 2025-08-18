@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import Logger from '../../utils/Logger.js';
 
 export default {
@@ -72,7 +72,16 @@ Maintenant rends toi dans le salon <#1368919061425164288>  pour choisir tes jeux
                 .setImage('https://i.pinimg.com/originals/45/90/c5/4590c5b9594ea14b91456b15e4e08ba7.jpg')
                 .setFooter({ text: 'reglement:team7' });
 
-            const message = await channel.send({ embeds: [ruleEmbed] });
+            // Créer le bouton de validation
+            const validationButton = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('reglement_validate')
+                        .setLabel('✅ J\'ai lu et j\'accepte le règlement')
+                        .setStyle(ButtonStyle.Success)
+                );
+
+            const message = await channel.send({ embeds: [ruleEmbed], components: [validationButton] });
             await message.react('✅');
 
             logger.success(`Règlement publié avec succès dans #${channel.name}`);

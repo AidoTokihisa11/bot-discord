@@ -5,7 +5,7 @@ import { handleModal } from '../handlers/ModalHandler.js';
 import TicketManager from '../managers/TicketManager.js';
 import InteractionValidator from '../utils/InteractionValidator.js';
 import CharteHandler from '../handlers/CharteHandler.js';
-import MusicButtonHandler from '../handlers/MusicButtonHandler.js';
+// import MusicButtonHandler from '../handlers/MusicButtonHandler.js'; // Temporarily disabled due to missing @discordjs/voice
 
 export default {
     name: 'interactionCreate',
@@ -131,6 +131,9 @@ export default {
                 } else if (interaction.customId === 'charte_validate') {
                     // Gestion de la validation de charte
                     await CharteHandler.handleCharteValidation(interaction);
+                } else if (interaction.customId === 'reglement_validate') {
+                    // Gestion de la validation du règlement Team7
+                    await handleReglementValidation(interaction);
                 } else if (interaction.customId.startsWith('delete_data_confirm_')) {
                     // Gestion de la confirmation de suppression de données
                     const userId = interaction.customId.split('_')[3];
@@ -210,11 +213,11 @@ export default {
                         });
                     }
                 } else if (interaction.customId.startsWith('queue_')) {
-                    // Gestion des boutons de navigation de la queue de musique
-                    const handled = await MusicButtonHandler.handleQueueButton(interaction);
-                    if (!handled) {
+                    // Gestion des boutons de navigation de la queue de musique (disabled)
+                    // const handled = await MusicButtonHandler.handleQueueButton(interaction);
+                    // if (!handled) {
                         await interaction.client.buttonHandler.handleButton(interaction);
-                    }
+                    // }
                 } else {
                     await interaction.client.buttonHandler.handleButton(interaction);
                 }
@@ -303,3 +306,106 @@ export default {
         }
     }
 };
+
+// Fonction de gestion de la validation du règlement Team7
+async function handleReglementValidation(interaction) {
+    const logger = new Logger();
+    
+    try {
+        const { guild, user } = interaction;
+        const member = guild.members.cache.get(user.id);
+        const validationRoleId = '1387543998448668843'; // ID du rôle Team7
+        
+        if (!member) {
+            return await interaction.reply({
+                content: '❌ Erreur : Impossible de récupérer vos informations.',
+                ephemeral: true
+            });
+        }
+
+        // Vérifier si l'utilisateur a déjà le rôle
+        if (member.roles.cache.has(validationRoleId)) {
+            return await interaction.reply({
+                content: '✅ Vous avez déjà validé le règlement !',
+                ephemeral: true
+            });
+        }
+
+        // Récupérer le rôle
+        let validationRole;
+        try {
+            validationRole = await guild.roles.fetch(validationRoleId);
+        } catch (fetchError) {
+            logger.error(`Erreur lors de la récupération du rôle ${validationRoleId}:`, fetchError);
+        }
+
+        if (!validationRole) {
+            logger.error(`Rôle de validation introuvable: ${validationRoleId}`);
+            return await interaction.reply({
+                content: '❌ Erreur : Rôle de validation introuvable.',
+                ephemeral: true
+            });
+        }
+
+        // Attribuer le rôle
+        try {
+            await member.roles.add(validationRole, 'Validation du règlement Team7');
+            logger.success(`Rôle ${validationRole.name} (${validationRole.id}) attribué à ${member.user.tag}`);
+            
+            // Répondre à l'interaction
+            await interaction.reply({
+                content: '✅ **Règlement validé avec succès !**\n\nVous avez maintenant accès à l\'ensemble du serveur. Bienvenue ! 🎉',
+                ephemeral: true
+            });
+
+            // Envoyer notification privée
+            try {
+                const welcomeMessage = `🎉 Bienvenue sur ${guild.name} !\n\n✅ Règlement validé avec succès !\nVous avez maintenant accès à l'ensemble du serveur.\n\n🎯 Prochaines étapes :\n• Explorez les différents canaux\n• Présentez-vous si vous le souhaitez\n• Participez aux discussions\n• N'hésitez pas à utiliser le système de tickets pour toute question\n\n🛡️ Rappel : Le respect du règlement est obligatoire en permanence.\n\nBonne découverte ! 🚀`;
+                await member.send(welcomeMessage);
+                logger.success(`Notification de bienvenue envoyée à ${member.user.tag}`);
+            } catch (dmError) {
+                logger.warn(`Impossible d'envoyer un MP à ${member.user.tag}: ${dmError.message}`);
+                
+                // Fallback: essayer d'envoyer dans un channel
+                try {
+                    const logChannelId = process.env.LOG_CHANNEL_ID;
+                    let fallbackChannel = null;
+
+                    if (logChannelId) {
+                        fallbackChannel = guild.channels.cache.get(logChannelId);
+                    }
+
+                    if (!fallbackChannel) {
+                        fallbackChannel = guild.channels.cache.find(ch => ['welcome', 'bienvenue', 'annonces', 'général'].includes((ch.name || '').toLowerCase()));
+                    }
+
+                    if (fallbackChannel && fallbackChannel.isTextBased()) {
+                        const welcomeMessage = `🎉 **Bienvenue ${member} !**\n\n✅ Règlement validé avec succès ! Vous avez maintenant accès à l'ensemble du serveur.\n\nBonne découverte ! 🚀`;
+                        await fallbackChannel.send({ content: welcomeMessage });
+                        logger.info(`Notification de bienvenue envoyée dans ${fallbackChannel.name} pour ${member.user.tag}`);
+                    }
+                } catch (fallbackError) {
+                    logger.error('Erreur lors de l\'envoi de la notification de bienvenue en fallback:', fallbackError);
+                }
+            }
+
+        } catch (addError) {
+            logger.error(`Erreur lors de l'attribution du rôle ${validationRoleId} à ${member.user.tag}:`, addError);
+            return await interaction.reply({
+                content: '❌ Erreur lors de l\'attribution du rôle. Contactez un administrateur.',
+                ephemeral: true
+            });
+        }
+
+    } catch (error) {
+        logger.error('Erreur lors de la validation du règlement:', error);
+        try {
+            await interaction.reply({
+                content: '❌ Une erreur est survenue. Veuillez réessayer.',
+                ephemeral: true
+            });
+        } catch (replyError) {
+            logger.error('Impossible de répondre à l\'interaction:', replyError);
+        }
+    }
+}
