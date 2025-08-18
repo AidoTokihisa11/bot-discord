@@ -1,4 +1,19 @@
-import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, P                                            name: '6. 🎯 Utilisation des salons',
+                        value: 'Respectez les thématiques de chaque salon (texte, vocal, images...).\n\nNe perturbez pas les salons vocaux avec des bruits forts ou une mauvaise qualité de micro.\n\nLisez les descriptions des salons pour bien les utiliser.',
+                        inline: false
+                    },
+                    {
+                        name: '7. 📝 Mise à jour du règlement',me: '4. 🔒 Confidentialité',
+                        value: 'Ne partagez jamais d\'informations personnelles (adresse, numéro, mot de passe...).\n\nLe doxxing ou la tentative de collecte d\'informations personnelles entraînera un ban immédiat.',
+                        inline: false
+                    },
+                    {
+                        name: '5. 👮 Modération et sanctions',
+                        value: 'Le staff est là pour faire respecter les règles. Leurs décisions doivent être respectées.\n\nEn cas de problème, utiliser le salon <#1398336201844457485> option "signalement"\n\nLes sanctions peuvent aller du mute temporaire au bannissement définitif, selon la gravité de l\'infraction.',
+                        inline: false
+                    },
+                    {
+                        name: '6. 🔧 Utilisation des salons',agsBits, MessageFlags } from 'discord.js';
 import Logger from '../../utils/Logger.js';
 
 export default {
@@ -23,47 +38,49 @@ export default {
             // Embed simple et propre du règlement
             const ruleEmbed = new EmbedBuilder()
                 .setColor('#5865F2')
-                .setTitle('📋 **RÈGLEMENT OFFICIEL DU SERVEUR**')
-                .setDescription(`
-🏛️ **BIENVENUE SUR ${guild.name.toUpperCase()}** 🏛️
-
-**Bienvenue dans notre communauté !** 🎉
-Respectez ces règles pour maintenir un environnement sain et agréable.`)
+                .setTitle('� **RÈGLEMENT GÉNÉRAL DU SERVEUR**')
+                .setDescription(`Bienvenue sur notre serveur Discord ! <a:pikachu:1393960165966876753>
+Afin de garantir une ambiance agréable et respectueuse pour tous, merci de lire et de respecter les règles suivantes :`)
                 .addFields(
                     {
-                        name: '🚨 **RÈGLES ESSENTIELLES**',
-                        value: '• **Respectez** tous les membres\n• **Aucune insulte** ou harcèlement\n• **Pas de contenu NSFW** ou inapproprié\n• **Utilisez** les bons canaux\n• **Pas de spam** ou flood',
-                        inline: true
-                    },
-                    {
-                        name: '💬 **COMMUNICATION**',
-                        value: '• **Français correct** exigé\n• **Pas de CAPS LOCK** excessif\n• **Évitez** les mentions abusives\n• **Soyez constructifs** dans vos échanges\n• **Respectez** les discussions',
-                        inline: true
-                    },
-                    {
-                        name: '⚖️ **SANCTIONS**',
-                        value: '🟡 **Avertissement** → 🟠 **Timeout** → 🔴 **Exclusion/Ban**\n\n**Appel possible** via système de tickets',
+                        name: '1. 👥 Respect et comportement',
+                        value: 'Le respect entre membres est obligatoire. Aucun comportement toxique, harcèlement, discrimination, racisme, sexisme, ou propos haineux ne sera toléré.\n\nLes débats sont autorisés tant qu\'ils restent cordiaux.\n\nPas d\'attaques personnelles, ni d\'incitation à la haine ou à la violence.',
                         inline: false
                     },
                     {
-                        name: '🛡️ **VOS DROITS & DEVOIRS**',
-                        value: '✅ **Droits :** Liberté d\'expression, égalité, protection, support\n📋 **Devoirs :** Respecter le règlement, signaler les problèmes, contribuer positivement',
+                        name: '2. �️ Langage et contenu',
+                        value: 'Le langage SMS, vulgaire ou inapproprié est à éviter.\n\nLes contenus choquants, NSFW, violents, ou illégaux sont strictement interdits.\n\nNe postez pas de spoilers sans avertissement clair.',
                         inline: false
                     },
                     {
-                        name: '📞 **SUPPORT & CONTACT**',
-                        value: '• **Système de tickets** - Support officiel 24h/7j\n• **Équipe de modération** disponible\n• **Décisions équitables** et transparentes',
+                        name: '3. 📢 Publicité et spam',
+                        value: 'La publicité pour d\'autres serveurs, chaînes ou réseaux sociaux est interdite sans l\'accord d\'un administrateur.\n\nPas de spam, de flood, ou de ping abusif (utilisation excessive de @).',
                         inline: false
                     },
                     {
-                        name: '✅ **VALIDATION OBLIGATOIRE**',
-                        value: '🎯 **Pour accéder au serveur complet :**\n**1️⃣** Lisez ce règlement\n**2️⃣** Réagissez avec ✅ ci-dessous\n**3️⃣** Recevez votre rôle automatiquement\n\n⚠️ **En réagissant, vous acceptez ce règlement intégralement**',
+                        name: '4. 🔐 Confidentialité',
+                        value: 'Ne partagez jamais d\'informations personnelles (adresse, numéro, mot de passe…).\n\nLe doxxing ou la tentative de collecte d\'informations personnelles entraînera un ban immédiat.',
+                        inline: false
+                    },
+                    {
+                        name: '5. �‍♂️ Modération et sanctions',
+                        value: 'Le staff est là pour faire respecter les règles. Leurs décisions doivent être respectées.\n\nEn cas de problème, utiliser le salon <#1398336201844457485> option "signalement"\n\nLes sanctions peuvent aller du mute temporaire au bannissement définitif, selon la gravité de l\'infraction.',
+                        inline: false
+                    },
+                    {
+                        name: '6. �️ Utilisation des salons',
+                        value: 'Respectez les thématiques de chaque salon (texte, vocal, images…).\n\nNe perturbez pas les salons vocaux avec des bruits forts ou une mauvaise qualité de micro.\n\nLisez les descriptions des salons pour bien les utiliser.',
+                        inline: false
+                    },
+                    {
+                        name: '7. 📌 Mise à jour du règlement',
+                        value: 'Le règlement peut être modifié à tout moment. Il est de votre responsabilité de rester informé des mises à jour.\n\nEn restant sur ce serveur, vous acceptez automatiquement les règles énoncées ci-dessus.\n\nMaintenant rends toi dans le salon <#1368919061425164288> pour choisir tes jeux préférés ! <a:licorne:1165016593307279450> <a:GatoXD:1394093700837150740>',
                         inline: false
                     }
                 )
-                .setThumbnail(guild.iconURL({ dynamic: true }))
+                .setThumbnail('https://i.pinimg.com/originals/45/90/c5/4590c5b9594ea14b91456b15e4e08ba7.jpg')
                 .setFooter({ 
-                    text: '📋 Règlement Officiel • Réagissez avec ✅ pour valider',
+                    text: '� Règlement Officiel • Réagissez avec ✅ pour valider',
                     iconURL: guild.iconURL({ dynamic: true })
                 })
                 .setTimestamp();
