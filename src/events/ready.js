@@ -2,7 +2,7 @@ import { ActivityType } from 'discord.js';
 import cron from 'node-cron';
 
 export default {
-    name: 'ready',
+    name: 'clientReady',
     once: true,
     async execute(client) {
         const logger = client.logger || console;
@@ -10,35 +10,13 @@ export default {
         // Afficher les informations de connexion
         logger.ready(client);
         
-        // Définir le statut du bot
-        const activities = [
-            { name: '🎫 Système de tickets avancé', type: ActivityType.Watching },
-            { name: `${client.guilds.cache.size} serveurs`, type: ActivityType.Watching },
-            { name: '/help pour les commandes', type: ActivityType.Listening },
-            { name: '🚀 Bot moderne v2.0', type: ActivityType.Playing },
-            { name: 'theog.dev', type: ActivityType.Streaming, url: 'https://twitch.tv/theog' }
-        ];
+        // Définir le statut du bot - DÉCOMMISSIONNEMENT EN COURS
+        client.user.setActivity('� DÉCOMMISSIONNEMENT - IT/DISC/2025/007-R', { 
+            type: ActivityType.Watching
+        });
         
-        let currentActivity = 0;
-        
-        // Changer le statut toutes les 30 secondes
-        const updateActivity = () => {
-            const activity = activities[currentActivity];
-            client.user.setActivity(activity.name, { 
-                type: activity.type,
-                url: activity.url || undefined
-            });
-            currentActivity = (currentActivity + 1) % activities.length;
-        };
-        
-        // Définir le statut initial
-        updateActivity();
-        
-        // Programmer le changement de statut
-        setInterval(updateActivity, 30000);
-        
-        // Définir le statut en ligne
-        client.user.setStatus('online');
+        // Définir le statut en ne pas déranger pour indiquer la restriction
+        client.user.setStatus('dnd');
         
         // Programmer les tâches de maintenance
         scheduleMaintenance(client, logger);
