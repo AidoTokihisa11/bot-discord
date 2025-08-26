@@ -2,11 +2,13 @@ import fs from 'fs/promises';
 import path from 'path';
 import { PermissionFlagsBits, EmbedBuilder } from 'discord.js';
 import Logger from '../utils/Logger.js';
+import AccessRestriction from '../utils/AccessRestriction.js';
 
 export default class ModerationManager {
     constructor(client) {
         this.client = client;
         this.logger = new Logger();
+        this.accessRestriction = new AccessRestriction();
         
         // Stockage en mémoire
         this.warnings = new Map(); // userId -> Array of warnings

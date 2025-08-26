@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 
+import AccessRestriction from '../../utils/AccessRestriction.js';
 export default {
     data: new SlashCommandBuilder()
         .setName('stream-system')
@@ -88,6 +89,14 @@ export default {
         ),
 
     async execute(interaction) {
+        // === VÉRIFICATION D'ACCÈS GLOBALE ===
+        const accessRestriction = new AccessRestriction();
+        const hasAccess = await accessRestriction.checkAccess(interaction);
+        if (!hasAccess) {
+            return; // Accès refusé, message déjà envoyé
+        }
+
+
         const subcommand = interaction.options.getSubcommand();
         const streamManager = interaction.client.streamManager;
 

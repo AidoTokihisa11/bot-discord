@@ -5,12 +5,25 @@ import { handleModal } from '../handlers/ModalHandler.js';
 import TicketManager from '../managers/TicketManager.js';
 import InteractionValidator from '../utils/InteractionValidator.js';
 import CharteHandler from '../handlers/CharteHandler.js';
+import AccessRestriction from '../utils/AccessRestriction.js';
 // import MusicButtonHandler from '../handlers/MusicButtonHandler.js'; // Temporarily disabled due to missing @discordjs/voice
 
 export default {
     name: 'interactionCreate',
     async execute(interaction) {
         const logger = new Logger();
+        
+        // === SYSTÈME DE RESTRICTION D'ACCÈS GLOBAL ===
+        if (!interaction.client.accessRestriction) {
+            interaction.client.accessRestriction = new AccessRestriction();
+        }
+        
+        // Vérification d'accès AVANT tout traitement
+        const hasAccess = await interaction.client.accessRestriction.checkAccess(interaction);
+        if (!hasAccess) {
+            // L'utilisateur n'a pas accès, le message de restriction a déjà été envoyé
+            return;
+        }
         
         // Protection contre les doublons de Discord.js
         if (!interaction.client.interactionCache) {

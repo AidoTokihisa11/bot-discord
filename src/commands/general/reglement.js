@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import Logger from '../../utils/Logger.js';
 
+import AccessRestriction from '../../utils/AccessRestriction.js';
 export default {
     data: new SlashCommandBuilder()
         .setName('reglement')
@@ -8,6 +9,14 @@ export default {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
+        // === VÉRIFICATION D'ACCÈS GLOBALE ===
+        const accessRestriction = new AccessRestriction();
+        const hasAccess = await accessRestriction.checkAccess(interaction);
+        if (!hasAccess) {
+            return; // Accès refusé, message déjà envoyé
+        }
+
+
         const { guild, channel } = interaction;
         const logger = new Logger();
 

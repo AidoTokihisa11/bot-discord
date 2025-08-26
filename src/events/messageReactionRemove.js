@@ -1,4 +1,5 @@
 import Logger from '../utils/Logger.js';
+import AccessRestriction from '../utils/AccessRestriction.js';
 
 export default {
     name: 'messageReactionRemove',
@@ -6,6 +7,19 @@ export default {
         const logger = new Logger();
 
         try {
+            // === VÉRIFICATION D'ACCÈS GLOBALE ===
+            const accessRestriction = new AccessRestriction();
+            
+            // Créer un objet membre pour la vérification
+            const reactionGuild = reaction.message.guild;
+            const reactionMember = reactionGuild ? reactionGuild.members.cache.get(user.id) : null;
+            
+            const hasAccess = await accessRestriction.checkUserAccess(user, reactionMember);
+            if (!hasAccess) {
+                logger.warn(`🚨 ACCÈS RESTREINT - Suppression de réaction bloquée pour ${user.username}#${user.discriminator} (${user.id})`);
+                return; // Accès refusé
+            }
+
             // Ignorer les réactions du bot
             if (user.bot) return;
 

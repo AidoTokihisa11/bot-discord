@@ -2,6 +2,7 @@ import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ChannelType, Me
 import TicketManager from '../../managers/TicketManager.js';
 import Logger from '../../utils/Logger.js';
 
+import AccessRestriction from '../../utils/AccessRestriction.js';
 export default {
     data: new SlashCommandBuilder()
         .setName('setup-tickets')
@@ -9,6 +10,14 @@ export default {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
+        // === VÉRIFICATION D'ACCÈS GLOBALE ===
+        const accessRestriction = new AccessRestriction();
+        const hasAccess = await accessRestriction.checkAccess(interaction);
+        if (!hasAccess) {
+            return; // Accès refusé, message déjà envoyé
+        }
+
+
         const { client, guild, user } = interaction;
         const logger = new Logger();
 

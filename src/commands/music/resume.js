@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 import MusicManager from '../../managers/MusicManager.js';
 
+import AccessRestriction from '../../utils/AccessRestriction.js';
 export default {
     data: new SlashCommandBuilder()
         .setName('resume')
@@ -8,6 +9,14 @@ export default {
         .setDefaultMemberPermissions(PermissionFlagsBits.Connect),
 
     async execute(interaction) {
+        // === VÉRIFICATION D'ACCÈS GLOBALE ===
+        const accessRestriction = new AccessRestriction();
+        const hasAccess = await accessRestriction.checkAccess(interaction);
+        if (!hasAccess) {
+            return; // Accès refusé, message déjà envoyé
+        }
+
+
         try {
             const member = interaction.member;
             const voiceChannel = member.voice.channel;

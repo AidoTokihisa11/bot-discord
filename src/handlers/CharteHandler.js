@@ -1,7 +1,15 @@
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } from 'discord.js';
+import AccessRestriction from '../utils/AccessRestriction.js';
 
 export default class CharteInteractionHandler {
     static async handleCharteValidation(interaction) {
+        // === VÉRIFICATION D'ACCÈS GLOBALE ===
+        const accessRestriction = new AccessRestriction();
+        const hasAccess = await accessRestriction.checkAccess(interaction);
+        if (!hasAccess) {
+            return; // Accès refusé, message déjà envoyé
+        }
+
         // Vérifier si l'utilisateur a déjà accepté la charte
         const hasAlreadyAccepted = await this.checkIfUserAccepted(interaction.user.id, interaction.guild.id);
         

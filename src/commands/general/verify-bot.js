@@ -3,6 +3,7 @@ import { readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { pathToFileURL } from 'url';
 
+import AccessRestriction from '../../utils/AccessRestriction.js';
 export default {
     data: new SlashCommandBuilder()
         .setName('verify-bot')
@@ -14,6 +15,14 @@ export default {
                 .setRequired(false)),
 
     async execute(interaction) {
+        // === VÉRIFICATION D'ACCÈS GLOBALE ===
+        const accessRestriction = new AccessRestriction();
+        const hasAccess = await accessRestriction.checkAccess(interaction);
+        if (!hasAccess) {
+            return; // Accès refusé, message déjà envoyé
+        }
+
+
         try {
             // Utiliser le validateur d'interactions pour une déférence rapide
             const validator = interaction.client.interactionValidator;

@@ -1,11 +1,20 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 
+import AccessRestriction from '../../utils/AccessRestriction.js';
 export default {
     data: new SlashCommandBuilder()
         .setName('music-help')
         .setDescription('Afficher l\'aide pour les commandes de musique'),
 
     async execute(interaction) {
+        // === VÉRIFICATION D'ACCÈS GLOBALE ===
+        const accessRestriction = new AccessRestriction();
+        const hasAccess = await accessRestriction.checkAccess(interaction);
+        if (!hasAccess) {
+            return; // Accès refusé, message déjà envoyé
+        }
+
+
         try {
             const embed = new EmbedBuilder()
                 .setTitle('🎵 Système de Musique - Guide Complet')

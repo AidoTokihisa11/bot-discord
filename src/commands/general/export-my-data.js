@@ -2,6 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } from 'discord.js
 import fs from 'fs/promises';
 import path from 'path';
 
+import AccessRestriction from '../../utils/AccessRestriction.js';
 export default {
     data: new SlashCommandBuilder()
         .setName('export-my-data')
@@ -18,6 +19,14 @@ export default {
         ),
 
     async execute(interaction) {
+        // === VÉRIFICATION D'ACCÈS GLOBALE ===
+        const accessRestriction = new AccessRestriction();
+        const hasAccess = await accessRestriction.checkAccess(interaction);
+        if (!hasAccess) {
+            return; // Accès refusé, message déjà envoyé
+        }
+
+
         // Vérifier si l'interaction vient d'un bouton
         if (interaction.isButton()) {
             return await this.executeFromButton(interaction);

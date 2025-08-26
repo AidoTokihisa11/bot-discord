@@ -1,4 +1,5 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import AccessRestriction from '../../utils/AccessRestriction.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -9,6 +10,13 @@ export default {
     category: 'general',
     
     async execute(interaction, client) {
+        // === VÉRIFICATION D'ACCÈS GLOBALE ===
+        const accessRestriction = new AccessRestriction();
+        const hasAccess = await accessRestriction.checkAccess(interaction);
+        if (!hasAccess) {
+            return; // Accès refusé, message déjà envoyé
+        }
+
         const sent = await interaction.reply({ 
             content: '🏓 Calcul de la latence...', 
             fetchReply: true 

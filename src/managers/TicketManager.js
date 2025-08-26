@@ -1,12 +1,14 @@
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags } from 'discord.js';
 import Database from '../utils/Database.js';
 import Logger from '../utils/Logger.js';
+import AccessRestriction from '../utils/AccessRestriction.js';
 
 class TicketManager {
     constructor(client) {
         this.client = client;
         this.db = new Database();
         this.logger = new Logger();
+        this.accessRestriction = new AccessRestriction();
         this.staffRoleId = '1386784012269387946';
         this.ticketChannelId = '1398336201844457485';
         this.ticketCategoryId = null; // Sera défini dynamiquement
@@ -300,6 +302,12 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
 
     async handleTicketCreation(interaction, type) {
         try {
+            // === VÉRIFICATION D'ACCÈS GLOBALE ===
+            const hasAccess = await this.accessRestriction.checkAccess(interaction);
+            if (!hasAccess) {
+                return; // Accès refusé, message déjà envoyé
+            }
+
             // PROTECTION ULTRA RADICALE - UN SEUL TICKET PAR UTILISATEUR À LA FOIS
             const ultimateLock = global.ULTIMATE_TICKET_LOCK;
             const userId = interaction.user.id;
@@ -521,6 +529,12 @@ Notre équipe d'experts est là pour vous aider rapidement et efficacement.
 
     async handleModalSubmit(interaction) {
         try {
+            // === VÉRIFICATION D'ACCÈS GLOBALE ===
+            const hasAccess = await this.accessRestriction.checkAccess(interaction);
+            if (!hasAccess) {
+                return; // Accès refusé, message déjà envoyé
+            }
+
             // PROTECTION ULTRA RADICALE POUR LES MODALS
             const ultimateLock = global.ULTIMATE_TICKET_LOCK;
             const userId = interaction.user.id;
@@ -970,6 +984,12 @@ ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
 
     // Gestionnaires pour les actions dans les tickets
     async handleTicketAction(interaction) {
+        // === VÉRIFICATION D'ACCÈS GLOBALE ===
+        const hasAccess = await this.accessRestriction.checkAccess(interaction);
+        if (!hasAccess) {
+            return; // Accès refusé, message déjà envoyé
+        }
+
         const action = interaction.customId;
 
         switch (action) {
@@ -1450,6 +1470,12 @@ Merci de votre patience, nous traitons votre demande.`)
 
     async handleStaffInviteSelection(interaction) {
         try {
+            // === VÉRIFICATION D'ACCÈS GLOBALE ===
+            const hasAccess = await this.accessRestriction.checkAccess(interaction);
+            if (!hasAccess) {
+                return; // Accès refusé, message déjà envoyé
+            }
+
             // DÉFÉRENCE IMMÉDIATE pour éviter les timeouts
             if (!interaction.replied && !interaction.deferred) {
                 await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -2999,6 +3025,12 @@ ${candidateInfo.status === '✅ Accepté' ?
 
     async handleSuggestionModalSubmit(interaction) {
         try {
+            // === VÉRIFICATION D'ACCÈS GLOBALE ===
+            const hasAccess = await this.accessRestriction.checkAccess(interaction);
+            if (!hasAccess) {
+                return; // Accès refusé, message déjà envoyé
+            }
+
             // Vérification immédiate de l'état de l'interaction
             if (interaction.replied || interaction.deferred) {
                 this.logger.warn('⚠️ Interaction suggestion modal déjà traitée, abandon');
@@ -3262,6 +3294,12 @@ ${improvement ? `**💡 Suggestions d'amélioration :**\n${improvement}` : ''}
 
     async handleSuggestionTypeSelect(interaction) {
         try {
+            // === VÉRIFICATION D'ACCÈS GLOBALE ===
+            const hasAccess = await this.accessRestriction.checkAccess(interaction);
+            if (!hasAccess) {
+                return; // Accès refusé, message déjà envoyé
+            }
+
             // Acquittement immédiat pour éviter les timeouts
             if (interaction.replied || interaction.deferred) {
                 this.logger.warn('⚠️ Interaction suggestion type select déjà traitée');
@@ -3481,6 +3519,12 @@ ${status === 'closed' ? '**🔒 Cette suggestion a été fermée sans traitement
 
     async handleRecruitmentModalSubmit(interaction) {
         try {
+            // === VÉRIFICATION D'ACCÈS GLOBALE ===
+            const hasAccess = await this.accessRestriction.checkAccess(interaction);
+            if (!hasAccess) {
+                return; // Accès refusé, message déjà envoyé
+            }
+
             // PROTECTION ULTRA RADICALE POUR LE RECRUTEMENT
             const ultimateLock = global.ULTIMATE_TICKET_LOCK;
             const userId = interaction.user.id;
@@ -3967,6 +4011,12 @@ Le ticket reste ouvert et vous pouvez continuer à l'utiliser normalement.`)
     // NOUVELLE FONCTION POUR LA SÉLECTION DU STAFF SOS
     async handleSOSStaffInviteSelection(interaction) {
         try {
+            // === VÉRIFICATION D'ACCÈS GLOBALE ===
+            const hasAccess = await this.accessRestriction.checkAccess(interaction);
+            if (!hasAccess) {
+                return; // Accès refusé, message déjà envoyé
+            }
+
             const channel = interaction.channel;
             const user = interaction.user;
             const selectedValues = interaction.values;

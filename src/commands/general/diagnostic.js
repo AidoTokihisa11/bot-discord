@@ -2,6 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } 
 import { version as djsVersion } from 'discord.js';
 import os from 'os';
 
+import AccessRestriction from '../../utils/AccessRestriction.js';
 export default {
     data: new SlashCommandBuilder()
         .setName('diagnostic')
@@ -9,6 +10,14 @@ export default {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
+        // === VÉRIFICATION D'ACCÈS GLOBALE ===
+        const accessRestriction = new AccessRestriction();
+        const hasAccess = await accessRestriction.checkAccess(interaction);
+        if (!hasAccess) {
+            return; // Accès refusé, message déjà envoyé
+        }
+
+
         try {
             // Utiliser le validateur d'interactions pour une déférence rapide
             const validator = interaction.client.interactionValidator;

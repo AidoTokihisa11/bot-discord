@@ -1,11 +1,19 @@
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } from 'discord.js';
+import AccessRestriction from '../utils/AccessRestriction.js';
 
 export default class DataPrivacyButtonHandler {
     constructor(client) {
         this.client = client;
+        this.accessRestriction = new AccessRestriction();
     }
 
     async handleDataDeletion(interaction) {
+        // === VÉRIFICATION D'ACCÈS GLOBALE ===
+        const hasAccess = await this.accessRestriction.checkAccess(interaction);
+        if (!hasAccess) {
+            return; // Accès refusé, message déjà envoyé
+        }
+
         const customId = interaction.customId;
         const userId = customId.split('_').pop();
         
@@ -183,6 +191,12 @@ Vous pouvez relancer la commande \`/delete-my-data\` à tout moment.
     }
 
     async handleCharteNavigation(interaction) {
+        // === VÉRIFICATION D'ACCÈS GLOBALE ===
+        const hasAccess = await this.accessRestriction.checkAccess(interaction);
+        if (!hasAccess) {
+            return; // Accès refusé, message déjà envoyé
+        }
+
         const section = interaction.customId.replace('charte_', '');
         
         const embeds = {

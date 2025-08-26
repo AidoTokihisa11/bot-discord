@@ -1,12 +1,21 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import MusicManager from '../../managers/MusicManager.js';
 
+import AccessRestriction from '../../utils/AccessRestriction.js';
 export default {
     data: new SlashCommandBuilder()
         .setName('nowplaying')
         .setDescription('Afficher la musique en cours de lecture'),
 
     async execute(interaction) {
+        // === VÉRIFICATION D'ACCÈS GLOBALE ===
+        const accessRestriction = new AccessRestriction();
+        const hasAccess = await accessRestriction.checkAccess(interaction);
+        if (!hasAccess) {
+            return; // Accès refusé, message déjà envoyé
+        }
+
+
         try {
             const queue = MusicManager.getQueue(interaction.guildId);
             const currentSong = MusicManager.getCurrentSong(interaction.guildId);

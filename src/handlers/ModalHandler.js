@@ -1,5 +1,6 @@
 import TicketManager from '../managers/TicketManager.js';
 import Logger from '../utils/Logger.js';
+import AccessRestriction from '../utils/AccessRestriction.js';
 import { EmbedBuilder, MessageFlags } from 'discord.js';
 
 const logger = new Logger();
@@ -8,6 +9,13 @@ export async function handleModal(interaction) {
     const { customId } = interaction;
 
     try {
+        // === VÉRIFICATION D'ACCÈS GLOBALE ===
+        const accessRestriction = new AccessRestriction();
+        const hasAccess = await accessRestriction.checkAccess(interaction);
+        if (!hasAccess) {
+            return; // Accès refusé, message déjà envoyé
+        }
+
         // Vérification immédiate de l'état de l'interaction
         if (interaction.replied || interaction.deferred) {
             logger.warn('⚠️ Interaction modal déjà traitée, abandon silencieux...');

@@ -1,16 +1,24 @@
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder, ChannelType } from 'discord.js';
+import AccessRestriction from '../utils/AccessRestriction.js';
 
 export default class ModerationButtonHandler {
     constructor(client) {
         this.client = client;
         this.moderationManager = client.moderationManager;
         this.logger = client.logger;
+        this.accessRestriction = new AccessRestriction();
     }
 
     async handleModerationButton(interaction) {
         const customId = interaction.customId;
         
         try {
+            // === VÉRIFICATION D'ACCÈS GLOBALE ===
+            const hasAccess = await this.accessRestriction.checkAccess(interaction);
+            if (!hasAccess) {
+                return; // Accès refusé, message déjà envoyé
+            }
+
             if (customId.startsWith('mod_warn_')) {
                 await this.handleWarnButton(interaction);
             } else if (customId.startsWith('mod_mute_')) {
@@ -62,6 +70,12 @@ export default class ModerationButtonHandler {
         const value = interaction.values[0];
         
         try {
+            // === VÉRIFICATION D'ACCÈS GLOBALE ===
+            const hasAccess = await this.accessRestriction.checkAccess(interaction);
+            if (!hasAccess) {
+                return; // Accès refusé, message déjà envoyé
+            }
+
             if (customId === 'mod_config_select') {
                 await this.handleConfigSelect(interaction, value);
             } else if (customId === 'mod_user_select') {
@@ -84,6 +98,12 @@ export default class ModerationButtonHandler {
         const customId = interaction.customId;
         
         try {
+            // === VÉRIFICATION D'ACCÈS GLOBALE ===
+            const hasAccess = await this.accessRestriction.checkAccess(interaction);
+            if (!hasAccess) {
+                return; // Accès refusé, message déjà envoyé
+            }
+
             if (customId === 'mod_warn_modal') {
                 await this.handleWarnModal(interaction);
             } else if (customId === 'mod_mute_modal') {

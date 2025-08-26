@@ -1,6 +1,7 @@
 import TicketManager from '../managers/TicketManager.js';
 import DataPrivacyButtonHandler from './DataPrivacyButtonHandler.js';
 import Logger from '../utils/Logger.js';
+import AccessRestriction from '../utils/AccessRestriction.js';
 import { EmbedBuilder, MessageFlags } from 'discord.js';
 
 class ButtonHandler {
@@ -8,12 +9,19 @@ class ButtonHandler {
         this.client = client;
         this.logger = new Logger();
         this.dataPrivacyHandler = new DataPrivacyButtonHandler(client);
+        this.accessRestriction = new AccessRestriction();
     }
 
     async handleButton(interaction) {
         const { customId } = interaction;
 
         try {
+            // === VÉRIFICATION D'ACCÈS GLOBALE ===
+            const hasAccess = await this.accessRestriction.checkAccess(interaction);
+            if (!hasAccess) {
+                return; // Accès refusé, message déjà envoyé
+            }
+
             // Vérification préalable de l'état de l'interaction
             if (interaction.replied || interaction.deferred) {
                 this.logger.warn(`⚠️ Interaction ${customId} déjà traitée, abandon`);
