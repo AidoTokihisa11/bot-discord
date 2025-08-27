@@ -20,7 +20,7 @@ export default {
             option.setName('export_audit')
                 .setDescription('Exporter un rapport d\'audit avant suppression')
                 .setRequired(false))
-        .setDefaultMemberPermissions('8'), // Administrator permission as string
+        .setDefaultMemberPermissions(null), // Pas de restriction par défaut, gestion par code
 
     async execute(interaction) {
         // Vérification d'accès - AidoTokihisa OU utilisateur avec le rôle spécifique
