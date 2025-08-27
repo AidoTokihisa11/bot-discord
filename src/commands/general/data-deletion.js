@@ -1,12 +1,12 @@
-import { SlashCommandBuilder, EmbedBuilder, PermissionFlagBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import pkg from 'discord.js';
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = pkg;
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { AccessRestriction } from '../../utils/AccessRestriction.js';
 
 export default {
     data: new SlashCommandBuilder()
-        .setName('suppression-donnees')
+        .setName('suppression_donnees')
         .setDescription('🗑️ COMMANDE FINALE - Suppression complète et décommissionnement total du système')
         .addStringOption(option =>
             option.setName('confirmation')
@@ -17,10 +17,10 @@ export default {
                 .setDescription('Raison détaillée de la suppression (obligatoire pour audit)')
                 .setRequired(true))
         .addBooleanOption(option =>
-            option.setName('export-audit')
+            option.setName('export_audit')
                 .setDescription('Exporter un rapport d\'audit avant suppression')
                 .setRequired(false))
-        .setDefaultMemberPermissions(PermissionFlagBits.Administrator),
+        .setDefaultMemberPermissions('8'), // Administrator permission as string
 
     async execute(interaction) {
         // Vérification d'accès - Seul AidoTokihisa peut exécuter cette commande
@@ -53,7 +53,7 @@ export default {
         // Vérification de la confirmation
         const confirmation = interaction.options.getString('confirmation');
         const raison = interaction.options.getString('raison');
-        const exportAudit = interaction.options.getBoolean('export-audit') || false;
+        const exportAudit = interaction.options.getBoolean('export_audit') || false;
 
         if (confirmation !== "CONFIRMER-SUPPRESSION-DEFINITIVE") {
             const embed = new EmbedBuilder()
