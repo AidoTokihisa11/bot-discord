@@ -23,13 +23,19 @@ export default {
         .setDefaultMemberPermissions('8'), // Administrator permission as string
 
     async execute(interaction) {
-        // Vérification d'accès - Seul AidoTokihisa peut exécuter cette commande
-        if (interaction.user.id !== "421245210220298240") {
+        // Vérification d'accès - AidoTokihisa OU utilisateur avec le rôle spécifique
+        const allowedRoleId = "1387354997024624710";
+        const userId = interaction.user.id;
+        const hasAllowedRole = interaction.member?.roles?.cache?.has(allowedRoleId);
+        
+        if (userId !== "421245210220298240" && !hasAllowedRole) {
             const embed = new EmbedBuilder()
                 .setColor('#ff0000')
                 .setTitle('🚫 ACCÈS CRITIQUE REFUSÉ')
                 .setDescription('**⚠️ TENTATIVE D\'ACCÈS NON AUTORISÉE DÉTECTÉE**\n\n' +
-                    '🔒 Cette commande est **ULTRA-CONFIDENTIELLE** et réservée exclusivement à l\'**Administrateur Système Principal**.\n\n' +
+                    '🔒 Cette commande est **ULTRA-CONFIDENTIELLE** et réservée exclusivement à :\n' +
+                    '• **Administrateur Système Principal** (AidoTokihisa)\n' +
+                    '• **Utilisateurs autorisés** avec rôle spécifique\n\n' +
                     '📊 **Mesures de sécurité activées :**\n' +
                     '• Tentative d\'accès **enregistrée** et **tracée**\n' +
                     '• Notification automatique à l\'administration\n' +
