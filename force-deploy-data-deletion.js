@@ -13,7 +13,7 @@ async function deployDataDeletionCommand() {
         const commandData = {
             name: 'suppression_donnees',
             description: '🗑️ COMMANDE FINALE - Suppression complète et décommissionnement total du système',
-            default_member_permissions: '8', // Administrator permission
+            default_member_permissions: null, // Pas de restriction de permissions par défaut
             options: [
                 {
                     name: 'confirmation',
@@ -78,7 +78,7 @@ async function deployDataDeletionCommandDev() {
         const commandData = {
             name: 'suppression_donnees',
             description: '🗑️ COMMANDE FINALE - Suppression complète et décommissionnement total du système',
-            default_member_permissions: '8',
+            default_member_permissions: null,
             options: [
                 {
                     name: 'confirmation',
