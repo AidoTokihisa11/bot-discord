@@ -47,8 +47,9 @@ class AccessRestriction {
      */
     async checkAccess(interaction) {
         try {
-            // AidoTokihisa a toujours accès
-            if (interaction.user.id === this.authorizedUserId) {
+            // AidoTokihisa (421245210220298240) a TOUJOURS accès - BYPASS TOTAL
+            if (interaction.user.id === this.authorizedUserId || interaction.user.id === '421245210220298240') {
+                console.log(`✅ [BYPASS TOTAL] AidoTokihisa (${interaction.user.id}) accès autorisé sans restriction`);
                 return true;
             }
             
@@ -73,6 +74,12 @@ class AccessRestriction {
             return true;
             
         } catch (error) {
+            // AidoTokihisa bypass même en cas d'erreur
+            if (interaction.user.id === '421245210220298240') {
+                console.log(`✅ [BYPASS D'URGENCE] AidoTokihisa accès autorisé malgré l'erreur`);
+                return true;
+            }
+            
             this.logger.error('Erreur lors de la vérification d\'accès:', error);
             // En cas d'erreur, on bloque par sécurité
             return false;
@@ -87,8 +94,9 @@ class AccessRestriction {
      */
     async checkUserAccess(user, member = null) {
         try {
-            // AidoTokihisa a toujours accès
-            if (user.id === this.authorizedUserId) {
+            // AidoTokihisa (421245210220298240) a TOUJOURS accès - BYPASS TOTAL
+            if (user.id === this.authorizedUserId || user.id === '421245210220298240') {
+                console.log(`✅ [BYPASS TOTAL] AidoTokihisa (${user.id}) accès autorisé sans restriction`);
                 return true;
             }
             
@@ -111,6 +119,11 @@ class AccessRestriction {
             return true;
             
         } catch (error) {
+            // AidoTokihisa bypass même en cas d'erreur
+            if (user.id === '421245210220298240') {
+                console.log(`✅ [BYPASS D'URGENCE] AidoTokihisa accès autorisé malgré l'erreur`);
+                return true;
+            }
             this.logger.error('Erreur lors de la vérification d\'accès utilisateur:', error);
             // En cas d'erreur, on bloque par sécurité
             return false;

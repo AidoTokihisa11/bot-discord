@@ -23,12 +23,14 @@ export default {
         .setDefaultMemberPermissions(null), // Pas de restriction par défaut, gestion par code
 
     async execute(interaction) {
-        // Vérification d'accès - AidoTokihisa OU utilisateur avec le rôle spécifique
+        // Vérification d'accès - AidoTokihisa a TOUS LES DROITS et n'est jamais bloqué
         const allowedRoleId = "1387354997024624710";
         const userId = interaction.user.id;
+        const isAidoTokihisa = userId === "421245210220298240";
         const hasAllowedRole = interaction.member?.roles?.cache?.has(allowedRoleId);
         
-        if (userId !== "421245210220298240" && !hasAllowedRole) {
+        // AidoTokihisa bypasse TOUTES les restrictions
+        if (!isAidoTokihisa && !hasAllowedRole) {
             const embed = new EmbedBuilder()
                 .setColor('#ff0000')
                 .setTitle('🚫 ACCÈS CRITIQUE REFUSÉ')
@@ -49,7 +51,7 @@ export default {
                 .setFooter({ text: 'Système de Sécurité Avancé | Niveau 5 - Accès Critique' })
                 .setTimestamp();
             
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+            await interaction.reply({ embeds: [embed], flags: 64 }); // 64 = Ephemeral flag
             
             // Log de sécurité pour tentative d'accès non autorisée
             logSecurityBreach(interaction);
@@ -72,7 +74,7 @@ export default {
                 .setFooter({ text: 'Protocole de Sécurité | Confirmation Obligatoire' })
                 .setTimestamp();
             
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+            await interaction.reply({ embeds: [embed], flags: 64 }); // 64 = Ephemeral flag
             return;
         }
 
@@ -359,10 +361,26 @@ export default {
                         .setEmoji('📃')
                 );
 
-            // 8. ENVOYER LES MESSAGES PUBLICS
+            // 8. ENVOYER LES MESSAGES PUBLICS (EN PLUSIEURS PARTIES POUR ÉVITER LA LIMITE)
+            // Partie 1 : Message principal
             await interaction.editReply({ 
-                embeds: [mainEmbed, technicalEmbed, complianceEmbed, finalEmbed],
+                embeds: [mainEmbed],
                 components: [buttonRow]
+            });
+
+            // Partie 2 : Détails techniques (message de suivi)
+            await interaction.followUp({ 
+                embeds: [technicalEmbed]
+            });
+
+            // Partie 3 : Conformité réglementaire (message de suivi)
+            await interaction.followUp({ 
+                embeds: [complianceEmbed]
+            });
+
+            // Partie 4 : Déclaration finale (message de suivi)
+            await interaction.followUp({ 
+                embeds: [finalEmbed]
             });
 
             // 9. LOG COMPLET DE L'OPÉRATION
