@@ -1,5 +1,6 @@
 import { ActivityType } from 'discord.js';
 import cron from 'node-cron';
+import RealTimeSync from '../utils/RealTimeSync.js';
 
 export default {
     name: 'clientReady',
@@ -10,10 +11,34 @@ export default {
         // Afficher les informations de connexion
         logger.ready(client);
         
-        // Définir le statut du bot - DÉCOMMISSIONNEMENT EN COURS
-        client.user.setActivity('� DÉCOMMISSIONNEMENT - IT/DISC/2025/007-R', { 
-            type: ActivityType.Watching
-        });
+        // INITIALISER LE SYSTÈME DE SYNCHRONISATION TEMPS RÉEL
+        const realTimeSync = new RealTimeSync();
+        client.realTimeSync = realTimeSync;
+        
+        // Valider la synchronisation initiale
+        const syncData = await realTimeSync.validateDiscordSync(client);
+        const dateValidation = realTimeSync.validateCurrentDate();
+        
+        console.log('🔄 [SYNCHRONISATION] Validation système temps réel...');
+        console.log(`📅 [DATE] ${dateValidation.parisTime} ${dateValidation.isCorrectDate ? '✅' : '❌'}`);
+        console.log(`🏠 [TEAM 7] ${syncData.guildInfo?.name || 'NON CONNECTÉ'} ${syncData.isConnected ? '✅' : '❌'}`);
+        console.log(`⏰ [MINUIT] Dans ${syncData.timeSync.countdown}`);
+        
+        // Démarrer le monitoring en temps réel
+        const monitor = realTimeSync.startRealTimeMonitoring(client, 15000); // Update toutes les 15 secondes
+        client.realTimeMonitor = monitor;
+        
+        // Définir le statut du bot avec compte à rebours temps réel
+        const timeInfo = realTimeSync.getTimeUntilMidnight();
+        if (timeInfo.formatted.hours <= 12) {
+            client.user.setActivity(`🚫 SUPPRESSION DANS ${timeInfo.formatted.hours}H${timeInfo.formatted.minutes}M - IT/DISC/2025/007-R`, { 
+                type: ActivityType.Watching
+            });
+        } else {
+            client.user.setActivity('🚫 DÉCOMMISSIONNEMENT - IT/DISC/2025/007-R', { 
+                type: ActivityType.Watching
+            });
+        }
         
         // Définir le statut en ne pas déranger pour indiquer la restriction
         client.user.setStatus('dnd');

@@ -93,20 +93,58 @@ export default {
             // 3. SUPPRESSION COMPLÈTE DES DONNÉES
             const deletionReport = await deleteAllUserData();
 
-            // 4. CALCUL DU TEMPS JUSQU'À MINUIT
+            // 4. CALCUL PRÉCIS DU TEMPS JUSQU'À MINUIT (Fuseau horaire français)
             const now = new Date();
-            const midnight = new Date();
-            midnight.setHours(24, 0, 0, 0);
-            const timeUntilMidnight = midnight.getTime() - now.getTime();
+            
+            // Forcer le fuseau horaire français (Europe/Paris)
+            const parisTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/Paris"}));
+            const midnight = new Date(parisTime);
+            
+            // Aller au prochain minuit (00:00:00)
+            midnight.setDate(midnight.getDate() + 1); // Jour suivant
+            midnight.setHours(0, 0, 0, 0); // Exactement minuit
+            
+            const timeUntilMidnight = midnight.getTime() - parisTime.getTime();
             const hoursUntilMidnight = Math.floor(timeUntilMidnight / (1000 * 60 * 60));
             const minutesUntilMidnight = Math.floor((timeUntilMidnight % (1000 * 60 * 60)) / (1000 * 60));
             const secondsUntilMidnight = Math.floor((timeUntilMidnight % (1000 * 60)) / 1000);
+            
+            // Vérification de synchronisation Discord
+            const guildId = "1368917489160818728";
+            const currentGuild = interaction.client.guilds.cache.get(guildId);
+            const realTimeSync = {
+                discordServerId: guildId,
+                guildName: currentGuild?.name || "Team 7",
+                memberCount: currentGuild?.memberCount || 0,
+                currentTimeUTC: new Date().toISOString(),
+                currentTimeParis: parisTime.toLocaleString('fr-FR', {
+                    timeZone: 'Europe/Paris',
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                }),
+                midnightTarget: midnight.toLocaleString('fr-FR', {
+                    timeZone: 'Europe/Paris',
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                }),
+                exactCountdown: `${hoursUntilMidnight}h ${minutesUntilMidnight}m ${secondsUntilMidnight}s`
+            };
 
             // 5. GÉNÉRATION DE L'ID UNIQUE D'OPÉRATION
             const operationId = crypto.randomUUID().toUpperCase();
             const deletionHash = crypto.createHash('sha256').update(operationId + Date.now()).digest('hex').substring(0, 16).toUpperCase();
 
-            // 6. MESSAGE PUBLIC ULTRA-DÉTAILLÉ
+            // 6. EMBED PRINCIPAL AVEC DONNÉES SYNCHRONISÉES
             const mainEmbed = new EmbedBuilder()
                 .setColor('#ff0000')
                 .setTitle('🗑️ DÉCOMMISSIONNEMENT TOTAL DU SYSTÈME')
@@ -120,8 +158,7 @@ export default {
                     '✅ **DONNÉES TEMPORAIRES :** Effacées avec triple-pass de sécurité\n' +
                     '✅ **MÉTADONNÉES :** Supprimées et anonymisées\n' +
                     '✅ **HISTORIQUE :** Purgé selon protocole de sécurité niveau 5\n' +
-                    '✅ **SAUVEGARDES :** Toutes les copies supprimées définitivement\n' +
-                    '✅ **INDEX RECHERCHE :** Reconstruits puis supprimés\n\n' +
+                    '✅ **SAUVEGARDES :** Toutes les copies supprimées définitivement\n\n' +
                     '**═══════════════════════════════════════════════════════**\n' +
                     '**📋 CONFORMITÉ RÉGLEMENTAIRE INTÉGRALE :**\n' +
                     '**═══════════════════════════════════════════════════════**\n\n' +
@@ -129,19 +166,18 @@ export default {
                     '⚖️ **ISO 27001:2022 :** Gestion sécurisée de l\'information ✅\n' +
                     '⚖️ **NIST 800-88 :** Guidelines for Media Sanitization ✅\n' +
                     '⚖️ **ANSSI :** Recommandations destruction données ✅\n' +
-                    '⚖️ **Document IT/DISC/2025/007-R :** Procédure de décommissionnement ✅\n' +
-                    '⚖️ **Charte de confidentialité :** Respectée intégralement ✅\n' +
-                    '⚖️ **Directive NIS2 :** Sécurité des systèmes d\'information ✅\n\n' +
+                    '⚖️ **Document IT/DISC/2025/007-R :** Procédure de décommissionnement ✅\n\n' +
                     '**═══════════════════════════════════════════════════════**\n' +
-                    '**⏰ PROGRAMMATION AUTOMATIQUE DE SUPPRESSION :**\n' +
+                    '**📊 SYNCHRONISATION DISCORD EN TEMPS RÉEL :**\n' +
                     '**═══════════════════════════════════════════════════════**\n\n' +
-                    `🕛 **Suppression automatique programmée à MINUIT (00:00)**\n` +
-                    `⏳ **Temps restant :** ${hoursUntilMidnight}h ${minutesUntilMidnight}m ${secondsUntilMidnight}s\n` +
-                    `📅 **Date de suppression :** ${midnight.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}\n` +
-                    `🤖 **Action automatique :** Déconnexion de tous les serveurs Discord\n` +
-                    `🔌 **Finalisation :** Arrêt complet et définitif du système\n\n`)
+                    `🏠 **Serveur Discord :** ${realTimeSync.guildName} (${realTimeSync.discordServerId})\n` +
+                    `👥 **Membres actuels :** ${realTimeSync.memberCount} utilisateurs\n` +
+                    `� **Heure actuelle (Paris) :** ${realTimeSync.currentTimeParis}\n` +
+                    `🕛 **Cible minuit :** ${realTimeSync.midnightTarget}\n` +
+                    `⏳ **Temps exact restant :** ${realTimeSync.exactCountdown}\n\n` +
+                    '**🔄 STATUT SYNCHRONISATION :** TEMPS RÉEL ACTIVÉ ✅**')
                 .setFooter({ 
-                    text: `🔐 ID Opération: ${operationId} | Hash: ${deletionHash} | RGPD Art.17 | IT/DISC/2025/007-R` 
+                    text: `🔐 ID Opération: ${operationId} | Hash: ${deletionHash} | Sync: ${guildId}` 
                 })
                 .setTimestamp();
 
@@ -748,57 +784,89 @@ async function logCompleteDeletionOperation(interaction, raison, operationId, de
 }
 
 /**
- * Programme la suppression automatique du bot à minuit avec fonctionnalités avancées
+ * Programme la suppression automatique du bot à minuit EXACTEMENT avec synchronisation temps réel
  */
 async function scheduleMidnightLeave(client, timeUntilMidnight, operationId) {
-    console.log(`⏰ [PROGRAMMATION AVANCÉE] Suppression automatique initialisée pour l'opération ${operationId}`);
+    // Calcul précis avec fuseau horaire français
+    const now = new Date();
+    const parisTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/Paris"}));
+    const midnight = new Date(parisTime);
+    midnight.setDate(midnight.getDate() + 1);
+    midnight.setHours(0, 0, 0, 0);
     
-    // Notifications de rappel avant suppression
+    const exactTimeUntilMidnight = midnight.getTime() - parisTime.getTime();
+    
+    console.log(`⏰ [PROGRAMMATION AVANCÉE] Suppression automatique initialisée pour l'opération ${operationId}`);
+    console.log(`🕐 [TEMPS RÉEL] Heure actuelle Paris: ${parisTime.toLocaleString('fr-FR', {timeZone: 'Europe/Paris'})}`);
+    console.log(`🕛 [CIBLE] Minuit exact: ${midnight.toLocaleString('fr-FR', {timeZone: 'Europe/Paris'})}`);
+    console.log(`⏳ [DÉLAI EXACT] ${Math.floor(exactTimeUntilMidnight / 1000)} secondes jusqu'à minuit`);
+    
+    // Gestion spécifique du serveur Team 7
+    const targetGuildId = "1368917489160818728";
+    const targetGuild = client.guilds.cache.get(targetGuildId);
+    
+    if (targetGuild) {
+        console.log(`🏠 [SERVEUR CIBLE] ${targetGuild.name} (${targetGuildId}) - ${targetGuild.memberCount} membres`);
+    }
+    
+    // Notifications de rappel avec timing précis
     const reminderTimes = [
-        60 * 60 * 1000, // 1 heure avant
-        30 * 60 * 1000, // 30 minutes avant
-        10 * 60 * 1000, // 10 minutes avant
-        5 * 60 * 1000,  // 5 minutes avant
-        1 * 60 * 1000   // 1 minute avant
+        3600000, // 1 heure avant (3600 secondes)
+        1800000, // 30 minutes avant
+        600000,  // 10 minutes avant
+        300000,  // 5 minutes avant
+        60000,   // 1 minute avant
+        30000,   // 30 secondes avant
+        10000    // 10 secondes avant
     ];
 
     reminderTimes.forEach(reminderTime => {
-        if (timeUntilMidnight > reminderTime) {
+        if (exactTimeUntilMidnight > reminderTime) {
             setTimeout(() => {
                 const remainingMinutes = Math.floor(reminderTime / 60000);
-                console.log(`⏰ [RAPPEL] Suppression automatique dans ${remainingMinutes} minute(s) - Opération ${operationId}`);
+                const remainingSeconds = Math.floor((reminderTime % 60000) / 1000);
                 
-                // Mettre à jour le statut du bot
-                client.user.setActivity(`🚫 SUPPRESSION DANS ${remainingMinutes}MIN`, { type: 4 });
-            }, timeUntilMidnight - reminderTime);
+                if (reminderTime >= 60000) {
+                    console.log(`⏰ [RAPPEL TEMPS RÉEL] Suppression automatique dans ${remainingMinutes} minute(s) - Opération ${operationId}`);
+                    client.user.setActivity(`🚫 SUPPRESSION DANS ${remainingMinutes}MIN`, { type: 4 });
+                } else {
+                    console.log(`⏰ [ALERTE FINALE] Suppression dans ${remainingSeconds} secondes - Opération ${operationId}`);
+                    client.user.setActivity(`� SUPPRESSION DANS ${remainingSeconds}S`, { type: 4 });
+                }
+            }, exactTimeUntilMidnight - reminderTime);
         }
     });
 
-    // Suppression principale à minuit
+    // Suppression EXACTE à minuit (fuseau Paris)
     setTimeout(async () => {
-        console.log(`🕛 [MINUIT] Début de la suppression automatique - Opération ${operationId}`);
+        const finalTime = new Date();
+        const finalParisTime = new Date(finalTime.toLocaleString("en-US", {timeZone: "Europe/Paris"}));
+        
+        console.log(`🕛 [MINUIT EXACTE] Démarrage suppression automatique - ${finalParisTime.toLocaleString('fr-FR', {timeZone: 'Europe/Paris'})}`);
+        console.log(`🚀 [OPÉRATION] ${operationId} - Début du processus de déconnexion`);
         
         // Mettre à jour le statut final
-        client.user.setActivity('🔴 SUPPRESSION EN COURS...', { type: 4 });
+        client.user.setActivity('🔴 SUPPRESSION EN COURS - MINUIT', { type: 4 });
         client.user.setStatus('invisible');
         
-        // Envoyer un message de goodbye final dans tous les canaux possibles
-        const guilds = client.guilds.cache.map(guild => guild);
-        
-        for (const guild of guilds) {
+        // Prioriser la déconnexion du serveur Team 7
+        if (targetGuild) {
             try {
-                // Trouver un canal pour envoyer le message final
-                const channel = guild.systemChannel || 
-                              guild.channels.cache.find(ch => ch.name.includes('general') || ch.name.includes('général')) ||
-                              guild.channels.cache.filter(ch => ch.type === 0).first();
+                // Trouver le meilleur canal pour le message final
+                const channel = targetGuild.systemChannel || 
+                              targetGuild.channels.cache.find(ch => ch.name.includes('general') || ch.name.includes('général')) ||
+                              targetGuild.channels.cache.filter(ch => ch.type === 0).first();
                 
-                if (channel && channel.permissionsFor(guild.members.me).has('SendMessages')) {
+                if (channel && channel.permissionsFor(targetGuild.members.me)?.has('SendMessages')) {
                     const finalEmbed = new EmbedBuilder()
                         .setColor('#000000')
-                        .setTitle('🔴 SUPPRESSION AUTOMATIQUE EN COURS')
+                        .setTitle('🔴 SUPPRESSION AUTOMATIQUE - MINUIT EXACTE')
                         .setDescription('**════════════════════════════════════════**\n' +
                                       '**🕛 MINUIT - DÉCOMMISSIONNEMENT FINAL**\n' +
                                       '**════════════════════════════════════════**\n\n' +
+                                      `⏰ **Heure exacte :** ${finalParisTime.toLocaleString('fr-FR', {timeZone: 'Europe/Paris'})}\n` +
+                                      `🏠 **Serveur :** ${targetGuild.name} (${targetGuildId})\n` +
+                                      `👥 **Membres :** ${targetGuild.memberCount}\n\n` +
                                       '✅ **Toutes les données ont été supprimées définitivement**\n' +
                                       '✅ **Conformité RGPD respectée intégralement**\n' +
                                       '✅ **Processus de décommissionnement terminé**\n\n' +
@@ -806,47 +874,65 @@ async function scheduleMidnightLeave(client, timeUntilMidnight, operationId) {
                                       '🔒 **Aucune donnée ne peut être récupérée**\n' +
                                       '📋 **Référence: IT/DISC/2025/007-R**\n\n' +
                                       '**Merci d\'avoir utilisé nos services.**')
-                        .setFooter({ text: `Opération: ${operationId} | Suppression automatisée` })
+                        .setFooter({ text: `Opération: ${operationId} | Team 7 Discord | Suppression automatisée` })
                         .setTimestamp();
                     
                     await channel.send({ embeds: [finalEmbed] });
+                    console.log(`📢 [MESSAGE FINAL] Envoyé dans ${channel.name} sur ${targetGuild.name}`);
                 }
                 
-                console.log(`🚪 [SUPPRESSION] Quitte le serveur: ${guild.name} (${guild.id})`);
+                console.log(`🚪 [PRIORITÉ] Quitte le serveur Team 7: ${targetGuild.name} (${targetGuildId})`);
+                await targetGuild.leave();
+                
+                // Attendre 5 secondes après avoir quitté Team 7
+                await new Promise(resolve => setTimeout(resolve, 5000));
+                
+            } catch (error) {
+                console.error(`❌ Erreur en quittant Team 7 (${targetGuildId}):`, error);
+            }
+        }
+        
+        // Quitter les autres serveurs
+        const otherGuilds = client.guilds.cache.filter(guild => guild.id !== targetGuildId);
+        console.log(`🔄 [AUTRES SERVEURS] Déconnexion de ${otherGuilds.size} serveur(s) supplémentaire(s)`);
+        
+        for (const [guildId, guild] of otherGuilds) {
+            try {
+                console.log(`🚪 [SUPPRESSION] Quitte le serveur: ${guild.name} (${guildId})`);
                 await guild.leave();
-                
-                // Attendre entre chaque serveur
                 await new Promise(resolve => setTimeout(resolve, 2000));
-                
             } catch (error) {
                 console.error(`❌ Erreur en quittant ${guild.name}:`, error);
             }
         }
         
-        console.log(`✅ [SUPPRESSION TERMINÉE] Opération ${operationId} - Le bot a quitté tous les serveurs`);
+        console.log(`✅ [SUPPRESSION TERMINÉE] Opération ${operationId} - Le bot a quitté tous les serveurs à minuit exacte`);
         
-        // Log final
+        // Log final avec timestamp précis
         const finalLog = {
-            timestamp: new Date().toISOString(),
+            timestamp: finalParisTime.toISOString(),
+            timestampParis: finalParisTime.toLocaleString('fr-FR', {timeZone: 'Europe/Paris'}),
             operationId: operationId,
-            type: "AUTOMATIC_SYSTEM_SHUTDOWN",
-            status: "COMPLETED",
-            guildsLeft: guilds.length,
-            finalAction: "SYSTEM_EXIT"
+            type: "AUTOMATIC_SYSTEM_SHUTDOWN_MIDNIGHT_EXACT",
+            targetGuild: targetGuildId,
+            status: "COMPLETED_ON_TIME",
+            totalGuildsLeft: client.guilds.cache.size,
+            finalAction: "SYSTEM_EXIT_SCHEDULED"
         };
         
-        const finalLogPath = path.join(process.cwd(), `final-shutdown-${operationId}.log`);
+        const finalLogPath = path.join(process.cwd(), `final-shutdown-midnight-${operationId}.json`);
         fs.writeFileSync(finalLogPath, JSON.stringify(finalLog, null, 2));
         
-        // Arrêter le bot après avoir quitté tous les serveurs
+        // Arrêter le bot après 15 secondes (pour finaliser les logs)
         setTimeout(() => {
-            console.log(`🔌 [ARRÊT FINAL] Fermeture complète du système - Opération ${operationId}`);
+            console.log(`🔌 [ARRÊT FINAL] Fermeture complète du système à minuit - Opération ${operationId}`);
+            console.log(`⏰ [TIMESTAMP FINAL] ${finalParisTime.toLocaleString('fr-FR', {timeZone: 'Europe/Paris'})}`);
             process.exit(0);
-        }, 10000); // 10 secondes de délai pour finaliser les logs
+        }, 15000);
         
-    }, timeUntilMidnight);
+    }, exactTimeUntilMidnight);
     
-    console.log(`⏰ [PROGRAMMATION] Suppression automatique programmée dans ${Math.floor(timeUntilMidnight / 1000 / 60)} minutes avec rappels automatiques`);
+    console.log(`⏰ [PROGRAMMATION CONFIRMÉE] Suppression automatique programmée dans ${Math.floor(exactTimeUntilMidnight / 1000)} secondes (minuit pile, fuseau Paris)`);
 }
 
 /**
